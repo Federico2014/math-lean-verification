@@ -48,6 +48,11 @@ if cfg['dependency_mode'] == 'mathlib-cache':
         run(['git', 'remote', 'add', 'origin', dep['url']], cwd=target)
         run(['git', 'fetch', '--depth=1', 'origin', dep['rev']], cwd=target)
         run(['git', 'checkout', '--detach', dep['rev']], cwd=target)
+        if dep['name'] == 'proofwidgets':
+            # Lake locates this package's release asset through Git tags. A
+            # commit-only shallow fetch omits them; fetching tags never changes
+            # the pinned checkout, which is verified again below.
+            run(['git', 'fetch', '--depth=1', 'origin', '+refs/tags/*:refs/tags/*'], cwd=target)
     # Cache retrieval is executed only from the approved image context. It is
     # explicitly a trusted dependency cache, never a candidate build cache.
     run(['lake', 'exe', 'cache', 'get', *cfg['cache_modules']], cwd=project)
