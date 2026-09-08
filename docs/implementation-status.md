@@ -1,52 +1,28 @@
-# 实现状态与正式核验上线清单
+# Implementation status and formal acceptance checklist
 
-本仓库初版是**候选登记和核验基础设施骨架**。以下区分已经实现的行为与尚未接入的后端，防止绿色仓库 CI 被误读为数学证明通过。
+The repository provides candidate registration and a trusted source-only Lean merge gate. Registration CI and a machine proof verdict are distinct; neither grants formal award acceptance.
 
-## 已实现
+## Implemented
 
-- [x] 空的题目、候选、适配器和记录目录。
-- [x] 候选和问题登记表单、模板与操作手册。
-- [x] JSON Schema 2020-12、重复字段／非有限数／大小限制。
-- [x] 固定 commit、目录身份、目标完整覆盖及跨文件引用校验。
-- [x] 可信文件哈希、目录内容完整性、路径越界和符号链接拒绝。
-- [x] 命题审查摘要和审查名册一致性检查。
-- [x] 不执行候选的 CLI：`validate`、`list`、`plan`。
-- [x] 受限预检状态：后端未接入始终返回非零，不产生正式通过。
-- [x] CI 自动测试及登记校验，手动预检入口。
-- [x] 固定 Actions 提交和带哈希的 CI Python 依赖。
+- [x] Strict registration schemas, fixed commits, complete target coverage, hash binding, safe paths, and statement-review digests.
+- [x] Non-executing `validate`, `list`, and `plan` commands.
+- [x] Protected-base PR controller, exact-head statuses, and separate status publishing.
+- [x] Source-only Lean core/Std execution profile with fixed Lean/Comparator/exporter/Nanoda versions and [onboarding evidence](backend-onboarding.md).
+- [x] Fresh isolated build/export environments, explicit seccomp, read-only mounts, non-root execution, no network, and resource/output/time limits with runtime probes.
+- [x] Comparator statement/dependency comparison, transitive axiom audit, official Lean kernel replay, and independent Nanoda replay.
+- [x] Real positive and negative Lean regression tests in CI; all positive cases must reach both kernels.
+- [x] Fail-closed prerequisites: candidate changes require an already-approved official statement and supported toolchain on `main`; no self-approved Challenge or policy from the PR.
+- [x] Temporary per-run exports, stage results, version/input digests, image ID, tool checksums, and package inventories.
 
-## 完整 Lean 核验启用前
+## Still required for broader verification and formal acceptance
 
-- [ ] 审定并固定 Lean／Mathlib／Comparator／导出器／Nanoda 兼容组合。
-- [ ] 实现只获取固定公开源码的准备阶段，安全处理归档、依赖和许可。
-- [ ] 在目标 Linux 执行环境验证非 root、断网、文件／进程隔离和资源限制。
-- [ ] 每次运行执行沙箱探针；失败不得退回裸执行。
-- [ ] 洁净重建源码、沙箱内导出，可信 Challenge 与候选不共享可写产物。
-- [ ] 可信命题依赖比对、公理审计和双独立内核重放。
-- [ ] 固定并审查适配器，桥接证明也计入全部必需目标。
-- [ ] 完整结果 schema、可信驱动生成及每个目标的聚合判定。
-- [ ] 长期证据归档、回读校验、版本绑定和独立的最小权限发布。
-- [ ] 公开审查角色、独立盲写材料、当前工具链安全政策。
+- [ ] Approve real mathematical reviewers and preserve their independent drafting, conflict disclosures, source snapshots, and statement review evidence.
+- [ ] Onboard Mathlib and additional Lean/dependency combinations with exact locks, clean rebuilds, compatibility/security review, and adversarial tests.
+- [ ] Integrate reviewed multi-module adapters and bridges; do not silently weaken targets or skip unsupported inputs.
+- [ ] Establish durable evidence storage, backups, licensing authorization, readback verification, and immutable formal records.
+- [ ] Implement formal acceptance aggregation and minimal-permission archival publication independently of temporary Actions artifacts.
+- [ ] Review actual candidate contributions, priority, independence scoring, recipient identity, and prize decisions separately.
 
-不能通过删掉 `backend_unconfigured`、把 `formal_acceptance_enabled` 改成 true、或返回伪造成功 JSON 完成上述任务。初版 policy schema 主动拒绝这种启用方式。完整后端应通过单独的实现及审查 PR 上线。
+`formal_acceptance_enabled` remains false. The existing Erdős #650 registration is blocked until its independent statement review, supported Lean/Mathlib profile, and required bridges are completed. No successful synthetic proof test changes its status.
 
-## 必须通过的真实后端测试
-
-一个有效的小型合成证明作为正例；下列反例必须被正确拒绝或报告未完成：
-
-| 用例 | 应有结果 |
-| --- | --- |
-| 同名 theorem 改成 True、量词削弱、论域变化 | 命题不匹配 |
-| 新增 False 前提或其他未授权假设 | 不能得到完整官方结论 |
-| 自定义定义／实例改变数学含义 | 依赖比对或人工审查拒绝 |
-| 间接 sorryAx 或借用 Challenge 占位 | 证明不完整 |
-| 自定义公理、额外计算信任 | 额外假设待审 |
-| 只完成多个目标中的一部分 | 整体不通过 |
-| 一种内核失败或不支持 | 不得通过 |
-| 伪造 stdout、结果 JSON 或旧证据 | 不影响可信判定 |
-| 恶意 .olean、共享缓存污染 | 不进入可信执行边界 |
-| 联网、读令牌、改 Challenge／检查器／Actions 控制文件 | 被隔离并留证 |
-| 超时、资源耗尽、格式异常 | 明确未完成，不能通过 |
-| 证据包丢失、输入版本变化、旧批准复用 | 不得采信 |
-
-这些真实 Lean／沙箱测试当前尚未运行。现有 Python 测试只覆盖已实现的登记与预检行为。
+See the [merge gate documentation](lean-merge-gate.md) for its supported scope, submission process, and status semantics, and the [technical design](design.md) for the broader target architecture.

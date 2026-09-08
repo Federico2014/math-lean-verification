@@ -2,7 +2,7 @@
 
 ## Current execution boundary
 
-This bootstrap repository validates JSON registration data and bound local statement files. It does not fetch, build, import, export, or execute candidate Lean projects. The backend is deliberately unconfigured. A preflight plan is never a proof verification result.
+The registry validates JSON metadata and bound statement files. The PR merge gate additionally provides a source-only Lean core/Std execution profile with Comparator and independent Nanoda replay. Candidate use requires an approved toolchain and an already-reviewed official statement on the protected base. See [the merge gate](docs/lean-merge-gate.md). A preflight plan and a metadata CI pass are never proof verification results.
 
 The verifier's schemas come from its own checkout, not from the candidate data root. JSON has size limits, duplicate-key rejection, strict properties, fixed commit requirements, and path/symlink checks. Statement reviews bind content hashes and cannot be copied across statement changes.
 
@@ -14,7 +14,7 @@ Approved reviewer names in JSON are not identity authentication, proof of indepe
 - PRs can modify tests and workflows. Their green checks are developer feedback, not authoritative formal evidence. Formal decisions must use an independently protected verifier revision.
 - Preflight runs only on the default branch via `workflow_dispatch`. It never executes candidate source.
 - All Actions use full commit pins. Checkout does not persist credentials. Python CI dependencies use exact versions and hashes.
-- No `pull_request_target`, privileged `workflow_run`, self-hosted runner, candidate build cache, or automated publishing job is enabled.
+- The trusted `pull_request_target` gate checks out only protected-base controller code. PR files are bounded data; candidate execution is confined to disposable containers in the read-only job. Separate status-only jobs consume trusted job outcomes, never candidate artifacts. No privileged `workflow_run`, self-hosted runner, or candidate build cache is enabled.
 - CODEOWNERS only protects files when repository branch protection requires its review. Check actual GitHub settings using the maintainer runbook.
 
 ## Mandatory boundary before enabling a Lean backend
@@ -27,7 +27,7 @@ Candidate `.olean` and other precompiled artifacts are not trusted inputs. The f
 
 Use trusted statement comparison and axiom auditing plus independent kernel implementations. Lean's official kernel and `lean4checker` are not two independent implementations. Additional assumptions must remain disclosed; `sorryAx` in the required proof closure is incomplete.
 
-Complete the integration and adversarial acceptance tests in `docs/implementation-status.md` before changing the bootstrap policy. Removing the `backend_unconfigured` blocker is not an implementation of verification.
+The source-only backend must pass its real proof and sandbox regressions before deployment. Complete the remaining integration and adversarial acceptance requirements in `docs/implementation-status.md` before enabling formal acceptance or adding broader toolchains. A green diagnostic or manually posted status cannot replace verification.
 
 ## Reporting
 

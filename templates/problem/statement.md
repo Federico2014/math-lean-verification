@@ -1,8 +1,8 @@
-# 原始数学问题
+# Original mathematical problem
 
-- 原题出处、版本与准确位置：待填写
-- 首次提出时间及依据：待填写
-- 原始表述：待填写
-- 拟验证方向（证明／反例／部分结果）：待填写
-- 全部目标和范围：待填写
-- 与在先结果／完整猜想的关系：待填写
+- Original source, version, and exact location: TODO
+- First proposal date and supporting evidence: TODO
+- Original statement: TODO
+- Intended verification direction (proof/counterexample/partial result): TODO
+- All targets and scope: TODO
+- Relationship to prior results and the full conjecture: TODO

@@ -1,156 +1,159 @@
-# math-lean-verification 技术设计
+# math-lean-verification technical design
 
-版本：v0.1（设计草案）
-日期：2026-09-08
-建议仓库名：`math-lean-verification`
-适用范围：孙宇晨奖候选成果的 Lean 证明复现、命题对应性核验与公开证据归档。
+Version: v0.1 (design draft)
+Date: 2026-09-08
+Repository name: `math-lean-verification`
+Scope: reproducible Lean proofs, statement correspondence verification, and public evidence archives for Justin Sun Prize candidates.
 
-> 实现边界：本文是目标设计；当前只实现登记与非执行预检。完整后端尚未接入，见 [实现状态](implementation-status.md)。候选目录保持为空。
+> Implementation boundary: this document describes the target design. Registration, non-executing preflight, and the source-only [Lean merge gate](lean-merge-gate.md) are implemented. Broader toolchains and durable formal acceptance are not integrated; see [implementation status](implementation-status.md). Candidate registrations remain pending until the required reviews and verification are complete.
 
-## 1. 设计结论
+## 1. Design overview
 
-建设一个由奖项维护方控制核验标准、候选人提交证明来源、GitHub Actions 执行隔离核验的仓库。每次核验固定原题版本、官方形式化命题、候选源码、依赖、检查器和政策版本，输出可以独立复现的证据包。
+Build a repository where prize maintainers control verification standards, candidates submit proof sources, and GitHub Actions runs isolated verification. Each run pins the original problem version, official formal statement, candidate sources, dependencies, checkers, and policy, producing an independently reproducible evidence package.
 
-平台必须同时回答两个问题：
+The platform must answer both questions:
 
-1. 候选证明在认可的逻辑、公理和检查器下是否成立？
-2. 它所证明的命题是否忠实对应本次拟奖励的数学问题？
+1. Is the candidate proof valid under the accepted logic, axioms, and checkers?
+2. Does its statement faithfully represent the mathematical problem being considered for the prize?
 
-采用两层核验：原始数学问题到官方 Lean 命题由独立数学审查确认；候选证明到官方 Lean 命题由受保护的机械核验流程检查。仅编译成功、检查器返回成功或源码中未发现 `sorry`，均不足以认定“该数学问题的形式化验证通过”。
+Use two verification layers: independent mathematical review establishes the correspondence between the original problem and the official Lean statement; a protected machine-verification process checks the candidate proof against that statement. Successful compilation, a successful checker exit, or the absence of `sorry` in a source search is insufficient to establish formal verification of the mathematical problem.
 
-第一版采用单仓库、每题独立工具链、维护者触发完整核验的方式。使用 Comparator 组织命题比对与证明重放，计划接入 Lean 官方内核及 Nanoda 两种独立实现。具体版本兼容性、沙箱支持及安全基线在实现阶段验证并冻结，不在本文承诺任意历史 Lean 工程都可直接接入。
+The initial full-verification design uses one repository, separate toolchains per problem, and maintainer-triggered runs. Comparator will coordinate statement comparison and proof replay, with Lean's official kernel and Nanoda planned as two independent implementations. Validate and freeze version compatibility, sandbox support, and security baselines during implementation. This design does not promise direct support for every historical Lean project.
 
-本文是待实现的技术设计。示例数据、拟定资源配额和验收用例不表示已经创建仓库、运行 CI、完成数学审查或核验任何候选成果。
+This is a design for functionality still to be implemented. Example data, proposed resource limits, and acceptance cases do not establish repository creation, CI execution, mathematical review, or verification of any candidate.
 
-## 2. 依据、目标与边界
+## 2. Basis, goals, and boundaries
 
-### 2.1 设计依据
+### 2.1 Design basis
 
-本设计根据已确认的孙宇晨奖运营要求及 Lean／GitHub 官方技术资料整理。仓库不公开内部候选名单、私人联系资料或未授权材料。技术能力与正式奖项采信分别记录。
+This design follows the confirmed Justin Sun Prize operating requirements and official Lean/GitHub technical materials. The repository does not publish internal candidate lists, private contact details, or unauthorized materials. Technical capabilities and formal award acceptance are recorded separately.
 
-### 2.2 规则对应
+### 2.2 Rule mapping
 
-| 规则 | 平台落实方式 |
+| Rule | Platform implementation |
 | --- | --- |
-| 3.5.1、3.5.4 | 记录原始成果、在先结果、证明路线及形式化方；技术通过不自动认定首解或实质解题贡献 |
-| 5.6.1 | 归档固定提交、版本、公理审计、检查器、执行环境和实际隔离配置 |
-| 5.7.1 | 不可信代码隔离执行，维护最低安全版本，使用至少两种独立检查器实现 |
-| 5.7.2 | 原题出处、定义审查、官方陈述冻结；勘误作废旧陈述并重做核验 |
-| 5.7.3 | 材料检查、公理判读、陈述比对、独立重放、证据归档五步齐备 |
-| 5.7.4 | 事后陈述的回避、盲写、双人独立、第三方来源优先与公示记录 |
+| 3.5.1, 3.5.4 | Record original results, prior work, proof strategies, and formalization contributors; technical success does not automatically establish priority or substantive problem-solving contributions |
+| 5.6.1 | Archive fixed commits, versions, axiom audits, checkers, execution environments, and actual isolation configurations |
+| 5.7.1 | Isolate untrusted code, maintain minimum secure versions, and use at least two independent checker implementations |
+| 5.7.2 | Record original sources, review definitions, and freeze official statements; corrections invalidate old statements and require verification again |
+| 5.7.3 | Complete all five steps: material inspection, axiom assessment, statement comparison, independent replay, and evidence archiving |
+| 5.7.4 | Record conflicts of interest, blind drafting, two-person independence, preference for third-party statements, and public disclosure for retrospective statements |
 
-### 2.3 目标
+### 2.3 Goals
 
-- 确认目标定理及其传递依赖中没有未获认可的占位或额外公理。
-- 确认候选证明覆盖本次受奖命题的全部条件和结论。
-- 保存可追溯、可复现、可由第三方检查的证据。
-- 允许同一道题的多个证明工程独立登记与核验。
-- 展示失败原因、条件性结果和缺失材料，避免将未知状态显示为通过。
+- Confirm that target theorems and their transitive dependencies contain no unapproved placeholders or extra axioms.
+- Confirm that candidate proofs cover every condition and conclusion of the statement considered for the award.
+- Preserve traceable, reproducible evidence that third parties can inspect.
+- Allow multiple proof projects for the same problem to be registered and verified independently.
+- Show failure reasons, conditional results, and missing materials without presenting unknown states as successful.
 
-### 2.4 边界
+### 2.4 Boundaries
 
-CI 不负责决定奖金、受奖身份、首解优先权、独立贡献、利益冲突是否实质消除，以及自然语言问题是否具有数学价值。这些由相应审查流程决定并关联到记录中。
+CI does not decide prize amounts, recipient identity, first-solution priority, independent contributions, whether conflicts of interest have been substantively resolved, or the mathematical value of a natural-language problem. Separate review processes make these decisions and link them to the records.
 
-平台不承诺消除全部数学审查、逻辑系统、检查器实现、沙箱、操作系统和硬件错误。它提供的是明确假设下的分层证据，而非不依赖任何信任的数学正确性保证。
+The platform does not promise to eliminate every error in mathematical review, logic, checker implementations, sandboxes, operating systems, or hardware. It provides layered evidence under explicit assumptions, not a guarantee of mathematical correctness requiring no trust.
 
-第一版只处理经授权公开的源码和材料。KYC、收款信息、未公开联系方式及内部风险评估不进入公共仓库。尚未授权公开的候选材料应通过另行设计的私有流程处理。
+The initial version handles only sources and materials authorized for publication. KYC data, payment details, unpublished contact information, and internal risk assessments must stay out of the public repository. Candidate materials not authorized for publication require a separately designed private process.
 
-## 3. 总体架构与信任边界
+## 3. Architecture and trust boundaries
 
 ```text
-原题文献与精确受奖范围
-          │ 独立审查、定义核对、版本冻结
+Original literature and exact award scope
+          │ Independent review, definition checks, version freeze
           ▼
-官方 Challenge + 审查记录 + 政策版本
+Official Challenge + review records + policy version
           │
-          ├───────────────┐
-          ▼               ▼
-候选登记与源码锁定     可信核验器与工具链
-          │               │
-          └───────┬───────┘
-                  ▼
-        隔离构建与证明导出
-                  │ 不可信导出数据
-                  ▼
-        可信命题比对、公理审计与独立重放
-                  ▼
-        结构化报告 + 完整证据归档
-                  ▼
-        结合有效数学审查记录计算采信状态
+          ├───────────────────────────┐
+          ▼                           ▼
+Candidate registration           Trusted verifier
+and fixed sources                and toolchain
+          │                           │
+          └─────────────┬─────────────┘
+                        ▼
+              Isolated build and proof export
+                        │ Untrusted exported data
+                        ▼
+              Trusted statement comparison,
+              axiom audit, and independent replay
+                        ▼
+              Structured report + complete archive
+                        ▼
+              Acceptance status incorporating
+              valid mathematical review records
 ```
 
-### 3.1 可信部分
+### 3.1 Trusted components
 
-受保护分支上的登记解析器、政策、官方陈述及其可信依赖、经审查的适配器、核验驱动、固定检查器、沙箱配置、结果生成与发布代码。可信表示这些部分须接受维护方审查，不表示可免除审查或不会存在缺陷。
+The registration parser, policy, official statements and trusted dependencies, reviewed adapters, verification driver, pinned checkers, sandbox configuration, and result-generation/publishing code on protected branches. Being trusted means these components require maintainer review; it does not exempt them from review or imply they are free of defects.
 
-### 3.2 不可信部分
+### 3.2 Untrusted components
 
-候选 Lean 源码及其宏、策略、插件、构建文件、附带依赖、预编译文件、日志、打印结果、导出数据，以及 PR／Issue 中的全部用户输入。曾经编译成功、来自知名作者或由 AI 生成，均不改变执行边界。
+Candidate Lean sources, macros, tactics, plugins, build files, bundled dependencies, precompiled files, logs, printed results, exported data, and all user input in PRs and issues. Prior compilation success, a well-known author, or AI generation does not change the execution boundary.
 
-### 3.3 必须保持的不变量
+### 3.3 Required invariants
 
-1. 候选代码运行时接触不到宿主凭据、仓库写令牌、检查器可写路径、官方陈述可写路径和 Actions 控制文件。
-2. 核验驱动来自受保护的固定提交；候选 PR 对工作流的修改不能影响此次正式核验。
-3. 官方陈述在独立可信工作区准备，与候选工作区不共享可写构建产物或可变缓存。
-4. 任何导入候选模块的构建、策略执行、公理打印或导出都在不可信沙箱内完成。
-5. 最终状态由可信核验器计算，不能采信候选程序自行输出的 `passed`、退出包装脚本或徽章。
-6. 缺失、未知、超时、格式错误、检查器不支持、沙箱探针失败均不转换为通过。
+1. Running candidate code cannot access host credentials, repository write tokens, writable checker or official-statement paths, or Actions control files.
+2. The verification driver comes from a protected fixed commit; workflow edits in a candidate PR cannot affect that formal run.
+3. Prepare official statements in a separate trusted workspace with no writable build artifacts or mutable caches shared with the candidate workspace.
+4. Any build, tactic execution, axiom printing, or export that imports candidate modules runs inside the untrusted sandbox.
+5. The trusted verifier computes the final status. Candidate-generated `passed` messages, exit wrappers, and badges are not authoritative.
+6. Missing data, unknown states, timeouts, malformed output, unsupported checkers, and failed sandbox probes never become passes.
 
-## 4. 命题对应性：最重要的前置核验
+## 4. Statement correspondence: the essential prerequisite
 
-### 4.1 固定精确数学对象
+### 4.1 Fix the exact mathematical object
 
-每个 `problem_id` 表示一个明确命题版本及受奖范围。保存原始文献、公开日期、题库版本、引用位置、原始表述、拟证明或拟反驳的结论，以及与完整猜想、特例和加强结论的关系。
+Each `problem_id` identifies a precise problem, with its statement version and award scope recorded. Preserve original literature, publication date, problem-database version, citation location, original formulation, intended proof or refutation, and its relationship to the full conjecture, special cases, and stronger results.
 
-“证明某猜想”“反驳某猜想”“证明该猜想的某个特例”是不同的核验对象。官方 Challenge 的结论必须明确方向。一个较强结果可以用于推出原题，但需将这个推导纳入核验链。
+Proving a conjecture, refuting it, and proving one special case are different verification objects. The official Challenge must state the direction explicitly. A stronger result may imply the original problem, but that implication must be included in the verification chain.
 
-### 4.2 独立撰写与审查
+### 4.2 Independent drafting and review
 
-对于已有证明的首批候选，按规则 5.7.4 执行：
+For initial candidates whose proofs already exist, apply rule 5.7.4:
 
-1. 确认原题来源和拟奖励的精确范围。
-2. 两位符合回避条件的策展人分别记录身份、关联关系声明、所接触材料和独立撰写时间。
-3. 仅向撰写人提供原题材料，不提供候选论文、证明和形式化代码；各自完成陈述后冻结草稿哈希。
-4. 两份草稿冻结后再公开比对，解决分歧，并逐项审核非标准定义、记号和实例。
-5. 如存在早于本奖评定的独立第三方陈述，优先考虑；仍核验其来源、独立性、定义和依赖版本。
-6. 公示定稿、参与者、日期、出处、差异处理及最终批准记录。
+1. Confirm the original source and exact scope considered for the prize.
+2. Two curators meeting conflict-of-interest requirements separately record their identities, relationship disclosures, materials they have seen, and independent drafting times.
+3. Give drafters only the original problem materials, excluding candidate papers, proofs, and formalization code; freeze each completed draft's hash.
+4. Compare the drafts publicly only after both are frozen, resolve differences, and review each nonstandard definition, notation, and instance.
+5. Prefer an independent third-party statement predating the prize assessment when available, while still checking its provenance, independence, definitions, and dependency versions.
+6. Publish the final statement, participants, dates, sources, resolutions, and approval records.
 
-代码托管系统可以保存时间戳、草稿哈希和审查意见，但不能独立证明人员从未接触候选材料；真实性仍依靠可问责的声明与审查。仅用两个模型会话也不能自动满足独立性、回避和盲写要求。
+Code hosting can preserve timestamps, draft hashes, and review comments. It cannot independently establish that someone has never seen candidate materials; authenticity requires accountable disclosures and review. Two model sessions alone do not satisfy independence, conflict-of-interest, or blind-drafting requirements.
 
-### 4.3 对应说明表
+### 4.3 Correspondence table
 
-每项提交必须引用题目级 `correspondence.md`，至少覆盖下表。结论应使用“满足／不满足／待核实”，不允许空白默认为满足。
+Every submission must reference the problem-level `correspondence.md`, covering at least the following dimensions. Use explicit conclusions such as "satisfied", "not satisfied", or "pending verification"; blanks must not default to satisfied.
 
-| 维度 | 核对内容 | 典型错误 |
+| Dimension | Checks | Typical mistake |
 | --- | --- | --- |
-| 原题身份 | 文献、版本、编号、争议表述 | 同名异题或选取错误题面版本 |
-| 论域 | 数系、空间、对象类别、维数 | 将实数改为有理数，将任意维数改为固定维数 |
-| 量词 | 全称、存在、顺序、有限／无限 | 把所有对象替换成存在某个对象 |
-| 前提 | 原题条件、隐含条件、非空性 | 增加未授权假设，或通过矛盾前提使结论空真 |
-| 结论 | 强度、常数、极限、最优性 | 用有限实验替代渐近结论或无穷存在性 |
-| 定义 | 所有非标准定义及公共定义版本 | 同名函数、重载运算或类型类实例改变语义 |
-| 证明方向 | 正面证明、反例、等价命题 | 反驳与证明混淆，只证明一个不够用的方向 |
-| 贡献范围 | 原题首解、新反例、推广、形式化 | 将旧证明形式化登记成近期首次解决 |
+| Problem identity | Literature, version, identifier, disputed wording | Confusing different problems with the same name or choosing the wrong formulation |
+| Domain | Number system, space, object class, dimension | Replacing reals with rationals or arbitrary dimensions with one fixed dimension |
+| Quantifiers | Universal/existential, order, finite/infinite | Replacing all objects with the existence of one object |
+| Assumptions | Original conditions, implicit conditions, nonemptiness | Adding unauthorized hypotheses or contradictory premises that make the claim vacuous |
+| Conclusion | Strength, constants, limits, optimality | Substituting finite experiments for asymptotic or infinite-existence results |
+| Definitions | Every nonstandard definition and public definition version | Changing meaning through same-name functions, overloaded operations, or typeclass instances |
+| Proof direction | Positive proof, counterexample, equivalence | Confusing proof with refutation or proving an insufficient direction |
+| Contribution scope | First solution, new counterexample, generalization, formalization | Registering the formalization of an old proof as a recent first solution |
 
-### 4.4 机器可检查的部分
+### 4.4 Machine-checkable relationships
 
-通过 Comparator 比对可信 Challenge 与候选 Solution 的目标陈述及其相关声明依赖，审计实际证明依赖并重放。工具能力和配置以所锁定版本为准；实现阶段须用恶意同名定义等用例验证。工具的成立前提是 Challenge 及其导入环境可信。[Comparator 官方文档](https://github.com/leanprover/comparator)
+Use Comparator to compare target statements and related declaration dependencies between the trusted Challenge and candidate Solution, audit actual proof dependencies, and replay proofs. Capabilities and configuration depend on the pinned version; validate cases such as malicious same-name definitions during implementation. This assumes the Challenge and its import environment are trusted. [Comparator documentation](https://github.com/leanprover/comparator)
 
-候选命题与官方命题若并非工具直接接受的对应写法，由维护者审查适配器并提供 Lean 桥接证明：候选定理能够推出完整官方命题；若对外主张二者等价，则提供两个方向。桥接证明及其全部依赖也要经过公理审计和双检查器重放。
+If candidate and official statements use encodings the tool cannot directly match, maintainers must review an adapter and provide a Lean bridge deriving the complete official statement from the candidate theorem. Claims of equivalence require both directions. The bridge and all dependencies also undergo axiom auditing and dual-checker replay.
 
-第一版不开放候选人任意填充官方命题的 `Prop` 定义或其他定义洞，以免把目标改成容易成立的命题。定义洞属于后续单独设计的功能。
+The initial version does not let candidates fill arbitrary `Prop` definitions or other definition holes in official statements, which could make a target trivially true. Definition holes require a separate future design.
 
-### 4.5 Challenge 占位与候选占位的区别
+### 4.5 Challenge placeholders versus candidate placeholders
 
-某些 Comparator 接入模式允许可信 Challenge 以 `sorry` 表示“待证明的目标”。这是题目模板机制，不是候选证明被允许不完整。模板必须单独管理；最终 Solution 的目标及其传递证明依赖不得借用 Challenge 的占位证明或包含 `sorryAx`。全仓库搜索 `sorry` 仅用于提示，不能作为最终判据。
+Some Comparator integration modes allow a trusted Challenge to use `sorry` for a proof target. This is a statement-template mechanism, not permission for incomplete candidate proofs. Manage templates separately; final Solution targets and their transitive proof dependencies must neither borrow Challenge placeholders nor contain `sorryAx`. Repository-wide `sorry` searches are diagnostic only, not the final criterion.
 
-### 4.6 版本失效
+### 4.6 Version invalidation
 
-批准记录绑定原题快照、Challenge、定义、可信依赖和政策版本的哈希。修改这些内容后必须重新判断原审查是否适用；正式陈述勘误按照规则作废旧版、重新公示和核验。
+Approval records bind hashes of original snapshots, Challenge, definitions, trusted dependencies, and policy versions. Changes require reassessing whether the previous review still applies. Official statement corrections invalidate the old version and require republication and verification under the rules.
 
-只有候选源码变化时，无须无条件重写原题，但需重新核验该候选，并重新检查其适配器和贡献范围。单纯文案排版变化是否不影响数学审查，由受保护的差异审查记录确认，不能靠提交者自行声明跳过。
+A candidate-only source change does not automatically require rewriting the original problem, but it does require reverification of that candidate and renewed checks of its adapter and contribution scope. Whether a formatting-only change preserves mathematical review must be established in a protected diff-review record, not by the submitter's own assertion.
 
-## 5. 仓库结构和数据模型
+## 5. Repository structure and data model
 
 ```text
 math-lean-verification/
@@ -189,140 +192,140 @@ math-lean-verification/
     └── workflows/{intake,verify,publish}.yml
 ```
 
-以上名称为建议接口，尚未实现。大型源码快照、完整日志和导出证明放入长期证据存储；Git 保存结构化摘要、哈希和稳定索引。
+These are proposed interfaces, not a description of the current implementation. Store large source snapshots, complete logs, and exported proofs in durable evidence storage; Git holds structured summaries, hashes, and stable indexes.
 
-### 5.1 核心实体
+### 5.1 Core entities
 
-| 实体 | 必需字段 |
+| Entity | Required fields |
 | --- | --- |
-| Problem | `problem_id`、原题出处及快照、结论方向、范围、`statement_version`、Challenge 与定义哈希 |
-| Review | 审查人及角色、回避声明、独立草稿哈希、盲写材料、差异处理、批准状态、批准对象哈希 |
-| Submission | `submission_id`、问题版本、上游 URL、完整 commit、目标模块及定理列表、源码目录、适配器、证明路线、公开署名意向 |
-| Toolchain | Lean 版本与源码 commit、Mathlib 及全部依赖 commit、工具二进制哈希、检查器 commit、镜像 digest、安全政策版本 |
-| Run | 输入集合摘要、验证器 commit、run ID、触发者、时间、机器架构、资源限制、各阶段结果及退出原因 |
-| Record | 定理级结果、公理集合、命题匹配结果、双检查器结果、证据包哈希及 URI、审查引用、当前采信状态 |
+| Problem | `problem_id`, original sources and snapshots, claim direction, scope, `statement_version`, Challenge and definition hashes |
+| Review | Reviewers and roles, conflict disclosures, independent draft hashes, blind-drafting materials, resolution of differences, approval status, approved-content hash |
+| Submission | `submission_id`, problem version, upstream URL, full commit, target modules and theorems, source directory, adapter, proof strategy, intended public attribution |
+| Toolchain | Lean version and source commit, Mathlib and all dependency commits, tool binary hashes, checker commits, image digest, security policy version |
+| Run | Input-set digest, verifier commit, run ID, initiator, time, machine architecture, resource limits, stage results, and exit reasons |
+| Record | Per-theorem results, axiom sets, statement matches, dual-checker results, evidence-package hash and URI, review references, current acceptance status |
 
-所有 `commit` 必须使用完整固定标识；不接受 `main`、`latest` 等可变引用作为正式核验输入。涉及适配补丁时保存原始源码和补丁，并明确“核验的是适配版本”，不能将结果直接归给未经核验的上游版本。
+All commits must use complete fixed identifiers. Mutable references such as `main` and `latest` are not formal verification inputs. When applying adapter patches, preserve both original sources and patches and state explicitly that the adapted version was verified. Do not attribute that result directly to unverified upstream sources.
 
-每个候选可以声明多个必需目标定理。全部目标及桥接证明通过后，候选才能取得整体机器通过状态。目标列表由维护方审定，提交者不能删除难以验证的目标来取得绿色状态。
+A candidate may declare multiple required target theorems. Every target and bridge must pass before the candidate receives an overall machine-passed status. Maintainers approve the target list; submitters cannot remove difficult targets to obtain a green status.
 
-## 6. CI 流程
+## 6. CI pipeline
 
-### 6.1 Intake：材料登记
+### 6.1 Intake: register materials
 
-Issue 表单收集公开源码 URL、commit、题目、模块、定理、论文和署名意向。PR 只做结构、字段和目录变更检查，不直接构建候选工程。
+Issue forms collect public source URLs, commits, problems, modules, theorems, papers, and intended attribution. PR checks validate structure, fields, and directory changes without building candidate projects.
 
-解析器使用严格 schema、字段长度与枚举限制；拒绝未知的可执行配置、路径越界、符号链接越界和 shell 片段。第一版只接受经过校验的公开 GitHub HTTPS 仓库地址；依赖来源需要单独列入锁文件和允许范围。
+Use strict schemas, field lengths, and enums. Reject unknown executable configuration, path traversal, escaping symlinks, and shell fragments. Initially accept only validated public GitHub HTTPS repository URLs. Dependency sources must be separately locked and explicitly allowed.
 
-维护方批准登记及适配配置后合入受保护分支。主分支上的候选登记被合并不代表候选源码已经可信。
+Maintainers approve registration and adapter configuration before merging into a protected branch. Merging a candidate registration into the default branch does not make candidate source trusted.
 
-### 6.2 Plan：形成不可变执行请求
+### 6.2 Plan: create an immutable execution request
 
-完整核验由维护者从默认分支运行 `workflow_dispatch`，输入仅为已登记候选 ID 和配置版本。受信任的调度器解析全部固定 commit，产生执行请求和输入哈希，并绑定题目、审查、源码、适配器、工具链及政策。
+Maintainers trigger full verification from the default branch using `workflow_dispatch`, supplying only a registered candidate ID and configuration version. A trusted scheduler resolves all fixed commits, creates the execution request and input hash, and binds the problem, reviews, sources, adapters, toolchain, and policy.
 
-核验期间不再次解析可变分支。重试使用同一组输入并产生新 run ID。并发任务限流；后续新提交不覆盖旧提交的运行结果。
+Do not resolve mutable branches again during verification. Retries use the same inputs with a new run ID. Limit concurrency; subsequent submissions do not overwrite earlier run results.
 
-### 6.3 Prepare：获取材料
+### 6.3 Prepare: obtain materials
 
-在线阶段仅下载固定源码、所需依赖和认可工具，不运行候选提供的构建文件、hooks、下载脚本或二进制。对归档解压、子模块、文件数量、大小和路径进行检查。清除凭据与 `.git` 元数据后生成只含获准输入的工作区。
+The online stage downloads only fixed sources, required dependencies, and approved tools. It does not execute candidate build files, hooks, download scripts, or binaries. Check archive extraction, submodules, file counts, sizes, and paths. Remove credentials and `.git` metadata to produce a workspace containing only approved inputs.
 
-Mathlib 和候选依赖均锁定到具体源码。未知依赖、递归子模块和 Git LFS 对象不得隐式在线获取；需显式列入材料清单，否则以“材料不完整”结束。
+Pin Mathlib and candidate dependencies to exact sources. Unknown dependencies, recursive submodules, and Git LFS objects must not be fetched implicitly online. List them explicitly in the material manifest or stop with incomplete materials.
 
-### 6.4 Sandbox：构建与导出
+### 6.4 Sandbox: build and export
 
-每份候选使用一次性工作区。可信构建适配器生成或审查 Lake 配置，不直接在宿主执行上游 `lakefile.lean`。任何仍需执行的候选配置和插件均属于沙箱内代码。
+Use a disposable workspace for each candidate. Trusted build adapters generate or review Lake configuration; never execute upstream `lakefile.lean` directly on the host. Any candidate configuration and plugins that must execute remain sandboxed code.
 
-正式核验拒绝提交方附带的 `.olean`、共享 `.lake` 构建缓存和预编译原生库，Mathlib 与候选依赖从源码重建。基础工具链本身由维护方提供并记录源码版本、二进制 digest 与构建来源；该工具链的引导信任必须在报告中披露，不能宣称每次 CI 都从零引导编译器。
+Formal verification rejects submitter-provided `.olean` files, shared `.lake` build caches, and precompiled native libraries. Rebuild Mathlib and candidate dependencies from source. Maintainers provide the base toolchain and record its source version, binary digest, and build provenance. Disclose its bootstrap trust; do not claim every CI run bootstraps the compiler from scratch.
 
-候选编译产生的 `.olean` 只在隔离环境中被构建／导出工具读取。向后续检查阶段只传递规定格式的导出数据，不在可信发布宿主导入候选 `.olean`。
+Only sandboxed build/export tools may read candidate-generated `.olean` files. Pass only prescribed exported data to later checks; never import candidate `.olean` files on the trusted publishing host.
 
-### 6.5 Check：公理、陈述与重放
+### 6.5 Check: axioms, statements, and replay
 
-在与候选执行隔离的可信核验环境中验证导出格式、官方命题对应关系、目标证明的传递公理依赖，并执行认可的独立重放检查。原始导出属于不可信数据，应限制大小、结构、解析资源及检查器权限。
+In a trusted verification environment isolated from candidate execution, validate export format, correspondence to the official statement, and transitive axiom dependencies, then run approved independent replay checks. Exports remain untrusted data: bound their size, structure, parsing resources, and checker permissions.
 
-双检查器初始方案为 Lean 官方内核与 Nanoda，须验证双方均覆盖所列目标及其必需依赖。Comparator 是组织核验的工具，不单独计为第三个内核；`lean4checker` 重用 Lean 内核，不计作另一种独立实现。[Lean 官方验证指南](https://lean-lang.org/doc/reference/latest/ValidatingProofs/)
+The initial dual-checker plan uses Lean's official kernel and Nanoda; verify that both cover every target and required dependency. Comparator coordinates verification and is not a third kernel. `lean4checker` reuses Lean's kernel and is not another independent implementation. [Lean proof validation guide](https://lean-lang.org/doc/reference/latest/ValidatingProofs/)
 
-`#print axioms` 保留为证据和诊断材料，最终判据来自可信核验链对实际导出证明的检查。不得仅解析候选构建 stdout 来授予通过。
+Keep `#print axioms` output as evidence and diagnostics. The final verdict comes from the trusted chain checking actual exported proofs, not from parsing candidate build stdout alone.
 
-### 6.6 Archive：归档并生成状态
+### 6.6 Archive: preserve evidence and compute status
 
-可信驱动生成规范化结果。先保存完整证据包并校验回读哈希，再发布摘要。归档失败时不能产生最终 `formal_verified`。
+The trusted driver generates canonical results. Save the complete evidence package and verify readback hashes before publishing a summary. Archive failure prevents final `formal_verified` status.
 
-独立发布任务仅接收严格 schema 的数据，不执行证据包中的脚本、不导入 Lean 模块。它核对允许的工作流来源、run ID、验证器 commit、完整输入摘要与各检查结果；只授予发布所需的最小写权限。候选执行任务不持有发布权限。
+A separate publishing job accepts only strictly validated data and never executes evidence-package scripts or imports Lean modules. It validates allowed workflow origins, run ID, verifier commit, complete input digest, and all check results. Grant only the minimal publishing permissions; candidate execution jobs never receive publishing authority.
 
-## 7. GitHub 与执行安全
+## 7. GitHub and execution security
 
-### 7.1 执行环境
+### 7.1 Execution environment
 
-第一版使用 GitHub 托管的临时 Linux runner，外加明确的进程／文件系统／网络隔离。GitHub runner 的临时性不等于候选执行已经隔离；普通 Docker 容器也不被视作充分证明。
+The initial design uses ephemeral GitHub-hosted Linux runners plus explicit process, filesystem, and network isolation. Runner ephemerality does not itself isolate candidate execution, and an ordinary Docker container is not sufficient evidence of isolation.
 
-候选沙箱采用受审查的 Landrun／容器或其他隔离组合。具体选型必须通过兼容性验证和逃逸相关探针；宿主缺少必要能力时失败关闭，不退回无沙箱执行。Comparator 上游的沙箱前提、版本相关限制和缓解要求需随所锁定版本一起审查。[Comparator 官方文档](https://github.com/leanprover/comparator)
+Use a reviewed Landrun/container or another isolation combination. Validate compatibility and escape-related probes before adopting it. Fail closed when required host capabilities are missing; never fall back to unsandboxed execution. Review Comparator's sandbox prerequisites, version-specific limitations, and mitigations with the pinned version. [Comparator documentation](https://github.com/leanprover/comparator)
 
-| 隔离项 | 设计要求 |
+| Boundary | Design requirement |
 | --- | --- |
-| 网络 | 执行阶段禁用网络，覆盖 IPv4、IPv6、DNS、回环访问及未授权 Unix socket |
-| 身份 | 非 root、无提权能力、无宿主 Docker socket |
-| 文件 | 仅输入只读、独立输出目录可写；禁止写官方题目、检查器、宿主目录 |
-| 进程 | 隔离宿主进程、环境变量和凭据文件，禁止访问宿主 Actions 文件命令通道 |
-| 资源 | 限制墙钟时间、内存、CPU、进程数、磁盘、日志与导出大小 |
-| 缓存 | 正式核验不使用候选或跨任务共享的可变构建缓存 |
-| 探针 | 每次运行先验证网络／文件／凭据边界及限额生效，探针失败终止 |
+| Network | Disable network access during execution, including IPv4, IPv6, DNS, loopback, and unauthorized Unix sockets |
+| Identity | Non-root, no privilege escalation, no host Docker socket |
+| Files | Read-only inputs and a separate writable output directory; no writes to official statements, checkers, or host directories |
+| Processes | Isolate host processes, environment variables, and credential files; deny access to host Actions file-command channels |
+| Resources | Limit wall time, memory, CPU, process count, disk, logs, and export size |
+| Caches | No candidate-supplied or cross-job mutable build caches for formal verification |
+| Probes | Verify network/file/credential boundaries and effective limits before every run; abort on probe failure |
 
-建议初始配置为单候选单工作区、最多两项完整核验并行。超时和内存等数值应在试点上测量后写入受保护的资源档位；重型证明允许受审查的大资源档位。资源不足意味着“未完成核验”，不意味着数学命题错误。
+The proposed starting configuration is one workspace per candidate and at most two concurrent full verifications. Measure timeouts and memory requirements on pilots before recording protected resource tiers. Heavy proofs may use reviewed larger tiers. Insufficient resources mean verification is incomplete, not that the theorem is false.
 
-### 7.2 仓库权限
+### 7.2 Repository permissions
 
-- 受保护分支强制 PR 和必要审查；政策、Challenge、适配器、核验器及工作流设置 CODEOWNERS。
-- CODEOWNERS 必须结合分支规则执行，单独存在文件不构成权限边界。
-- 官方陈述的数学批准与核验基础设施的代码批准分别记录；修改两者不能只靠一个通用“批准 PR”状态代替。
-- 核验任务只给必要读取权限，关闭 checkout 凭据持久化，沙箱不挂载 Actions 运行环境和令牌。
-- 所有 Actions 固定完整 commit，镜像固定 digest，工具及策略变更需重新验证失败样例。
-- 不用 `pull_request_target` 执行外部 PR 代码；不让具备写权限的 `workflow_run` 消费并执行候选产物。
-- 发布程序必须对 Markdown／HTML 和文件名转义，并限制展示体积。
+- Protected branches require PRs and the reviews appropriate to the operation; assign CODEOWNERS for policy, Challenge, adapters, verifier, and workflows. See the [maintainer runbook](maintainer-runbook.md) for current registration merge settings.
+- CODEOWNERS only enforces a boundary when corresponding branch rules require its review.
+- Record mathematical statement approvals separately from infrastructure code approvals. A generic PR approval cannot replace both.
+- Verification jobs receive only necessary read permissions. Disable checkout credential persistence and do not mount Actions environments or tokens in the sandbox.
+- Pin every Action to a full commit and every image to a digest. Revalidate negative cases after tool or policy changes.
+- Do not execute external PR code with `pull_request_target` or let a write-enabled `workflow_run` consume and execute candidate artifacts.
+- Publishing code must escape Markdown/HTML and filenames and limit displayed content size.
 
-上述 GitHub 边界以官方安全文档为依据，并作为本平台的明确实施要求。[GitHub Actions 安全参考](https://docs.github.com/en/actions/reference/security/secure-use)
+These boundaries follow the official documentation and are explicit platform implementation requirements. [GitHub Actions security reference](https://docs.github.com/en/actions/reference/security/secure-use)
 
-## 8. 公理与版本政策
+## 8. Axiom and version policy
 
-### 8.1 公理判定
+### 8.1 Axiom assessment
 
-第一版标准路径白名单为 `propext`、`Classical.choice`、`Quot.sound`；实际白名单须经奖项维护方发布并带版本。空集合或白名单子集可通过，不要求三个公理都出现。
+The initial standard path allows `propext`, `Classical.choice`, and `Quot.sound`. Prize maintainers must publish and version the actual allowlist. The empty set or any subset may pass; a proof need not use all three axioms.
 
-| 情况 | 处理 |
+| Condition | Handling |
 | --- | --- |
-| 目标依赖包含 `sorryAx` | `proof_incomplete`，拒绝采信 |
-| 仅使用已公布标准公理 | 继续命题比对与独立重放 |
-| 出现自定义公理／额外计算信任公理 | `extra_assumptions`，进入专项审查，不自动扩大白名单 |
-| 检查器不支持该证明构造或版本 | `unsupported`，不伪装成证明失败或通过 |
-| 日志缺失、工具输出无法解析 | `verification_error`，不得通过 |
+| Target dependencies contain `sorryAx` | `proof_incomplete`; reject acceptance |
+| Only published standard axioms are used | Continue statement comparison and independent replay |
+| Custom axioms or extra computational trust appear | `extra_assumptions`; specialized review, without automatically expanding the allowlist |
+| A checker does not support the proof construct or version | `unsupported`; do not present it as proof failure or success |
+| Logs are missing or tool output cannot be parsed | `verification_error`; no pass |
 
-奖项规则允许自定义公理逐条审查。第一版只自动采信标准公理路径；例外路径需审定假设含义、文献证据、与官方命题的关系及政策依据。人工勾选“同意此公理”不能将未经证明的原题假设变成“原题已获无条件证明”。适用例外时必须在结论中显式披露，且不得突破官方命题对应性要求。
+Prize rules allow individual review of custom axioms. The initial version automatically accepts only the standard-axiom path. Exceptions require assessment of assumption meaning, literature evidence, relationship to the official statement, and policy grounds. A human checkbox accepting an axiom cannot turn an unproved assumption of the original problem into an unconditional proof. Any applicable exception must be explicitly disclosed in the conclusion and must preserve official-statement correspondence requirements.
 
-### 8.2 版本冻结与更新
+### 8.2 Version freezing and updates
 
-每题可以使用不同的获准 Lean／Mathlib 组合。执行工具、导出器和检查器必须属于兼容且符合当前安全政策的组合；固定历史版本便于复现，不代表历史版本始终满足采信要求。
+Each problem may use a different approved Lean/Mathlib combination. Execution tools, exporters, and checkers must be compatible and satisfy current security policy. Pinning an old version aids reproducibility but does not establish perpetual eligibility for acceptance.
 
-规则要求使用当前发布检查器并维护最低安全版本。平台保存“版本政策快照”和对应上游发布记录；首次上线前发布认可清单。检查器升级后先执行正反例回归，再重跑受影响候选。若最新认可检查器无法处理旧工程，状态为 `unsupported` 或 `recheck_required`，不得静默使用已撤销版本维持通过。
+The rules require current released checkers and minimum secure versions. Preserve version-policy snapshots and corresponding upstream release records, and publish the approved list before launch. After checker upgrades, run positive and negative regressions, then rerun affected candidates. If the latest approved checker cannot handle an old project, report `unsupported` or `recheck_required`; never silently use a revoked version to preserve a pass.
 
-Lean／Mathlib 迁移可能改变定义或适配器，必须审查差异并重新绑定命题审查记录。历史核验事实保留；页面分别展示“当时结果”和“当前是否仍受采信”。
+Lean/Mathlib migrations may change definitions or adapters. Review the differences and rebind statement review records. Preserve historical verification facts and display both the result at the time and its current acceptance status.
 
-## 9. 状态模型与通过判据
+## 9. Status model and acceptance criteria
 
-### 9.1 独立状态轴
+### 9.1 Separate status dimensions
 
-| 状态轴 | 建议值 |
+| Dimension | Proposed values |
 | --- | --- |
-| 材料 | `incomplete`、`ready` |
-| 命题审查 | `pending`、`approved`、`rejected`、`invalidated` |
-| 机器核验 | `not_run`、`running`、`passed`、`failed`、`timeout`、`unsupported`、`error` |
-| 公理 | `standard_only`、`extra_assumptions`、`proof_incomplete`、`unknown` |
-| 归档 | `pending`、`complete`、`failed` |
-| 形式化采信 | `pending`、`formal_verified`、`not_accepted`、`recheck_required`、`withdrawn` |
-| 奖项资格 | 外部评审状态及记录链接，独立维护 |
+| Materials | `incomplete`, `ready` |
+| Statement review | `pending`, `approved`, `rejected`, `invalidated` |
+| Machine verification | `not_run`, `running`, `passed`, `failed`, `timeout`, `unsupported`, `error` |
+| Axioms | `standard_only`, `extra_assumptions`, `proof_incomplete`, `unknown` |
+| Archive | `pending`, `complete`, `failed` |
+| Formal acceptance | `pending`, `formal_verified`, `not_accepted`, `recheck_required`, `withdrawn` |
+| Award eligibility | Separately maintained external review status and record links |
 
-结果按定理记录，项目级状态由全部必需目标聚合。工作流编排成功仅说明程序执行完成，不直接等于机器通过或形式化采信通过；正式 required check 应根据聚合语义给出结论，不能用“报告生成成功”代替。
+Record results per theorem and aggregate all required targets into the project status. Successful workflow orchestration means only that the program completed, not that machine verification or formal acceptance passed. A formal required check must reflect the aggregate verdict rather than merely successful report generation.
 
-### 9.2 第一版正式通过条件
+### 9.2 Initial formal acceptance criteria
 
 ```text
 formal_verified =
@@ -338,36 +341,36 @@ formal_verified =
   AND archive_complete_and_readback_verified
 ```
 
-这些字段由可信流程产生，并引用不可变输入和审查对象；提交 JSON 中填入同名布尔值不产生批准效果。自定义公理例外不走此自动公式，须等待例外政策和人工结论落地。
+A trusted process generates these fields and binds them to immutable inputs and reviewed content. Adding identically named booleans to submission JSON grants no approval. Custom-axiom exceptions are outside this automatic formula and require a finalized exception policy and human decision.
 
-即使 `formal_verified`，仍不自动确认获奖身份、首解、C 维独立性或奖金。尤其是机器在两个内核上重放，不等同于存在两条符合评分 C 维的独立学术验证通道。
+Even `formal_verified` does not automatically establish recipient identity, priority, dimension-C independence, or prize amount. In particular, replay on two kernels is not equivalent to two independent academic validation channels qualifying under scoring dimension C.
 
-## 10. 证据包、公开展示与复现
+## 10. Evidence packages, public presentation, and reproduction
 
-### 10.1 证据包内容
+### 10.1 Evidence package contents
 
-- 原题出处与获准快照、官方命题版本、对应说明、非标准定义审查。
-- 审查记录、草稿哈希、批准对象哈希、利益关系和公开署名材料。
-- 上游源码与全部依赖的固定提交、获准源码快照、适配器及补丁。
-- Lean／Mathlib／检查器／导出器／验证器／镜像的版本、commit 和 digest。
-- 全部目标定理、实际形式化陈述、传递公理清单、命题匹配结果。
-- 洁净构建日志、导出证明、两种检查器结果、退出码和错误分类。
-- 机器架构、实际沙箱配置、探针结果、资源限制、时间和 run ID。
-- `result.json`、全文件校验清单、归档索引及内容哈希。
+- Original sources and authorized snapshots, official statement version, correspondence documentation, and nonstandard-definition review.
+- Review records, draft hashes, approved-content hashes, relationship disclosures, and public attribution materials.
+- Fixed commits for upstream sources and all dependencies, authorized source snapshots, adapters, and patches.
+- Versions, commits, and digests of Lean, Mathlib, checkers, exporters, verifier, and images.
+- All target theorems, actual formal statements, transitive axiom lists, and statement-comparison results.
+- Clean-build logs, exported proofs, both checker results, exit codes, and error classifications.
+- Machine architecture, actual sandbox configuration, probe results, resource limits, times, and run ID.
+- `result.json`, complete file checksum manifest, archive index, and content hashes.
 
-### 10.2 存储和保留
+### 10.2 Storage and retention
 
-Git 保存小型摘要、政策、审查和索引；完整证据包使用具有长期保留策略的对象存储或发布附件，并设置独立备份。上线前确定具体提供方与保留策略，不能将临时 Actions artifact 作为唯一正式档案。
+Git holds small summaries, policies, reviews, and indexes. Complete evidence packages use object storage or release attachments with a durable retention policy and independent backups. Select the provider and retention policy before launch; temporary Actions artifacts cannot be the only formal archive.
 
-源代码快照的公开与再分发须遵循上游许可证，记录归属；缺少许可时先解决归档授权，不能只保存 URL 后声称材料已经完整归档。
+Publication and redistribution of source snapshots must comply with upstream licenses and preserve attribution. Resolve archive authorization when licensing is absent. Saving a URL alone does not establish complete archival of the materials.
 
-文件哈希只能检查完整性，不能单独证明是谁生成了结论。可追溯性来自受保护工作流、固定版本、run 身份和发布记录的联合绑定；签名／制品证明可在后续加强，但不替代核验本身。
+File hashes verify integrity but do not establish who generated a conclusion. Traceability requires jointly binding protected workflows, fixed versions, run identities, and publication records. Signatures and artifact attestations may strengthen this later, but cannot replace verification itself.
 
-### 10.3 展示和复现
+### 10.3 Presentation and reproduction
 
-README／GitHub Pages 按题目展示候选工程、源码 commit、命题版本、机器结果、命题审查、采信状态、最近核验时间和证据链接。不得给整个仓库一个绿色徽章后暗示全部候选都已通过。
+README/GitHub Pages should show candidate projects by problem, including source commits, statement versions, machine results, statement reviews, acceptance status, latest verification time, and evidence links. A green repository badge must not imply that all candidates have passed.
 
-计划提供如下本地接口；这是待实现接口，不是当前可执行命令：
+The following local interfaces are planned, not currently executable:
 
 ```text
 verify submission <submission-id> --input-lock <lock-file>
@@ -375,80 +378,80 @@ verify replay <record-id> --mode historical
 verify replay <record-id> --mode current-policy
 ```
 
-历史复现重放固定输入并标明原安全政策；当前政策重验产生新记录。两种模式使用同样的隔离要求，禁止因“历史复现”在宿主直接执行旧证明代码。
+Historical reproduction replays fixed inputs and identifies the original security policy. Reverification under current policy creates a new record. Both modes require the same isolation; historical reproduction does not justify directly executing old proof code on the host.
 
-## 11. 候选接入策略
+## 11. Candidate onboarding strategy
 
-初始化不加入任何候选。后续通过 Issue 和登记 PR 添加，先用临时合成样例测试系统，再选择获准提交的真实工程接入。相同题目的不同证明工程独立登记；条件性结果、在先成果、特例及原题首解必须区分。
+Bootstrap starts with no candidates. Add candidates later through issues and registration PRs, testing the system with temporary synthetic examples before selecting authorized real projects. Register different proof projects for the same problem separately. Distinguish conditional results, prior work, special cases, and first solutions to the original problem.
 
-## 12. 验收标准
+## 12. Acceptance tests
 
-### 12.1 数学与命题对应性用例
+### 12.1 Mathematics and statement correspondence cases
 
-| 用例 | 预期结果 |
+| Case | Expected result |
 | --- | --- |
-| 完整证明覆盖官方目标，且全部审查有效 | 归档完成后可 `formal_verified` |
-| 定理名相同，但结论改成 `True` | 命题比对失败 |
-| 额外加入 `False` 或未授权前提 | 官方目标不能由完整获准证明推出，不通过 |
-| 全称变存在、无穷变有限、实数变有理数 | 命题比对失败或在人工审查被拒绝 |
-| 同名定义／类型类实例改变含义 | 定义依赖比对或审查拒绝 |
-| 数学等价但不同编码 | 提交经核验的桥接证明后才可通过 |
-| 只完成多个必需目标中的一部分 | 定理级展示已完成部分，整体不通过 |
-| 候选证明依赖官方 Challenge 的占位 | 公理审计检出不完整，不通过 |
-| 与目标无关的文件包含 `sorry` | 单独报告；不以搜索结果代替目标依赖判断 |
+| Complete proof covers the official target and all reviews are valid | Eligible for `formal_verified` after archiving |
+| Same theorem name but conclusion changed to `True` | Statement mismatch |
+| Added `False` or unauthorized premise | Complete approved proof cannot derive the official target; no pass |
+| Universal changed to existential, infinite to finite, or real to rational | Statement mismatch or human-review rejection |
+| Same-name definitions/typeclass instances change meaning | Dependency comparison or review rejects |
+| Mathematically equivalent but differently encoded | Pass only after a verified bridge is supplied |
+| Only some required targets completed | Show completed theorem-level results, but no overall pass |
+| Candidate proof depends on the official Challenge placeholder | Axiom audit detects incompleteness; no pass |
+| Unrelated files contain `sorry` | Report separately; source searches do not replace target-dependency analysis |
 
-### 12.2 公理与基础设施用例
+### 12.2 Axiom and infrastructure cases
 
-| 用例 | 预期结果 |
+| Case | Expected result |
 | --- | --- |
-| 目标间接依赖 `sorryAx` | `proof_incomplete` |
-| 自定义未证公理或超出政策的计算信任 | `extra_assumptions`，不能自动采信 |
-| 一种检查器通过、另一种失败／不支持 | 整体不得通过，保留差异 |
-| 候选自行打印伪造公理列表或 `passed` | 不影响可信结果 |
-| 提供恶意 `.olean` 或旧缓存 | 不被可信宿主加载；从源码重建 |
-| 尝试联网、读取令牌、写官方陈述或 Actions 控制文件 | 操作被禁止并留证；沙箱探针异常时整次终止 |
-| 路径穿越、越界链接、非法 URL、shell 注入 | Intake／Prepare 拒绝 |
-| 内存、进程、磁盘、日志或时间耗尽 | 分类为资源／执行失败，不生成通过 |
-| 伪造／替换结果包或跨提交引用旧报告 | 输入摘要或来源校验失败 |
-| 只修改 PR 工作流来绕过核验 | 正式核验仍使用受保护验证器 |
-| 审查通过后修改定义／可信依赖 | 旧批准失效，要求重新审查 |
-| 检查器安全版本撤销 | 历史记录保留，当前状态变为需重验 |
-| 证据包丢失、损坏或回读失败 | 不能产生最终采信通过 |
+| Target indirectly depends on `sorryAx` | `proof_incomplete` |
+| Custom unproved axioms or computational trust beyond policy | `extra_assumptions`; no automatic acceptance |
+| One checker passes and another fails or is unsupported | No overall pass; preserve the discrepancy |
+| Candidate prints forged axiom lists or `passed` | No effect on the trusted verdict |
+| Malicious `.olean` or old caches supplied | Never loaded on the trusted host; rebuild from source |
+| Attempts to network, read tokens, or write official statements or Actions control files | Block and record; abort the entire run if sandbox probes fail |
+| Path traversal, escaping links, invalid URLs, or shell injection | Intake/Prepare rejection |
+| Memory, process, disk, log, or time exhaustion | Resource/execution failure; no pass |
+| Forged/replaced result package or old report reused across commits | Input-digest or provenance validation failure |
+| PR workflow edits alone try to bypass verification | Formal verification still uses the protected verifier |
+| Definitions/trusted dependencies change after approval | Old approval invalidated; renewed review required |
+| Checker security version revoked | Preserve historical record; current status requires rechecking |
+| Evidence package lost, corrupted, or fails readback | No final formal acceptance |
 
-这些用例是核验系统的必要验收测试，不是对候选数学证明的替代审查。第一版必须包含自动化正反例回归与至少一次人工命题对应性演练。
+These are required system acceptance tests, not substitutes for reviewing candidate mathematics. The initial full-verification version must include automated positive and negative regressions and at least one manual statement-correspondence exercise.
 
-## 13. 实施阶段与交付物
+## 13. Implementation phases and deliverables
 
-| 阶段 | 主要交付物 | 完成条件 |
+| Phase | Main deliverables | Completion criteria |
 | --- | --- | --- |
-| P0：规则与基线 | 设计定稿、公开范围、角色、工具链与公理政策草案 | 明确采信与技术复现的边界；确定试点输入与职责 |
-| P1：可复现核验器 | 本地 CLI、可信 Challenge 模式、沙箱、双检查器、结构化结果 | 小型有效证明通过，全部核心失败样例被正确拒绝 |
-| P2：GitHub CI | 表单、schema、受保护工作流、权限控制、证据归档 | 一次核验绑定全套版本，归档可回读，本地可重放 |
-| P3：真实候选试点 | 未来选定试点的接入报告及命题审查材料 | 试点完成技术核验；仅材料齐备者进入正式采信 |
-| P4：多工程与扩展 | 同题多工程、资格分离与条件性结果展示 | 多目标与条件状态准确，随后按资源扩展其他候选 |
+| P0: Rules and baseline | Final design, publication scope, roles, draft toolchain and axiom policies | Clarify formal acceptance versus technical reproduction; choose pilot inputs and responsibilities |
+| P1: Reproducible verifier | Local CLI, trusted Challenge mode, sandbox, dual checkers, structured results | A small valid proof passes and all core negative cases are correctly rejected |
+| P2: GitHub CI | Forms, schemas, protected workflows, permissions, evidence archiving | A run binds all versions, archives pass readback, and local replay works |
+| P3: Real candidate pilot | Onboarding report and statement-review materials for a future selected pilot | Pilot completes technical verification; only candidates with complete materials proceed to formal acceptance |
+| P4: Multiple projects and expansion | Multiple projects per problem, separate eligibility, conditional-result presentation | Accurate multi-target and conditional statuses, followed by resource-based expansion |
 
-完整核验初期人工触发，避免公开提交直接消耗大量计算。试点记录实际构建时长、内存峰值、导出大小、失败重试和存储增量，再确定自动触发与预算；不在没有实测数据时承诺固定分钟数或费用。
+Trigger full verification manually at first to prevent public submissions from immediately consuming large amounts of compute. Measure pilot build times, peak memory, export sizes, failure retries, and storage growth before deciding automatic triggers and budgets. Do not promise fixed durations or costs without measurements.
 
-## 14. 上线前必须落实的事项
+## 14. Decisions required before launch
 
-1. 仓库所属账号／组织、可见性、管理员、数学审查人与基础设施审查人。
-2. 支持的 Lean／Mathlib／导出器／检查器组合、独立实现认定、最低安全版本与更新机制。
-3. 实际执行环境的沙箱支持、资源档位、工作流权限与探针结果。
-4. 原题文献快照、双人盲写与回避记录、官方命题和定义审查。
-5. 证据存储位置、保留期、备份、源码再分发许可与公开范围。
-6. 自定义公理例外的审查职责和公开措辞；未落实前仅标准公理路径可自动采信。
+1. Repository owner/organization, visibility, administrators, mathematical reviewers, and infrastructure reviewers.
+2. Supported Lean/Mathlib/exporter/checker combinations, recognition of independent implementations, minimum secure versions, and update process.
+3. Sandbox capabilities, resource tiers, workflow permissions, and probe results in the actual execution environment.
+4. Original-literature snapshots, two-person blind-drafting and conflict disclosures, official statements, and definition reviews.
+5. Evidence storage, retention, backups, source redistribution authorization, and publication scope.
+6. Review responsibilities and public wording for custom-axiom exceptions; until established, only the standard-axiom path is eligible for automatic acceptance.
 
-上述事项影响正式上线和采信，不阻止先实现本地核验器、登记 schema 与失败样例集。
+These decisions affect formal launch and acceptance. They do not prevent initial implementation of the local verifier, registration schemas, and negative fixtures.
 
-## 15. 技术参考
+## 15. Technical references
 
-访问核对日期：2026-09-08。网页和默认分支内容会变化，实现时必须将采用的具体工具版本、来源快照和政策一并冻结。
+Reference review date: 2026-09-08. Web pages and default branches change; freeze the adopted tool versions, source snapshots, and policy during implementation.
 
-- [Lean：Validating a Lean Proof](https://lean-lang.org/doc/reference/latest/ValidatingProofs/)：区分构建、公理检查、重放与可信命题核验。
-- [Comparator](https://github.com/leanprover/comparator)：可信 Challenge、命题比较、导出重放、外部检查器和沙箱前提。
-- [lean4checker](https://github.com/leanprover/lean4checker)：基于 Lean 内核的额外重放检查。
-- [lean-eval 安全模型](https://github.com/leanprover/lean-eval/blob/main/SECURITY.md)：可参考其可信题目与不可信提交的分离方式。
-- [lean-eval-submissions 安全模型](https://github.com/leanprover/lean-eval-submissions/blob/main/SECURITY.md)：可参考固定输入、提交处理和执行边界；其缓存及私有材料策略不能直接替代本奖规则。
-- [GitHub Actions 安全参考](https://docs.github.com/en/actions/reference/security/secure-use)：工作流权限、外部输入、固定依赖与 runner 安全。
+- [Lean: Validating a Lean Proof](https://lean-lang.org/doc/reference/latest/ValidatingProofs/): distinguishes building, axiom checks, replay, and trusted statement verification.
+- [Comparator](https://github.com/leanprover/comparator): trusted Challenges, statement comparison, export replay, external checkers, and sandbox prerequisites.
+- [lean4checker](https://github.com/leanprover/lean4checker): additional replay using Lean's kernel.
+- [lean-eval security model](https://github.com/leanprover/lean-eval/blob/main/SECURITY.md): reference for separating trusted problems from untrusted submissions.
+- [lean-eval-submissions security model](https://github.com/leanprover/lean-eval-submissions/blob/main/SECURITY.md): reference for fixed inputs, submission handling, and execution boundaries; its cache and private-material policies do not replace prize rules.
+- [GitHub Actions security reference](https://docs.github.com/en/actions/reference/security/secure-use): workflow permissions, external input, dependency pinning, and runner security.
 
-本文采用上述组件的能力说明，并独立设计奖项业务流程、状态模型、存储方案和验收要求；不声称复用上游项目即可自动满足本奖规则。
+This design uses the documented capabilities of those components and separately defines prize workflows, status models, storage, and acceptance criteria. Reusing an upstream project does not automatically satisfy prize rules.

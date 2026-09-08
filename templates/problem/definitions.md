@@ -1,6 +1,6 @@
-# 定义审查
+# Definition review
 
-列出每个非标准定义、记号和类型类实例，解释其与原题的对应关系。
-记录公共库的精确版本；工具链接入后锁定全部传递依赖。
+List every nonstandard definition, notation, and typeclass instance, and explain its relationship to the original problem.
+Record exact public library versions; lock all transitive dependencies once toolchain integration is available.
 
-当前状态：待撰写、待审查。
+Current status: drafting and review pending.

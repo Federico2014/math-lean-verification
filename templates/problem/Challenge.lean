@@ -1,2 +1,3 @@
--- 模板：由符合回避与独立要求的策展人根据原题撰写。
--- 此文件尚无官方定理，不能作为已完成的题目陈述。
+-- Template: draft from the original problem by curators meeting independence
+-- and conflict-of-interest requirements.
+-- No official theorem is defined yet; this is not a completed statement.
