@@ -1,5 +1,5 @@
 # records
 
-未来正式核验的证据摘要与长期档案索引。
+Evidence summaries and durable archive indexes for future formal verification runs.
 
-按 [贡献流程](../CONTRIBUTING.md) 添加。测试使用临时合成数据，不是候选项目。
+Add entries through the [contribution process](../CONTRIBUTING.md). Tests use temporary synthetic data, not candidate projects.

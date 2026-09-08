@@ -1,14 +1,14 @@
-## 变更内容
+## Changes
 
-说明问题、范围及行为。候选登记请关联 Issue。
+Explain the problem, scope, and behavior. Link the issue for candidate registrations.
 
-## 验证
+## Validation
 
 - [ ] `python -m verifier validate`
 - [ ] `python -m unittest discover -s tests -v`
-- [ ] 原题、范围、全部目标和固定版本已说明（候选登记适用）
-- [ ] 公开授权、来源和贡献归属已说明（候选登记适用）
+- [ ] Original problem, scope, all targets, and fixed versions are documented (candidate registrations)
+- [ ] Publication authorization, sources, and attribution are documented (candidate registrations)
 
-## 审查影响
+## Review impact
 
-是否修改官方命题、定义、工具链、政策或核验器？如有，说明哪些旧审查／核验记录需失效。元数据 CI 通过不代表数学证明通过。
+Does this change official statements, definitions, toolchains, policy, or the verifier? If so, explain which previous review or verification records must be invalidated. Passing metadata CI does not mean a mathematical proof has passed.

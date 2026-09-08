@@ -1,52 +1,52 @@
-# 实现状态与正式核验上线清单
+# Implementation status and formal-verification activation checklist
 
-本仓库初版是**候选登记和核验基础设施骨架**。以下区分已经实现的行为与尚未接入的后端，防止绿色仓库 CI 被误读为数学证明通过。
+The initial repository is **a candidate registry and verification infrastructure skeleton**. This document separates implemented behavior from the missing backend so that green repository CI is not mistaken for a verified mathematical proof.
 
-## 已实现
+## Implemented
 
-- [x] 空的题目、候选、适配器和记录目录。
-- [x] 候选和问题登记表单、模板与操作手册。
-- [x] JSON Schema 2020-12、重复字段／非有限数／大小限制。
-- [x] 固定 commit、目录身份、目标完整覆盖及跨文件引用校验。
-- [x] 可信文件哈希、目录内容完整性、路径越界和符号链接拒绝。
-- [x] 命题审查摘要和审查名册一致性检查。
-- [x] 不执行候选的 CLI：`validate`、`list`、`plan`。
-- [x] 受限预检状态：后端未接入始终返回非零，不产生正式通过。
-- [x] CI 自动测试及登记校验，手动预检入口。
-- [x] 固定 Actions 提交和带哈希的 CI Python 依赖。
+- [x] Problem, submission, adapter, and record directories and registration structure; no formal verification records exist.
+- [x] Candidate and problem intake forms, templates, and operating documentation.
+- [x] JSON Schema 2020-12, duplicate-key/nonfinite-number rejection, and size limits.
+- [x] Fixed commits, directory identities, complete target coverage, and cross-file reference validation.
+- [x] Trusted file hashes, complete directory binding, and path traversal/symlink rejection.
+- [x] Statement review digests and reviewer roster consistency checks.
+- [x] CLI commands that do not execute candidates: `validate`, `list`, and `plan`.
+- [x] Restricted preflight status: an unconfigured backend always exits nonzero and never reports formal success.
+- [x] Automated tests and registration CI, plus a manual preflight entry point.
+- [x] Commit-pinned Actions and hash-pinned Python CI dependencies.
 
-## 完整 Lean 核验启用前
+## Before enabling full Lean verification
 
-- [ ] 审定并固定 Lean／Mathlib／Comparator／导出器／Nanoda 兼容组合。
-- [ ] 实现只获取固定公开源码的准备阶段，安全处理归档、依赖和许可。
-- [ ] 在目标 Linux 执行环境验证非 root、断网、文件／进程隔离和资源限制。
-- [ ] 每次运行执行沙箱探针；失败不得退回裸执行。
-- [ ] 洁净重建源码、沙箱内导出，可信 Challenge 与候选不共享可写产物。
-- [ ] 可信命题依赖比对、公理审计和双独立内核重放。
-- [ ] 固定并审查适配器，桥接证明也计入全部必需目标。
-- [ ] 完整结果 schema、可信驱动生成及每个目标的聚合判定。
-- [ ] 长期证据归档、回读校验、版本绑定和独立的最小权限发布。
-- [ ] 公开审查角色、独立盲写材料、当前工具链安全政策。
+- [ ] Approve and pin compatible Lean/Mathlib/Comparator/exporter/Nanoda combinations.
+- [ ] Implement preparation that fetches only fixed public sources and safely handles archives, dependencies, and licensing.
+- [ ] Validate non-root execution, disabled networking, filesystem/process isolation, and resource limits in the target Linux environment.
+- [ ] Run sandbox probes on every execution; never fall back to unsandboxed execution on failure.
+- [ ] Rebuild cleanly from source and export inside the sandbox; trusted Challenge and candidate workspaces must not share writable artifacts.
+- [ ] Compare trusted statement dependencies, audit axioms, and replay with two independent kernels.
+- [ ] Pin and review adapters; include bridge proofs among all required targets.
+- [ ] Implement complete result schemas, trusted result generation, and aggregation across every target.
+- [ ] Implement durable evidence archives, readback validation, version binding, and separate publishing with minimal permissions.
+- [ ] Publish review roles, independent blind-drafting materials, and the current toolchain security policy.
 
-不能通过删掉 `backend_unconfigured`、把 `formal_acceptance_enabled` 改成 true、或返回伪造成功 JSON 完成上述任务。初版 policy schema 主动拒绝这种启用方式。完整后端应通过单独的实现及审查 PR 上线。
+Removing `backend_unconfigured`, setting `formal_acceptance_enabled` to true, or returning fabricated success JSON does not complete these tasks. The bootstrap policy schema explicitly rejects such activation. Integrate the complete backend through a separate implementation and review PR.
 
-## 必须通过的真实后端测试
+## Required tests for the real backend
 
-一个有效的小型合成证明作为正例；下列反例必须被正确拒绝或报告未完成：
+Use a valid small synthetic proof as a positive case. The following negative cases must be rejected or reported as incomplete:
 
-| 用例 | 应有结果 |
+| Case | Required result |
 | --- | --- |
-| 同名 theorem 改成 True、量词削弱、论域变化 | 命题不匹配 |
-| 新增 False 前提或其他未授权假设 | 不能得到完整官方结论 |
-| 自定义定义／实例改变数学含义 | 依赖比对或人工审查拒绝 |
-| 间接 sorryAx 或借用 Challenge 占位 | 证明不完整 |
-| 自定义公理、额外计算信任 | 额外假设待审 |
-| 只完成多个目标中的一部分 | 整体不通过 |
-| 一种内核失败或不支持 | 不得通过 |
-| 伪造 stdout、结果 JSON 或旧证据 | 不影响可信判定 |
-| 恶意 .olean、共享缓存污染 | 不进入可信执行边界 |
-| 联网、读令牌、改 Challenge／检查器／Actions 控制文件 | 被隔离并留证 |
-| 超时、资源耗尽、格式异常 | 明确未完成，不能通过 |
-| 证据包丢失、输入版本变化、旧批准复用 | 不得采信 |
+| Same theorem name but conclusion changed to True, weakened quantifiers, or changed domain | Statement mismatch |
+| Added False premise or another unauthorized assumption | Complete official conclusion not established |
+| Custom definitions/instances change mathematical meaning | Dependency comparison or human review rejects |
+| Indirect sorryAx or borrowed Challenge placeholder | Incomplete proof |
+| Custom axioms or extra computational trust | Extra assumptions pending review |
+| Only some required targets completed | No overall pass |
+| One kernel fails or is unsupported | No pass |
+| Forged stdout, result JSON, or old evidence | No effect on the trusted verdict |
+| Malicious .olean or shared-cache contamination | Cannot enter the trusted execution boundary |
+| Networking, token reads, or changes to Challenge/checker/Actions control files | Blocked by isolation and recorded |
+| Timeout, resource exhaustion, or malformed output | Explicitly incomplete; no pass |
+| Lost archive, changed inputs, or reused stale approval | No formal acceptance |
 
-这些真实 Lean／沙箱测试当前尚未运行。现有 Python 测试只覆盖已实现的登记与预检行为。
+These real Lean/sandbox tests have not run yet. Existing Python tests cover only the implemented registration and preflight behavior.

@@ -2,16 +2,16 @@
   "schema_version": 1,
   "problem_id": "replace-with-problem-id",
   "statement_version": "v1",
-  "title": "填写成果名称",
+  "title": "Enter the result title",
   "claim_kind": "proof",
   "original_sources": [
     {
       "url": "https://example.org/replace-with-original-source",
-      "citation": "填写原题位置与版本",
+      "citation": "Enter the original problem location and version",
       "snapshot_sha256": null
     }
   ],
-  "scope": "填写完整命题范围，不复制候选结论代替原题。",
+  "scope": "Enter the complete claim scope; do not substitute the candidate conclusion for the original problem.",
   "required_theorems": [
     "ReplaceWithOfficialTheorem"
   ],

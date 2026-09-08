@@ -1,35 +1,35 @@
-# 形式化核验与采信政策
+# Formal verification and acceptance policy
 
-版本：bootstrap-v1。当前为平台初始约束，尚无候选或正式验证记录。
+Version: bootstrap-v1. These are the initial platform constraints. Candidate registrations remain pending; there are no formal verification records.
 
-## 三项结论分开记录
+## Three separate conclusions
 
-1. **登记有效**：字段、哈希、版本引用和目标覆盖完整。当前 CI 提供此检查。
-2. **机器核验通过**：目标证明、公理和命题比对由认可的检查器完成。当前尚未启用。
-3. **形式化采信通过**：机器通过、官方命题独立审查有效、版本政策有效、证据完成长期归档。当前尚未启用。
+1. **Registration valid:** fields, hashes, version references, and target coverage are complete. Current CI provides this check.
+2. **Machine verification passed:** approved checkers have validated the target proofs, axioms, and statement correspondence. Not yet enabled.
+3. **Formal acceptance passed:** machine verification passed, independent review of the official statement is valid, version policy is satisfied, and evidence is durably archived. Not yet enabled.
 
-获奖资格、首解、贡献、独立性评分和金额另行评审。两个内核重放不自动构成两个独立学术验证通道。
+Award eligibility, priority, contributions, independence scores, and amounts are assessed separately. Replay by two kernels does not automatically constitute two independent academic validation channels.
 
-## 命题忠实性
+## Statement fidelity
 
-从原题到官方 Lean 陈述必须审查论域、量词、前提、定义、结论和方向。首次陈述和勘误版本需要独立材料。已有成果的事后陈述按回避、盲写、双人独立、第三方来源优先和公示要求审查。
+The path from the original problem to the official Lean statement requires review of domains, quantifiers, assumptions, definitions, conclusions, and direction. Initial statements and corrected versions require independent materials. Retrospective statements for existing results must satisfy conflict-of-interest, blind-drafting, two-person independence, preference for third-party sources, and public-disclosure requirements.
 
-机器可以验证形式化陈述间的关系，不能独立确认自然语言理解或审查人员的盲写真实性。
+Machines can verify relationships between formal statements. They cannot independently establish correct natural-language interpretation or the authenticity of reviewers' blind drafting.
 
-## 公理
+## Axioms
 
-拟采用标准白名单：`propext`、`Classical.choice`、`Quot.sound`。空集合或其子集可以接受。目标传递依赖中的 `sorryAx` 不接受；额外公理须逐项审查，不因编译成功而消失。
+The proposed standard allowlist is `propext`, `Classical.choice`, and `Quot.sound`. The empty set or any subset is acceptable. `sorryAx` in the transitive target proof dependencies is unacceptable; extra axioms require individual review and do not disappear when compilation succeeds.
 
-可信 Challenge 模板可能使用占位表示待证目标，候选 Solution 及其依赖不得借用该占位。对全仓库 grep `sorry` 不足以判断目标完整性。
+Trusted Challenge templates may use placeholders for proof targets. Candidate Solutions and their dependencies must not borrow those placeholders. Searching the entire repository for `sorry` is insufficient to determine target completeness.
 
-## 工具链和隔离
+## Toolchains and isolation
 
-当前认可工具链清单为空，不预先认可任意 Lean、Mathlib、Comparator 或外部内核版本。未来接入需固定完整源码标识、二进制哈希、最低安全版本政策和兼容性测试。
+The approved toolchain list is currently empty. No Lean, Mathlib, Comparator, or external kernel version is approved in advance. Integration must fix complete source identities, binary hashes, minimum secure version policies, and compatibility tests.
 
-构建阶段断网、无特权、限制资源，从源码重建候选及依赖，忽略提交方缓存。工具链本身的引导信任须记录。正式结果包含全部必需顶层目标及桥接证明。
+Builds run offline without privileges, under resource limits, and rebuild candidate sources and dependencies while ignoring submitter caches. Record the bootstrap trust in the toolchain itself. Formal results cover all required top-level targets and bridge proofs.
 
-## 档案
+## Archives
 
-正式证据必须具有长期存储、文件校验清单和回读校验，不能仅依赖 Actions artifact。原始材料再分发遵循上游许可。记录固定问题、提交、工具链、政策和验证器版本。
+Formal evidence requires durable storage, file checksums, and readback verification. Actions artifacts alone are insufficient. Redistribution of original materials must follow upstream licenses. Records pin the problem, submission, toolchain, policy, and verifier versions.
 
-`policy/verification.json` 是机器执行的 bootstrap 政策。它无法通过一个布尔开关启用后端；政策 schema 当前禁止声称正式采信已启用。
+`policy/verification.json` is the machine-enforced bootstrap policy. A boolean switch cannot implement the backend; the current policy schema forbids claims that formal acceptance is enabled.

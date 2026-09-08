@@ -1,5 +1,5 @@
 # problems
 
-经独立审查的原始数学问题及官方形式化陈述。
+Original mathematical problems and official formal statements, with independent review status recorded per version.
 
-按 [贡献流程](../CONTRIBUTING.md) 添加。测试使用临时合成数据，不是候选项目。
+Add entries through the [contribution process](../CONTRIBUTING.md). Tests use temporary synthetic data, not candidate projects.
