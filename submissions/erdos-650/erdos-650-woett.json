@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "submission_id": "erdos-650-woett",
+  "problem_id": "erdos-650",
+  "statement_version": "v1",
+  "repository": "https://github.com/Woett/Lean-files",
+  "commit": "e80f01cb0ca5197cd8acb35c818e75aaa32114dc",
+  "targets": [
+    {
+      "module": "ErdosProblem650",
+      "declaration": "erdos_f_eq",
+      "official_theorem": "Erdos650.erdos_650.parts.i"
+    }
+  ],
+  "toolchain_id": null,
+  "adapter_id": null,
+  "paper_urls": [
+    "https://arxiv.org/abs/2603.28636v1"
+  ],
+  "contribution": {
+    "proof_authors": [
+      "Wouter van Doorn",
+      "Yanyang Li",
+      "Quanyu Tang"
+    ],
+    "formalization_authors": [
+      "Aristotle (Harmonic)"
+    ],
+    "proof_route": "The exact formula combines a uniform matching lower bound with a worst-case upper bound. Public materials attribute the strategy to GPT-5.4 Pro and describe Aristotle repairing a lower-bound gap and formalizing the result; the paper authors organized the argument and wrote the paper. The author field records paper authors; award contributions and first-solution priority require independent review.",
+    "ai_role": "The source names Yixin He, Yanyang Li, and Quanyu Tang as GPT-5.4 Pro prompters, recorded separately from paper authors. Aristotle contributed to the lower-bound proof and Lean formalization. These are public-source attributions; this project has not verified the complete interactions or timeline.",
+    "known_assumptions": [
+      "The main theorem assumes m > 0; the official draft includes m = 0 and requires a bridge.",
+      "The candidate uses max A, integer right endpoints, and arbitrary real starts; correspondence to N, natural-number right endpoints, and x ≥ 1 remains under review.",
+      "Membership correspondence between the floor/ceil interval and the real open interval needs proof; the target mapping has no verified adapter.",
+      "Toolchain approval, axiom closure, independent-checker results, and independent statement review are incomplete."
+    ],
+    "prior_results": "The original problem has prior Erdős–Surányi lower bounds and Erdős–Selfridge upper bounds. This registration concerns the exact formula, not historical order-of-growth bounds as new results. First completion, gap repair, and substantive formalization contributions still require review against public records.",
+    "public_source_authorized": true
+  }
+}

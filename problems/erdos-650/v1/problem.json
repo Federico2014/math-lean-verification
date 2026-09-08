@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "problem_id": "erdos-650",
+  "statement_version": "v1",
+  "title": "Erdős #650: optimal bounds for matching integers to distinct multiples",
+  "claim_kind": "proof",
+  "original_sources": [
+    {
+      "url": "https://www.erdosproblems.com/650",
+      "citation": "Erdős Problems #650: estimate the optimal uniform guarantee for matching distinct integers to distinct multiples.",
+      "snapshot_sha256": null
+    },
+    {
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/c9c94dc9e64b65efa93c4f762845c39aa734adc3/FormalConjectures/ErdosProblems/650.lean",
+      "citation": "Formal Conjectures, ErdosProblems/650.lean at the fixed commit; definition f and exact-formula target parts.i, used as a pending statement source.",
+      "snapshot_sha256": null
+    }
+  ],
+  "scope": "For every natural number m, prove the uniform matching guarantee f(m) = min(m, ceil(2 * sqrt(m))), using A ⊆ {1,…,N}, real starts x ≥ 1, natural-number right endpoints, and open intervals. The bridge from the candidate encoding, including m = 0, remains pending review.",
+  "required_theorems": [
+    "Erdos650.erdos_650.parts.i"
+  ],
+  "toolchain_id": null,
+  "trusted_files": [
+    {
+      "path": "Apache-2.0.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "Challenge.lean",
+      "sha256": "878d2bc9a7d70c1d2177d8c4b9817c4042dea80043633d1dc3cf72a41a5deab4"
+    },
+    {
+      "path": "NOTICE.md",
+      "sha256": "52730d3d36d2b809d0f93798cab112639b0e3f379b45ece763dce7a4f33c83dd"
+    },
+    {
+      "path": "correspondence.md",
+      "sha256": "c1659c268d7dcc3577ff0a0b285d5795555db1f308c9c3c571ee4b7417a94cf3"
+    },
+    {
+      "path": "definitions.md",
+      "sha256": "3b0e08b74320fc78b3dd159f94186d3e7f01918ca46f8bf05f0778e2a3ccd63b"
+    },
+    {
+      "path": "statement.md",
+      "sha256": "b5b59ab2de19a966236796d9cedd80bc952552d6e8d2b65f69d93bfdd4bccdf2"
+    }
+  ],
+  "review": {
+    "status": "pending",
+    "statement_digest": null,
+    "reviewers": [],
+    "evidence_url": null
+  }
+}
