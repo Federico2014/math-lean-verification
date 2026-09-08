@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "policy_id": "bootstrap-v1",
+  "standard_axioms": [
+    "propext",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "approved_reviewers": [],
+  "minimum_independent_reviewers": 2,
+  "backend": "unconfigured",
+  "toolchains": [],
+  "formal_acceptance_enabled": false
+}

@@ -1,0 +1,92 @@
+"""Regression guards for actual bootstrap workflows and published schemas."""
+
+import re
+import unittest
+from pathlib import Path
+
+import yaml
+from jsonschema import Draft202012Validator
+
+from verifier.registry import ROOT, read_json, validate_registry
+
+
+class RepositoryTests(unittest.TestCase):
+    def test_schemas_well_formed(self):
+        for path in (ROOT / "schemas").glob("*.json"):
+            with self.subTest(path=path.name):
+                schema = read_json(path)
+                Draft202012Validator.check_schema(schema)
+                self.assertFalse(schema["additionalProperties"])
+
+    def test_actual_registry_is_valid(self):
+        validate_registry(ROOT)
+
+    def workflows(self):
+        for path in (ROOT / ".github/workflows").glob("*.yml"):
+            yield path, yaml.load(path.read_text(), Loader=yaml.BaseLoader)
+
+    def test_ci_has_read_only_permissions_and_no_privileged_events(self):
+        for path, workflow in self.workflows():
+            with self.subTest(path=path.name):
+                self.assertEqual(workflow["permissions"], {"contents": "read"})
+                self.assertNotIn("pull_request_target", workflow["on"])
+                self.assertNotIn("workflow_run", workflow["on"])
+                for job in workflow["jobs"].values():
+                    self.assertEqual(job["runs-on"], "ubuntu-24.04")
+                    self.assertNotIn("permissions", job)
+                    self.assertNotIn("secrets", job)
+                    self.assertIn("timeout-minutes", job)
+
+    def test_actions_pinned_and_checkout_credentials_disabled(self):
+        for path, workflow in self.workflows():
+            for job in workflow["jobs"].values():
+                for step in job["steps"]:
+                    if "uses" in step:
+                        self.assertRegex(step["uses"], r"^[\w-]+/[\w-]+@[a-f0-9]{40}$")
+                        if step["uses"].startswith("actions/checkout@"):
+                            self.assertEqual(step["with"]["persist-credentials"], "false")
+                    if "run" in step:
+                        self.assertNotIn("${{", step["run"])
+                        self.assertNotIn("lake build", step["run"])
+                        self.assertNotIn("continue-on-error", step)
+
+    def test_preflight_cannot_succeed_by_ignoring_blockers(self):
+        workflow = yaml.load((ROOT / ".github/workflows/preflight.yml").read_text(), Loader=yaml.BaseLoader)
+        self.assertEqual(set(workflow["on"]), {"workflow_dispatch"})
+        job = workflow["jobs"]["preflight"]
+        self.assertEqual(job["if"], "github.ref == 'refs/heads/main'")
+        plan = next(s for s in job["steps"] if "python -m verifier plan" in s.get("run", ""))
+        self.assertEqual(plan["run"], 'python -m verifier plan "$SUBMISSION_ID" --output plan.json')
+        self.assertNotIn("continue-on-error", job)
+        self.assertEqual(plan["env"]["SUBMISSION_ID"], "${{ inputs.submission_id }}")
+
+    def test_ci_locks_have_exact_versions_hashes_and_match_dev_versions(self):
+        pinned = []
+        for line in (ROOT / "requirements-ci.lock").read_text().splitlines():
+            if not line or line.startswith("#"):
+                continue
+            self.assertRegex(line, r"^[A-Za-z0-9-]+==[0-9.]+ --hash=sha256:[a-f0-9]{64}$")
+            pinned.append(line.split(" ")[0])
+        dev = [x for x in (ROOT / "requirements-dev.txt").read_text().splitlines() if x and not x.startswith("#")]
+        self.assertEqual(pinned, dev)
+
+    def test_markdown_local_links_exist(self):
+        for doc in ROOT.rglob("*.md"):
+            if ".git" in doc.parts or ".venv" in doc.parts:
+                continue
+            for target in re.findall(r"\]\(([^)]+)\)", doc.read_text()):
+                if "://" in target or target.startswith("#"):
+                    continue
+                with self.subTest(doc=doc.relative_to(ROOT), target=target):
+                    self.assertTrue((doc.parent / target.split("#")[0]).exists())
+
+    def test_templates_have_expected_fields_without_registering_candidates(self):
+        problem = read_json(ROOT / "templates/problem/problem.json")
+        submission = read_json(ROOT / "templates/submission.json")
+        self.assertEqual(set(problem), set(read_json(ROOT / "schemas/problem.schema.json")["required"]))
+        self.assertEqual(set(submission), set(read_json(ROOT / "schemas/submission.schema.json")["required"]))
+        self.assertEqual(problem["review"]["status"], "pending")
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Federico2014/math-lean-verification/schemas/policy.schema.json",
+  "title": "policy",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "policy_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])"
+    },
+    "standard_axioms": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "^[A-Za-z_][A-Za-z0-9_']*(?:\\.[A-Za-z_][A-Za-z0-9_']*)*$(?![\\s\\S])"
+      },
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true
+    },
+    "approved_reviewers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 39,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,38}$(?![\\s\\S])"
+      },
+      "minItems": 0,
+      "maxItems": 100,
+      "uniqueItems": true
+    },
+    "minimum_independent_reviewers": {
+      "const": 2
+    },
+    "backend": {
+      "const": "unconfigured"
+    },
+    "toolchains": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "formal_acceptance_enabled": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "policy_id",
+    "standard_axioms",
+    "approved_reviewers",
+    "minimum_independent_reviewers",
+    "backend",
+    "toolchains",
+    "formal_acceptance_enabled"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "submission_id": "replace-with-submission-id",
+  "problem_id": "replace-with-problem-id",
+  "statement_version": "v1",
+  "repository": "https://github.com/OWNER/REPOSITORY",
+  "commit": "REPLACE_WITH_FULL_40_CHARACTER_COMMIT",
+  "targets": [
+    {
+      "module": "ReplaceWithModule",
+      "declaration": "ReplaceWithDeclaration",
+      "official_theorem": "ReplaceWithOfficialTheorem"
+    }
+  ],
+  "toolchain_id": null,
+  "adapter_id": null,
+  "paper_urls": [
+    "https://example.org/replace-with-paper"
+  ],
+  "contribution": {
+    "proof_authors": [
+      "填写解题方"
+    ],
+    "formalization_authors": [
+      "填写形式化方"
+    ],
+    "proof_route": "填写证明路线以及是否沿用已有证明。",
+    "ai_role": "填写 AI 的实际角色，无则注明。",
+    "known_assumptions": [],
+    "prior_results": "填写已知在先结果与本次独立贡献；未核实时明确说明。",
+    "public_source_authorized": true
+  }
+}

@@ -1,0 +1,66 @@
+name: 提交候选成果
+description: 登记数学问题、证明来源和形式化材料，不自动运行代码。
+title: "[候选] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请仅提交获准公开的材料。登记不等于已证明或已获奖。
+        尚无 Lean 工程时可以先登记，并明确缺失材料。
+  - type: input
+    id: title
+    attributes:
+      label: 成果名称与首次公开时间
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 原始数学问题与精确范围
+      description: 提供原题出处、版本、表述，说明是证明、反例、特例还是部分进展。
+    validations:
+      required: true
+  - type: textarea
+    id: papers
+    attributes:
+      label: 论文与公开证据
+      description: 填写公开链接，区分原始成果、在先结果和形式化验证。
+    validations:
+      required: true
+  - type: input
+    id: repository
+    attributes:
+      label: Lean 源码仓库
+      description: 公开 GitHub HTTPS URL；尚无工程请填“待补”。
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: 完整 commit SHA
+      description: 40 位固定提交标识；尚无工程请填“待补”，不接受 main/latest 作为核验版本。
+    validations:
+      required: true
+  - type: textarea
+    id: targets
+    attributes:
+      label: 全部目标定理与环境
+      description: 文件、模块、定理名称、Lean/Mathlib/依赖版本；未证假设及构建限制。
+    validations:
+      required: true
+  - type: textarea
+    id: attribution
+    attributes:
+      label: 贡献归属与证明路线
+      description: 解题方、形式化方、AI 作用、在先结果，以及同题其他证明工程。
+    validations:
+      required: true
+  - type: checkboxes
+    id: acknowledgements
+    attributes:
+      label: 公开与核验说明
+      options:
+        - label: 材料可公开分享，未包含凭据、KYC、收款信息或未授权材料。
+          required: true
+        - label: 我理解提交表单及登记 CI 不代表证明或获奖资格通过。
+          required: true

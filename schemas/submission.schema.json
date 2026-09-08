@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Federico2014/math-lean-verification/schemas/submission.schema.json",
+  "title": "submission",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "submission_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])"
+    },
+    "problem_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])"
+    },
+    "statement_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20,
+      "pattern": "^v[1-9][0-9]*$(?![\\s\\S])"
+    },
+    "repository": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^https://github\\.com/[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9_.-]{1,100}$(?![\\s\\S])"
+    },
+    "commit": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "pattern": "^[0-9a-f]{40}$(?![\\s\\S])"
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "module": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_']*(?:\\.[A-Za-z_][A-Za-z0-9_']*)*$(?![\\s\\S])"
+          },
+          "declaration": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_']*(?:\\.[A-Za-z_][A-Za-z0-9_']*)*$(?![\\s\\S])"
+          },
+          "official_theorem": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_']*(?:\\.[A-Za-z_][A-Za-z0-9_']*)*$(?![\\s\\S])"
+          }
+        },
+        "required": [
+          "module",
+          "declaration",
+          "official_theorem"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 100,
+      "uniqueItems": true
+    },
+    "toolchain_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "adapter_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "paper_urls": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048,
+        "pattern": "^https://[^\\s]+$(?![\\s\\S])"
+      },
+      "minItems": 1,
+      "maxItems": 30,
+      "uniqueItems": true
+    },
+    "contribution": {
+      "type": "object",
+      "properties": {
+        "proof_authors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true
+        },
+        "formalization_authors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true
+        },
+        "proof_route": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "ai_role": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "known_assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "minItems": 0,
+          "maxItems": 100,
+          "uniqueItems": true
+        },
+        "prior_results": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "public_source_authorized": {
+          "const": true
+        }
+      },
+      "required": [
+        "proof_authors",
+        "formalization_authors",
+        "proof_route",
+        "ai_role",
+        "known_assumptions",
+        "prior_results",
+        "public_source_authorized"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "submission_id",
+    "problem_id",
+    "statement_version",
+    "repository",
+    "commit",
+    "targets",
+    "toolchain_id",
+    "adapter_id",
+    "paper_urls",
+    "contribution"
+  ],
+  "additionalProperties": false
+}

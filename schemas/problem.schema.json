@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Federico2014/math-lean-verification/schemas/problem.schema.json",
+  "title": "problem",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "problem_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])"
+    },
+    "statement_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20,
+      "pattern": "^v[1-9][0-9]*$(?![\\s\\S])"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "claim_kind": {
+      "enum": [
+        "proof",
+        "counterexample",
+        "partial-result"
+      ]
+    },
+    "original_sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^https://[^\\s]+$(?![\\s\\S])"
+          },
+          "citation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "snapshot_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "url",
+          "citation",
+          "snapshot_sha256"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 30,
+      "uniqueItems": true
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000
+    },
+    "required_theorems": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "^[A-Za-z_][A-Za-z0-9_']*(?:\\.[A-Za-z_][A-Za-z0-9_']*)*$(?![\\s\\S])"
+      },
+      "minItems": 1,
+      "maxItems": 100,
+      "uniqueItems": true
+    },
+    "toolchain_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "trusted_files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9_][A-Za-z0-9_./-]*$(?![\\s\\S])"
+          },
+          "sha256": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 4,
+      "maxItems": 500,
+      "uniqueItems": true
+    },
+    "review": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected",
+            "invalidated"
+          ]
+        },
+        "statement_digest": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reviewers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 39,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,38}$(?![\\s\\S])"
+          },
+          "minItems": 0,
+          "maxItems": 10,
+          "uniqueItems": true
+        },
+        "evidence_url": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "pattern": "^https://[^\\s]+$(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "statement_digest",
+        "reviewers",
+        "evidence_url"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "problem_id",
+    "statement_version",
+    "title",
+    "claim_kind",
+    "original_sources",
+    "scope",
+    "required_theorems",
+    "toolchain_id",
+    "trusted_files",
+    "review"
+  ],
+  "additionalProperties": false
+}

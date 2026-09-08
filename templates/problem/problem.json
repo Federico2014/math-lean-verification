@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "problem_id": "replace-with-problem-id",
+  "statement_version": "v1",
+  "title": "填写成果名称",
+  "claim_kind": "proof",
+  "original_sources": [
+    {
+      "url": "https://example.org/replace-with-original-source",
+      "citation": "填写原题位置与版本",
+      "snapshot_sha256": null
+    }
+  ],
+  "scope": "填写完整命题范围，不复制候选结论代替原题。",
+  "required_theorems": [
+    "ReplaceWithOfficialTheorem"
+  ],
+  "toolchain_id": null,
+  "trusted_files": [
+    {
+      "path": "Challenge.lean",
+      "sha256": "REPLACE_WITH_SHA256"
+    },
+    {
+      "path": "statement.md",
+      "sha256": "REPLACE_WITH_SHA256"
+    },
+    {
+      "path": "correspondence.md",
+      "sha256": "REPLACE_WITH_SHA256"
+    },
+    {
+      "path": "definitions.md",
+      "sha256": "REPLACE_WITH_SHA256"
+    }
+  ],
+  "review": {
+    "status": "pending",
+    "statement_digest": null,
+    "reviewers": [],
+    "evidence_url": null
+  }
+}
