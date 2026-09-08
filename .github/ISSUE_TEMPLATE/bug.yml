@@ -1,13 +1,13 @@
-name: 基础设施问题
-description: 报告非敏感的工具、文档或 CI 问题。
+name: Infrastructure issue
+description: Report a non-sensitive tool, documentation, or CI issue.
 body:
   - type: markdown
     attributes:
-      value: 可利用的安全漏洞请通过 Security 页面私密报告，不要公开攻击细节。
+      value: Report exploitable security vulnerabilities privately through the Security page; do not disclose exploit details publicly.
   - type: textarea
     id: description
     attributes:
-      label: 问题与复现步骤
-      description: 说明预期、实际行为和版本，移除敏感数据。
+      label: Problem and reproduction steps
+      description: Describe expected and actual behavior and relevant versions. Remove sensitive data.
     validations:
       required: true

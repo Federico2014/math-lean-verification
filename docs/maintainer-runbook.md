@@ -1,33 +1,33 @@
-# 维护者操作手册
+# Maintainer runbook
 
-## 初始仓库设置
+## Initial repository settings
 
-维护者应在 GitHub 检查：
+Maintainers should verify these settings on GitHub:
 
-- 默认分支 `main`；禁止 force push 和删除受保护分支。
-- PR 合并前要求 `registry` 和 `tests` 检查成功，要求 CODEOWNERS 审查并驳回过期批准。
-- 外部贡献者工作流执行按仓库审批规则管理，不向 fork 提供 secrets 或写令牌。
-- Actions 默认令牌只读；不允许 Actions 自动创建或批准 PR。
-- 开启私密漏洞报告。不要把支付密钥或内部材料存进此仓库。
+- Default branch: `main`; disallow force pushes and deletion of protected branches.
+- Require `registry` and `tests` to pass before merging, including for administrators. Required approvals are currently 0 and CODEOWNERS review is optional; authors with merge permission may merge their own PRs after required CI passes.
+- Apply repository approval rules to workflows from external contributors; do not provide secrets or write tokens to forks.
+- Give Actions read-only tokens by default; do not allow Actions to create or approve PRs automatically.
+- Enable private vulnerability reporting. Do not store payment keys or internal materials in this repository.
 
-CODEOWNERS 初始归属 `@Federico2014`，仅表示代码维护职责，不是自动授予数学审查资格。真实数学审查人需单独审定名册。单人仓库不能用自批 PR 模拟双人数学审查。
+CODEOWNERS initially assigns `@Federico2014` code maintenance responsibility, not mathematical review qualifications. Approve the mathematical reviewer roster separately. GitHub does not allow authors to Approve their own PRs; removing mandatory code approval allows self-merging. Formal acceptance still requires independent mathematical review, which self-merging cannot replace.
 
-## 日常登记
+## Routine registration
 
-1. 阅读 Issue，确认资料可公开，原题与成果范围清楚。
-2. 新题建立官方陈述；已有同版本题目复用。
-3. 审查登记及适配 PR，确认全部目标、固定源码和归属。
-4. 合并后进入 Actions → Verification preflight → Run workflow，使用 `main` 和已登记 `submission_id`。
-5. 读取失败原因及临时 `verification-plan` artifact。后端未接入时预检结束为非零是预期行为，不应手工改成成功。
+1. Read the issue and confirm that materials may be public and that the original problem and result scope are clear.
+2. Establish an official statement for a new problem, or reuse the same existing version.
+3. Review registration and adapter PRs, confirming all targets, fixed sources, and attribution.
+4. After merging, select Actions → Verification preflight → Run workflow, using `main` and the registered `submission_id`.
+5. Read the failure reasons and temporary `verification-plan` artifact. A nonzero preflight exit is expected while the backend is unavailable; do not manually turn it into success.
 
-此工作流当前只做预检。尚不能点击它获得 Lean 证明核验；完整接入步骤见 [实施清单](implementation-status.md)。
+This workflow currently performs preflight only. It cannot verify Lean proofs yet; see the [implementation checklist](implementation-status.md).
 
-## 政策和安全更新
+## Policy and security updates
 
-Actions、Python 依赖和未来检查器都通过固定版本 PR 更新。更新后跑相关反例回归。旧记录保留，安全政策变动使旧记录失效时展示“需重验”，不要重写历史事实。
+Update Actions, Python dependencies, and future checkers through PRs with fixed versions. Run relevant negative regression cases after updates. Preserve old records; when security policy changes invalidate them, show "recheck required" without rewriting historical facts.
 
-审查记录中的 GitHub 用户名只用于关联。批准前核对真实 PR 审查、签署材料、回避和独立性；字段校验不能代替这一过程。
+GitHub usernames in review records serve only as references. Before approval, verify actual PR reviews, signed materials, conflicts of interest, and independence. Field validation cannot replace that process.
 
-## 正式发布的后续要求
+## Future formal publishing requirements
 
-正式发布工作流尚未实现，不添加会消费不可信产物并执行脚本的高权限 `workflow_run`。发布必须验证可信运行来源和输入摘要，回读长期归档成功后才可显示采信状态。Actions artifact 是暂存，不满足长期正式证据要求。
+Formal publishing is not implemented. Do not add a privileged `workflow_run` that consumes untrusted artifacts and executes scripts. Publishing must validate the trusted run origin and input digest and verify archive readback before displaying acceptance status. Actions artifacts are temporary storage and do not meet formal archival requirements.

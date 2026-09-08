@@ -1,20 +1,22 @@
-# 添加候选与贡献流程
+# Adding candidates and contributing
 
-本仓库尚无候选项目。提交候选只表示申请核验，不表示已获奖、已证明或具备首解资格。
+Submitting a candidate requests verification. It does not establish an award, a valid proof, or priority for a first solution.
 
-## 1. 登记材料
+Use English for repository documentation, comments, forms, registration descriptions, issues, and pull requests. Preserve source titles, proper names, mathematical notation, and code identifiers where needed for accurate attribution.
 
-新建“提交候选成果”Issue，填写原始数学问题、论文、首次公开时间、拟证明／反驳／部分推进的范围、Lean 仓库 URL、完整 40 位 commit、全部目标定理、版本和贡献归属。只有公开且获准分享的材料进入本仓库。
+## 1. Register the materials
 
-没有 Lean 工程时可先登记 Issue，并明确“待补形式化材料”。不为此创建看似已可核验的虚假 submission。
+Open a "Submit a candidate result" issue with the original mathematical problem, paper, first public disclosure date, intended proof/counterexample/partial-result scope, Lean repository URL, full 40-character commit, all target theorems, versions, and attribution. Only public materials authorized for sharing belong in this repository.
 
-Issue 不会自动获取或运行任何源码，不会自动转换成官方命题或核验结论。
+If no Lean project exists, open an issue and explicitly mark the formalization materials as pending. Do not create a submission that falsely appears ready for verification.
 
-## 2. 新题或已有题
+Issues do not automatically fetch or execute source code, create official statements, or produce verification conclusions.
 
-若精确题目与官方陈述版本已存在，引用对应 `problem_id` 和 `statement_version`。同一题可有多个不同证明工程，各自使用全局唯一 `submission_id`。
+## 2. New or existing problem
 
-新题先创建 `problems/<problem-id>/v1/`：
+If the exact problem and official statement version already exist, reference their `problem_id` and `statement_version`. Multiple proof projects may be registered for the same problem, each with a globally unique `submission_id`.
+
+For a new problem, create `problems/<problem-id>/v1/`:
 
 ```text
 problem.json
@@ -24,45 +26,47 @@ definitions.md
 Challenge.lean
 ```
 
-使用 [题目模板](templates/problem/)，根据原题撰写材料。模板含占位字段，不能原样通过校验。正式陈述需要 [独立审查](docs/statement-review.md)，不得复制候选代码后声称已经盲写。
+Use the [problem templates](templates/problem/) and write the materials from the original problem. Templates contain placeholders and cannot pass validation unchanged. Official statements require [independent review](docs/statement-review.md); copying candidate code does not constitute blind drafting.
 
-`problem.json` 记录原题出处、范围、结论方向和全部 `required_theorems`。`trusted_files` 必须包含题目目录里除 `problem.json` 外的所有文件及其 SHA-256。每次修改绑定文件都须更新哈希；已有批准记录还需重审。
+`problem.json` records original sources, scope, direction of the claim, and all `required_theorems`. `trusted_files` must list every file in the problem directory except `problem.json`, with its SHA-256. Update hashes whenever bound files change; existing approvals also require renewed review.
 
-生成文件哈希可用 `shasum -a 256 <file>`（macOS）或 `sha256sum <file>`（Linux）。当前工具链未接入时 `toolchain_id` 为 `null`，审查保持 `pending`。
+Generate file hashes with `shasum -a 256 <file>` on macOS or `sha256sum <file>` on Linux. While toolchain integration is unavailable, keep `toolchain_id` as `null` and review status as `pending`.
 
-## 3. 新增证明登记
+## 3. Register a proof
 
-复制 [登记模板](templates/submission.json) 到：
+Copy the [submission template](templates/submission.json) to:
 
 ```text
 submissions/<problem-id>/<submission-id>.json
 ```
 
-填入固定公开仓库地址、commit、目标模块和定理。每个官方目标必须恰好对应一条目标记录，不能只登记已经容易通过的部分。
+Specify a fixed public repository URL, commit, target modules, and declarations. Each official target must correspond to exactly one target record; do not register only the easy parts.
 
-登记不接受 `main`、`latest`、任意 shell 命令或候选自行设置的公理白名单。需要适配时提交独立、经审查的 `adapters/` 变更；当前后端未实现，登记适配器 ID 不会执行适配器。
+Registrations do not accept `main`, `latest`, arbitrary shell commands, or candidate-defined axiom allowlists. If adaptation is required, submit a separate reviewed change under `adapters/`. The current backend is not implemented, so registering an adapter ID does not execute it.
 
-保留作者、形式化方和证明路线，特别注明在先结果、额外假设和部分进展。公开署名不包含收款、证件和内部背景审查信息。
+Record authors, formalization contributors, and proof strategy, with explicit prior results, extra assumptions, and partial progress. Public attribution must exclude payment details, identity documents, and internal background checks.
 
-## 4. 本地校验及 PR
+## 4. Local validation and PR
 
-按 README 安装开发依赖，然后执行：
+Install development dependencies as described in the README, then run:
 
 ```bash
 python -m verifier validate
 python -m unittest discover -s tests -v
 ```
 
-新建分支提交 PR，关联登记 Issue，解释变更、来源与核验范围。元数据通过只说明登记结构和引用有效，不说明数学证明成立。
+Open a PR from a new branch, link the registration issue, and explain the change, sources, and verification scope. Creating or updating a PR triggers CI automatically; `registry` and `tests` must pass before merging. PR review approval is currently optional, so authors with merge permission may merge their own PRs.
 
-## 5. 维护者预检与后续完整核验
+Pending statement drafts and candidates may be merged as registrations while `review.status` remains `pending`. Metadata validation checks registration structure and references; it does not establish mathematical correctness. Code-merge permissions do not replace the two independent mathematical reviewers required for formal acceptance.
 
-维护者完成登记审查后合并 PR，在 Actions 中选择 **Verification preflight**，分支固定为 `main`，输入 `submission_id`。
+## 5. Maintainer preflight and subsequent full verification
 
-当前工作流只检查登记并产生绑定输入哈希的 `plan.json`。后端未接入时返回退出码 3，明确显示阻塞原因；不会下载候选、运行 Lean 或标记成功。该 artifact 是临时预检材料，不是正式证据档案。
+After reviewing and merging the registration, a maintainer selects **Verification preflight** in Actions, uses the `main` branch, and enters the `submission_id`.
 
-完整核验上线后，另行运行断网洁净构建、可信命题比对、公理审计、双检查器重放和长期归档。正式通过仍要求有效命题审查，详见 [上线清单](docs/implementation-status.md)。
+The current workflow validates registration and produces a `plan.json` bound to input hashes. With no backend configured, it exits with code 3 and explicit blockers. It does not download candidates, run Lean, or mark proofs successful. Its artifact is temporary preflight data, not a formal evidence archive.
 
-## 6. 修改与重新提交
+Once full verification is implemented, run a clean offline build, trusted statement comparison, axiom audit, dual-checker replay, and durable archiving. Formal acceptance still requires valid statement review; see the [activation checklist](docs/implementation-status.md).
 
-改变候选 commit 或目标会产生新预检输入哈希。后续正式记录必须追加，禁止覆写旧记录。官方题目或其定义勘误需作废原版本、发布新版本并重审；不能用修改题目来迎合当前证明。
+## 6. Changes and resubmission
+
+Changing the candidate commit or targets produces a new preflight input digest. Future formal records must be appended, never overwritten. Corrections to an official problem or its definitions require invalidating the old version, publishing a new version, and reviewing it again. Do not change the problem to accommodate the current proof.

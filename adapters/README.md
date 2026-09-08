@@ -1,5 +1,5 @@
 # adapters
 
-维护方审查的定理连接与构建适配代码。
+Maintainer-reviewed theorem bridges and build adapters.
 
-按 [贡献流程](../CONTRIBUTING.md) 添加。测试使用临时合成数据，不是候选项目。
+Add entries through the [contribution process](../CONTRIBUTING.md). Tests use temporary synthetic data, not candidate projects.

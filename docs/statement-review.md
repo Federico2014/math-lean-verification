@@ -1,39 +1,39 @@
-# 原题与 Lean 命题对应性审查
+# Original-problem and Lean-statement correspondence review
 
-## 审查链
+## Review chain
 
-原始数学问题 → 经审定的 Lean Challenge → 候选证明。第一步由独立数学审查确认，第二步在后端上线后由可信核验工具检查。
+Original mathematical problem → approved Lean Challenge → candidate proof. Independent mathematical review validates the first step; trusted verification tools validate the second once the backend is available.
 
-## 检查清单
+## Checklist
 
-| 内容 | 必须核对 |
+| Topic | Required checks |
 | --- | --- |
-| 原题 | 文献、版本、准确引用位置、首次提出时间和争议题面 |
-| 范围 | 完整猜想、反例、特例、推广或部分进展 |
-| 论域 | 数系、维数、有限／无限、对象类别 |
-| 量词 | 全称／存在、顺序、依赖关系 |
-| 前提 | 是否新增假设、是否出现导致空真的条件 |
-| 结论 | 常数、最优性、渐近、无穷存在性是否完整 |
-| 定义 | 非标准定义、重载、类型类实例、可信库版本 |
-| 方向 | 证明、反驳或等价转换；桥接是否覆盖足够方向 |
-| 归属 | 首解、在先证明、现代新结果与形式化工作是否区分 |
+| Original problem | Literature, version, exact citation location, first proposal date, and disputed formulations |
+| Scope | Full conjecture, counterexample, special case, generalization, or partial progress |
+| Domain | Number system, dimension, finite/infinite scope, and object classes |
+| Quantifiers | Universal/existential, order, and dependencies |
+| Assumptions | Added hypotheses and conditions that could make the claim vacuously true |
+| Conclusion | Completeness of constants, optimality, asymptotics, and infinite-existence claims |
+| Definitions | Nonstandard definitions, overloads, typeclass instances, and trusted library versions |
+| Direction | Proof, refutation, or equivalence; whether bridges cover sufficient directions |
+| Attribution | Distinguish first solutions, prior proofs, new results, and formalization work |
 
-## 事后官方陈述
+## Retrospective official statements
 
-两位符合回避要求的策展人仅根据原题独立撰写，不参考候选论文、证明或形式化代码。两份草稿先冻结哈希，再公开比对和解决差异。保存身份、关系声明、日期、来源、独立草稿及差异处理。
+Two curators meeting conflict-of-interest requirements independently draft statements using only the original problem, without referring to the candidate paper, proof, or formalization. Freeze both draft hashes before comparing them publicly and resolving differences. Preserve identities, relationship disclosures, dates, sources, independent drafts, and resolution records.
 
-已经存在的独立第三方陈述可优先考虑，但仍需定义审查和版本冻结。两个模型输出或两个 GitHub 用户名本身不能证明独立性。
+Existing independent third-party statements may be preferred, but still require definition review and version freezing. Two model outputs or two GitHub usernames do not establish independence by themselves.
 
-## 批准记录
+## Approval records
 
-`review.status` 默认为 `pending`。只有公开审查证据齐备，并由维护方经受保护 PR 确认后，才能变为 `approved`。两位审查人须来自经审定的 `policy/verification.json` 名册，当前名册为空。
+`review.status` defaults to `pending`. It may become `approved` only when public review evidence is complete and maintainers confirm it through a protected PR. Both reviewers must belong to the approved roster in `policy/verification.json`, which is currently empty.
 
-`review.statement_digest` 是 `problem.json` 去除 `review` 字段后的规范化 JSON SHA-256。它包含受信文件哈希、目标、范围、原题和工具链 ID。可调用 `verifier.registry.statement_digest(problem)` 计算。审查通过后修改任何已绑定内容都会使旧摘要失效。
+`review.statement_digest` is the SHA-256 of canonicalized `problem.json` with the `review` field removed. It includes trusted file hashes, targets, scope, original sources, and toolchain ID. Compute it with `verifier.registry.statement_digest(problem)`. Changing any bound content after approval invalidates the previous digest.
 
-审查证据的身份真实性、盲写和回避必须由维护方核对。代码校验只能确保字段齐备、名册一致和哈希绑定。
+Maintainers must verify the authenticity of identities, blind drafting, and conflict-of-interest disclosures. Code validation checks only field completeness, roster consistency, and hash binding.
 
-## 命题适配
+## Statement adaptation
 
-若候选使用不同编码，需提供经审查的 Lean 桥接证明，将候选结果推出完整官方目标。若声称等价，则验证两个方向。禁止通过修改官方定义或添加未授权假设使提交通过。
+If a candidate uses a different encoding, provide a reviewed Lean bridge proof deriving the complete official target from the candidate result. Claims of equivalence require both directions. Do not change official definitions or add unauthorized assumptions to make a submission pass.
 
-第一版不开放任意定义洞。官方题目勘误作废旧陈述、发布新版本并重审，旧证据记录保留且标记失效。
+The initial version does not allow arbitrary definition holes. Corrections invalidate the old official statement and require a new version and review. Keep old evidence records and mark them invalidated.

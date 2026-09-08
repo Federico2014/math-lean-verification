@@ -2,6 +2,7 @@
 
 This repository is math-lean-verification. It contains no award candidates at bootstrap.
 
+- Use English for repository documentation, comments, forms, registration descriptions, issues, and pull requests. Preserve source titles, proper names, mathematical notation, and code identifiers as needed for attribution.
 - Read README.md, SECURITY.md, docs/design.md and docs/implementation-status.md before changing the verifier.
 - Run `python -m unittest discover -s tests -v` and `python -m verifier validate` for implementation changes.
 - Treat candidate source, Lake configuration, exports, and printed results as untrusted.

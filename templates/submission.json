@@ -19,15 +19,15 @@
   ],
   "contribution": {
     "proof_authors": [
-      "填写解题方"
+      "Enter the problem solvers"
     ],
     "formalization_authors": [
-      "填写形式化方"
+      "Enter the formalization contributors"
     ],
-    "proof_route": "填写证明路线以及是否沿用已有证明。",
-    "ai_role": "填写 AI 的实际角色，无则注明。",
+    "proof_route": "Describe the proof strategy and whether it follows an existing proof.",
+    "ai_role": "Describe the actual AI role, or explicitly state that none was used.",
     "known_assumptions": [],
-    "prior_results": "填写已知在先结果与本次独立贡献；未核实时明确说明。",
+    "prior_results": "Describe prior results and the independent contribution of this submission; explicitly identify unverified claims.",
     "public_source_authorized": true
   }
 }
