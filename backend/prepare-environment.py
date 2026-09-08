@@ -48,6 +48,10 @@ if cfg['dependency_mode'] == 'mathlib-cache':
         run(['git', 'remote', 'add', 'origin', dep['url']], cwd=target)
         run(['git', 'fetch', '--depth=1', 'origin', dep['rev']], cwd=target)
         run(['git', 'checkout', '--detach', dep['rev']], cwd=target)
+        # Runtime uses an unprivileged user against root-owned, read-only image
+        # dependencies. Without this exact-path trust entry Git refuses metadata
+        # reads and Lake mistakes the missing origin for a changed repository.
+        run(['git', 'config', '--system', '--add', 'safe.directory', str(target)])
         if dep['name'] == 'proofwidgets':
             # Lake locates this package's release asset through Git tags. A
             # commit-only shallow fetch omits them; fetching tags never changes

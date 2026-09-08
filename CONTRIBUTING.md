@@ -28,7 +28,7 @@ New environment configuration belongs in a separate maintenance PR. Freeze versi
 
 Copy [the submission template](templates/submission.json) to `submissions/<problem-id>/<submission-id>.json`. Set the full upstream commit, complete target mapping and environment ID. Add `execution.project_root`, `execution.include` and hashed `execution.proof_files` as needed. Place local Lean bridges under `proofs/<submission-id>/`.
 
-A bridge calls the upstream theorem and proves the official statement with the required name. It is checked proof code, not trusted configuration. Selected upstream files and bridge overlays may not collide or replace trusted files. Arbitrary shell commands, upstream Lake programs and precompiled binaries are not accepted inputs. `adapter_id` remains null; use proof overlays for Lean bridges.
+Use [the bridge template](templates/Bridge.lean) when needed. A bridge calls the upstream theorem and proves the official statement with the required name. It is checked proof code, not trusted configuration. Selected upstream files and bridge overlays may not collide or replace trusted files. Arbitrary shell commands, upstream Lake programs and precompiled binaries are not accepted inputs. `adapter_id` remains null; use proof overlays for Lean bridges.
 
 Link the candidate issue in the PR and run:
 

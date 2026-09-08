@@ -34,6 +34,22 @@ class EnvironmentTests(unittest.TestCase):
             result = inspect_project(self.root)
         self.assertIn('dynamic_lakefile_requires_review', result['warnings'])
 
+    def test_matching_ignores_project_name_and_lock_formatting(self):
+        source = ROOT / 'environments/lean-4-28-mathlib'
+        for name in ('lean-toolchain', 'lakefile.toml', 'lake-manifest.json'):
+            shutil.copyfile(source / name, self.root / name)
+        lock = json.loads((self.root / 'lake-manifest.json').read_text())
+        lock['name'] = 'a-different-project'
+        lock['packages'].reverse()
+        (self.root / 'lake-manifest.json').write_text(json.dumps(lock))
+        self.assertEqual(discover(self.root, ROOT)['matches'][0]['environment_id'], 'lean-4-28-mathlib')
+
+    def test_stdlib_project_does_not_need_a_dependency_lock(self):
+        (self.root / 'lean-toolchain').write_text('leanprover/lean4:v4.34.0-rc2\n')
+        (self.root / 'lakefile.toml').write_text('name = "different-project"\n')
+        result = discover(self.root, ROOT)
+        self.assertEqual(result['matches'][0]['environment_id'], 'lean-4-34-rc2-stdlib')
+
     def test_dependency_must_be_pinned_and_public(self):
         for field, value in [('rev', 'main'), ('type', 'path'), ('url', 'https://evil.test/proof')]:
             dep = {'name': 'dep', 'type': 'git', 'rev': 'a'*40, 'url': 'https://github.com/example/dep'}

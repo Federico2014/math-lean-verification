@@ -5,10 +5,11 @@ An environment is a shared configuration, not a workflow per candidate. Its desc
 ## Static discovery
 
 ```bash
+python -m verifier environments
 python -m verifier inspect-environment /path/to/project
 ```
 
-The command reads bounded files only. Dynamic Lake code is never evaluated. Results are suggestions with `machine_status: not_run`; reviewers check the lock, special requirements and proposed reuse.
+The command reads bounded files only. Dynamic Lake code is never evaluated. Matching compares the Lean version and fixed dependency identities, ignoring project names and lock formatting. The environment listing supplies canonical digests. Results are suggestions with `machine_status: not_run`; reviewers check the lock, special requirements and proposed reuse.
 
 ## Reuse
 

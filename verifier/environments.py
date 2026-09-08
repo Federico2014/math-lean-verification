@@ -73,6 +73,7 @@ def inspect_project(project):
     project = Path(project)
     result = {'schema_version': 1, 'machine_status': 'not_run', 'lean_toolchain': None,
               'dependencies': [], 'warnings': [], 'matches': []}
+    config = None
     if (project / 'lean-toolchain').exists():
         toolchain = safe_file(project, 'lean-toolchain').read_text().strip()
         require(re.fullmatch(r'leanprover/lean4:v4\.\d+\.\d+(?:-rc\d+)?', toolchain),
@@ -110,7 +111,8 @@ def inspect_project(project):
             result['dependencies'].append({k: dep[k] for k in ('name', 'url', 'rev')})
         result['manifest_sha256'] = file_digest(manifest_path)
     else:
-        result['warnings'].append('missing_dependency_lock')
+        if config is None or config.get('require'):
+            result['warnings'].append('missing_dependency_lock')
     result['dependencies'].sort(key=lambda x: x['name'])
     return result
 
@@ -120,10 +122,11 @@ def discover(project, root):
     for identifier, env in load_environments(root).items():
         if result['lean_toolchain'] != 'leanprover/lean4:' + env['lean_release']:
             continue
-        expected = next((f['sha256'] for f in env['files'] if f['path'] == 'lake-manifest.json'), None)
-        # Matching is deliberately conservative. Cache/module coverage and tool
-        # compatibility still require review even when dependency locks match.
-        if expected == result.get('manifest_sha256') and not result['warnings']:
+        expected = inspect_project(root / 'environments' / identifier)['dependencies'] if env['files'] else []
+        # Compare dependency identities, not root project names, inherited flags
+        # or JSON formatting. Those vary across projects sharing one environment.
+        # Cache coverage and dynamic build requirements still need review.
+        if expected == result['dependencies'] and not result['warnings']:
             result['matches'].append({'environment_id': identifier, 'status': env['status'],
                                       'environment_digest': canonical_digest(env)})
     result['next_step'] = 'review_environment_match' if result['matches'] else 'review_new_environment_configuration'
