@@ -38,8 +38,8 @@ if sys.argv[1] == 'resolve':
         stream.write('head=' + head + '\npr=' + str(number) + '\nbase=' + pr['base']['sha'] + '\n')
 else:
     result = os.environ['EXECUTION_RESULT']
-    gate = os.environ['GATE_STATUS']
-    success = result == 'success' and gate in ('passed', 'not_applicable')
+    gate = os.environ['PLAN_STATUS']
+    success = os.environ['PLAN_RESULT'] == 'success' and ((gate == 'ready' and result == 'success') or (gate == 'not_applicable' and result == 'skipped'))
     current = api('pulls/' + str(int(os.environ['PR_NUMBER'])))
     success = success and current['head']['sha'] == os.environ['PR_HEAD'] and current['base']['sha'] == os.environ['EXPECTED_BASE']
     description = ('No candidate proof changes in this PR' if gate == 'not_applicable' else

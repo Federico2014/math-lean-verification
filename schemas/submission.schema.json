@@ -175,6 +175,69 @@
         "public_source_authorized"
       ],
       "additionalProperties": false
+    },
+    "execution": {
+      "type": "object",
+      "properties": {
+        "project_root": {
+          "anyOf": [
+            {
+              "const": "."
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[A-Za-z0-9_][A-Za-z0-9_./-]*$(?![\\s\\S])"
+            }
+          ]
+        },
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9_][A-Za-z0-9_./*-]*$(?![\\s\\S])"
+          },
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true
+        },
+        "proof_files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9_][A-Za-z0-9_./-]*$(?![\\s\\S])"
+              },
+              "sha256": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+              }
+            },
+            "required": [
+              "path",
+              "sha256"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 100,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "project_root",
+        "include",
+        "proof_files"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [

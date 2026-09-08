@@ -4,6 +4,8 @@ on:
     paths:
       - 'backend/**'
       - 'verifier/**'
+      - 'environments/**'
+      - 'schemas/**'
       - 'scripts/backend_smoke.py'
       - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
@@ -15,7 +17,12 @@ concurrency:
 jobs:
   backend-tests:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        environment: [lean-4-34-rc2-stdlib, lean-4-28-mathlib]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -28,13 +35,19 @@ jobs:
           python -m pip install --only-binary=:all: --require-hashes -r requirements-ci.lock
       - name: Build pinned verification tools (no candidate input)
         run: docker build -t lean-gate-tools backend
+      - name: Build reusable environment for onboarding (not approval)
+        env:
+          ENVIRONMENT_ID: ${{ matrix.environment }}
+        run: python -m verifier.build_environment "$ENVIRONMENT_ID" --allow-pending --output "$RUNNER_TEMP/images.json"
       - name: Run real proof and sandbox regression cases
+        env:
+          ENVIRONMENT_ID: ${{ matrix.environment }}
         run: |
-          image_id=$(docker image inspect lean-gate-tools --format '{{.Id}}')
-          python scripts/backend_smoke.py --image "$image_id" --output "$RUNNER_TEMP/backend-evidence"
+          image_id=$(python -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"] + "/images.json"))[os.environ["ENVIRONMENT_ID"]])')
+          python scripts/backend_smoke.py --image "$image_id" --environment "$ENVIRONMENT_ID" --output "$RUNNER_TEMP/backend-evidence"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
-          name: backend-test-evidence
+          name: backend-test-evidence-${{ matrix.environment }}
           path: ${{ runner.temp }}/backend-evidence
           retention-days: 30

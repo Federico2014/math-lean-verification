@@ -2,7 +2,7 @@
 
 ## Current execution boundary
 
-The registry validates JSON metadata and bound statement files. The PR merge gate additionally provides a source-only Lean core/Std execution profile with Comparator and independent Nanoda replay. Candidate use requires an approved toolchain and an already-reviewed official statement on the protected base. See [the merge gate](docs/lean-merge-gate.md). A preflight plan and a metadata CI pass are never proof verification results.
+The registry validates JSON metadata and bound statement files. The PR merge gate additionally provides reusable, hash-bound environments and trusted workspaces with Comparator and independent Nanoda replay. Candidate execution requires an approved environment and a registered trusted workspace on the protected base. Pending mathematical review permits diagnostics only and never a merge pass. See [the merge gate](docs/lean-merge-gate.md). A preflight plan and a metadata CI pass are never proof verification results.
 
 The verifier's schemas come from its own checkout, not from the candidate data root. JSON has size limits, duplicate-key rejection, strict properties, fixed commit requirements, and path/symlink checks. Statement reviews bind content hashes and cannot be copied across statement changes.
 
@@ -14,7 +14,7 @@ Approved reviewer names in JSON are not identity authentication, proof of indepe
 - PRs can modify tests and workflows. Their green checks are developer feedback, not authoritative formal evidence. Formal decisions must use an independently protected verifier revision.
 - Preflight runs only on the default branch via `workflow_dispatch`. It never executes candidate source.
 - All Actions use full commit pins. Checkout does not persist credentials. Python CI dependencies use exact versions and hashes.
-- The trusted `pull_request_target` gate checks out only protected-base controller code. PR files are bounded data; candidate execution is confined to disposable containers in the read-only job. Separate status-only jobs consume trusted job outcomes, never candidate artifacts. No privileged `workflow_run`, self-hosted runner, or candidate build cache is enabled.
+- The trusted `pull_request_target` gate checks out only protected-base controller code. PR files are bounded data; candidate execution is confined to disposable containers in the read-only job. Separate status-only jobs consume trusted job outcomes, never candidate artifacts. No privileged `workflow_run`, self-hosted runner, or candidate build cache is enabled. Reviewed environment images may contain explicitly trusted, fixed Mathlib dependency caches; candidate builds cannot write to them.
 - CODEOWNERS only protects files when repository branch protection requires its review. Check actual GitHub settings using the maintainer runbook.
 
 ## Mandatory boundary before enabling a Lean backend

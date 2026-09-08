@@ -29,5 +29,13 @@
     "known_assumptions": [],
     "prior_results": "Describe prior results and the independent contribution of this submission; explicitly identify unverified claims.",
     "public_source_authorized": true
+  },
+  "execution": {
+    "project_root": ".",
+    "include": [
+      "Submission.lean",
+      "Submission/**"
+    ],
+    "proof_files": []
   }
 }

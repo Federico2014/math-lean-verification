@@ -1,0 +1,165 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "environment_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "approved"
+      ]
+    },
+    "evidence_url": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048,
+          "pattern": "^https://[^\\s]+$(?![\\s\\S])"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "lean_release": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "pattern": "^v4\\.[0-9]+\\.[0-9]+(?:-rc[0-9]+)?$(?![\\s\\S])"
+    },
+    "lean_archive_sha256": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+    },
+    "exporter_commit": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "pattern": "^[0-9a-f]{40}$(?![\\s\\S])"
+    },
+    "dependency_mode": {
+      "enum": [
+        "none",
+        "mathlib-cache"
+      ]
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9_][A-Za-z0-9_./-]*$(?![\\s\\S])"
+          },
+          "sha256": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 100,
+      "uniqueItems": true
+    },
+    "resources": {
+      "type": "object",
+      "properties": {
+        "memory_mb": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 32768
+        },
+        "cpus": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "work_mb": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 16384
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 18000
+        },
+        "max_files": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "max_source_mb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "max_export_mb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2048
+        }
+      },
+      "required": [
+        "memory_mb",
+        "cpus",
+        "work_mb",
+        "timeout_seconds",
+        "max_files",
+        "max_source_mb",
+        "max_export_mb"
+      ],
+      "additionalProperties": false
+    },
+    "cache_modules": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*$(?![\\s\\S])",
+        "maxLength": 256
+      },
+      "maxItems": 100,
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "schema_version",
+    "environment_id",
+    "description",
+    "status",
+    "evidence_url",
+    "lean_release",
+    "lean_archive_sha256",
+    "exporter_commit",
+    "dependency_mode",
+    "files",
+    "resources",
+    "cache_modules"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

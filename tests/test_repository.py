@@ -55,7 +55,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(set(workflow["on"]), {"pull_request_target", "workflow_dispatch"})
         jobs = workflow["jobs"]
         self.assertNotIn("permissions", jobs["verify"])
-        self.assertEqual(jobs["verify"]["needs"], "resolve")
+        self.assertEqual(jobs["verify"]["needs"], ["resolve", "plan"])
         for name in ["resolve", "publish"]:
             self.assertEqual(jobs[name]["permissions"], {"contents": "read", "statuses": "write"})
         for name, job in jobs.items():
@@ -65,7 +65,7 @@ class RepositoryTests(unittest.TestCase):
             expected = "${{ github.event.pull_request.base.sha || github.sha }}" if name == "resolve" else "${{ needs.resolve.outputs.base }}"
             self.assertEqual(ref, expected)
             self.assertNotIn("head", ref)
-        self.assertEqual(jobs["publish"]["needs"], ["resolve", "verify"])
+        self.assertEqual(jobs["publish"]["needs"], ["resolve", "plan", "verify"])
         self.assertNotIn("download-artifact", str(jobs["publish"]))
         self.assertIn("needs.verify.result", str(jobs["publish"]))
         self.assertNotIn("continue-on-error", str(workflow))
@@ -116,8 +116,8 @@ class RepositoryTests(unittest.TestCase):
     def test_templates_have_expected_fields_without_registering_candidates(self):
         problem = read_json(ROOT / "templates/problem/problem.json")
         submission = read_json(ROOT / "templates/submission.json")
-        self.assertEqual(set(problem), set(read_json(ROOT / "schemas/problem.schema.json")["required"]))
-        self.assertEqual(set(submission), set(read_json(ROOT / "schemas/submission.schema.json")["required"]))
+        self.assertEqual(set(problem), set(read_json(ROOT / "schemas/problem.schema.json")["required"]) | {"workspace"})
+        self.assertEqual(set(submission), set(read_json(ROOT / "schemas/submission.schema.json")["required"]) | {"execution"})
         self.assertEqual(problem["review"]["status"], "pending")
 
 

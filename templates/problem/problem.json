@@ -39,5 +39,14 @@
     "statement_digest": null,
     "reviewers": [],
     "evidence_url": null
+  },
+  "workspace": {
+    "environment_digest": "REPLACE_WITH_CANONICAL_ENVIRONMENT_SHA256",
+    "solution_module": "Bridge",
+    "submission_paths": [
+      "Submission.lean",
+      "Submission/**",
+      "Bridge.lean"
+    ]
   }
 }

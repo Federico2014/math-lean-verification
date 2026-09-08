@@ -17,8 +17,14 @@ def main(argv=None) -> int:
     plan = commands.add_parser("plan", help="Produce a preflight plan; this is NOT proof verification")
     plan.add_argument("submission_id")
     plan.add_argument("--output", type=Path, help="New output file; existing files are never overwritten")
+    inspect = commands.add_parser('inspect-environment', help='Inspect local project metadata without executing Lake')
+    inspect.add_argument('project', type=Path)
     args = parser.parse_args(argv)
     try:
+        if args.command == 'inspect-environment':
+            from .environments import discover
+            print(json.dumps(discover(args.project, args.root), indent=2))
+            return 0
         if args.command == "plan":
             result = plan_verification(args.root, args.submission_id)
             output = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
