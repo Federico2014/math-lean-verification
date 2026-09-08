@@ -1,72 +1,48 @@
 # Adding candidates and contributing
 
-Submitting a candidate requests verification. It does not establish an award, a valid proof, or priority for a first solution.
+Use English for repository content, issues and PRs. Preserve mathematical notation and original proper names for attribution. Registration and CI results do not decide awards.
 
-Use English for repository documentation, comments, forms, registration descriptions, issues, and pull requests. Preserve source titles, proper names, mathematical notation, and code identifiers where needed for accurate attribution.
+## 1. Open a candidate issue
 
-## 1. Register the materials
+Provide the original problem and scope, public proof/paper links, a full upstream commit, all target modules/declarations, Lean/dependency information, known assumptions and attribution. Missing materials remain in the issue until supplied.
 
-Open a "Submit a candidate result" issue with the original mathematical problem, paper, first public disclosure date, intended proof/counterexample/partial-result scope, Lean repository URL, full 40-character commit, all target theorems, versions, and attribution. Only public materials authorized for sharing belong in this repository.
+## 2. Reuse or prepare a trusted problem
 
-If no Lean project exists, open an issue and explicitly mark the formalization materials as pending. Do not create a submission that falsely appears ready for verification.
+Reference an existing `problem_id` and `statement_version`, or prepare a separate problem PR using [the templates](templates/problem/). Bind all files under the problem version in `trusted_files`, fix the complete official target list and perform [statement review](docs/statement-review.md).
 
-Issues do not automatically fetch or execute source code, create official statements, or produce verification conclusions.
+For the workspace path, set `workspace.solution_module`, permitted `workspace.submission_paths`, and the canonical `workspace.environment_digest`. The candidate PR cannot change this trusted interface. Pending review permits diagnostics only; merge still requires the approved review.
 
-## 2. New or existing problem
+## 3. Identify and freeze the environment; adapt only when needed
 
-If the exact problem and official statement version already exist, reference their `problem_id` and `statement_version`. Multiple proof projects may be registered for the same problem, each with a globally unique `submission_id`.
+Run the non-executing inspector against a local source checkout:
 
-For a new problem, create `problems/<problem-id>/v1/`:
-
-```text
-problem.json
-statement.md
-correspondence.md
-definitions.md
-Challenge.lean
+```bash
+python -m verifier inspect-environment /path/to/project
 ```
 
-Use the [problem templates](templates/problem/) and write the materials from the original problem. Templates contain placeholders and cannot pass validation unchanged. Official statements require [independent review](docs/statement-review.md); copying candidate code does not constitute blind drafting.
+Reuse an approved environment when the full dependency/tool configuration matches. A version difference normally adds environment configuration, not a workflow. Directory and theorem-name differences normally belong in source mapping and a bridge. Special dependencies or unsupported tools require explicit adaptation.
 
-`problem.json` records original sources, scope, direction of the claim, and all `required_theorems`. `trusted_files` must list every file in the problem directory except `problem.json`, with its SHA-256. Update hashes whenever bound files change; existing approvals also require renewed review.
+New environment configuration belongs in a separate maintenance PR. Freeze versions and file hashes, run real onboarding tests and record evidence before approving the environment and admitting its ID in policy. A suggested match or a `pending` environment cannot pass the candidate gate.
 
-Generate file hashes with `shasum -a 256 <file>` on macOS or `sha256sum <file>` on Linux. While toolchain integration is unavailable, keep `toolchain_id` as `null` and review status as `pending`.
+## 4. Submit the candidate PR
 
-## 3. Register a proof
+Copy [the submission template](templates/submission.json) to `submissions/<problem-id>/<submission-id>.json`. Set the full upstream commit, complete target mapping and environment ID. Add `execution.project_root`, `execution.include` and hashed `execution.proof_files` as needed. Place local Lean bridges under `proofs/<submission-id>/`.
 
-Copy the [submission template](templates/submission.json) to:
+Use [the bridge template](templates/Bridge.lean) when needed. A bridge calls the upstream theorem and proves the official statement with the required name. It is checked proof code, not trusted configuration. Selected upstream files and bridge overlays may not collide or replace trusted files. Arbitrary shell commands, upstream Lake programs and precompiled binaries are not accepted inputs. `adapter_id` remains null; use proof overlays for Lean bridges.
 
-```text
-submissions/<problem-id>/<submission-id>.json
-```
-
-Specify a fixed public repository URL, commit, target modules, and declarations. Each official target must correspond to exactly one target record; do not register only the easy parts.
-
-Registrations do not accept `main`, `latest`, arbitrary shell commands, or candidate-defined axiom allowlists. If adaptation is required, submit a separate reviewed change under `adapters/`. The current backend is not implemented, so registering an adapter ID does not execute it.
-
-Record authors, formalization contributors, and proof strategy, with explicit prior results, extra assumptions, and partial progress. Public attribution must exclude payment details, identity documents, and internal background checks.
-
-## 4. Local validation and PR
-
-Install development dependencies as described in the README, then run:
+Link the candidate issue in the PR and run:
 
 ```bash
 python -m verifier validate
 python -m unittest discover -s tests -v
 ```
 
-Open a PR from a new branch, link the registration issue, and explain the change, sources, and verification scope. Creating or updating a PR triggers CI automatically; `registry`, `tests`, and `lean-verification` must pass before merging. PR review approval is currently optional, so authors with merge permission may merge their own PRs.
+PR creation and updates automatically trigger verification. Required `registry`, `tests` and `lean-verification` checks must pass. Code merge permission for your own PR does not replace the mathematical review policy.
 
-Pending statement drafts may be registered separately, but candidate proof PRs must reference an already-approved statement and toolchain on `main` and pass the [Lean merge gate](docs/lean-merge-gate.md). Unsupported profiles, missing bridges, and pending reviews block candidate merging. Metadata validation alone does not establish mathematical correctness. Code-merge permissions do not replace the two independent mathematical reviewers required for formal acceptance.
+## 5. Understand failures and retain evidence
 
-## 5. Maintainer preflight and subsequent full verification
+Read the trusted plan first. Missing statements, unsupported environments and stale hashes may prevent proof execution. Otherwise inspect per-stage evidence: a build success alone is not a proof pass. Fix the input and push again; previous results cannot authorize the new version.
 
-After reviewing and merging the registration, a maintainer selects **Verification preflight** in Actions, uses the `main` branch, and enters the `submission_id`.
+Maintainers can rerun **Trusted Lean verification** from `main` using an open PR number. The `plan` CLI and **Verification preflight** remain non-executing diagnostics and cannot grant proof acceptance.
 
-The current workflow validates registration and produces a `plan.json` bound to input hashes. With no backend configured, it exits with code 3 and explicit blockers. It does not download candidates, run Lean, or mark proofs successful. Its artifact is temporary preflight data, not a formal evidence archive.
-
-The supported source-only profile performs a clean offline build, trusted statement comparison, axiom audit, and dual-checker replay before candidate merging. Mathlib integration and durable formal archiving remain outstanding. Formal acceptance still requires valid statement review; see the [activation checklist](docs/implementation-status.md).
-
-## 6. Changes and resubmission
-
-Changing the candidate commit or targets produces a new preflight input digest. Future formal records must be appended, never overwritten. Corrections to an official problem or its definitions require invalidating the old version, publishing a new version, and reviewing it again. Do not change the problem to accommodate the current proof.
+Evidence artifacts contain sources, exports, checker logs and version bindings. Verify sealed archive integrity with `python -m verifier.evidence verify <archive.zip>`. Durable archival and award acceptance remain subject to the [activation checklist](docs/implementation-status.md).

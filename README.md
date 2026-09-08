@@ -10,12 +10,20 @@ The repository supports candidate registration. **No results have been formally 
 
 Available components include candidate intake forms, registration schemas, original-problem and statement-correspondence templates, hash and target-coverage validation, CI tests, and a maintainer preflight entry point. The CI badge reports only repository code and registration checks.
 
-The [Lean merge gate](docs/lean-merge-gate.md) checks candidate changes using isolated builds, Comparator statement/axiom checks, and Lean plus Nanoda replay. The initial execution profile supports source-only core/Std projects. The source-only profile has [onboarding evidence](docs/backend-onboarding.md); independent reviewers still require approval, and Mathlib integration and durable formal archives remain outstanding. `plan` remains a non-executing preflight command and cannot produce proof acceptance.
+The [Lean merge gate](docs/lean-merge-gate.md) uses trusted problem workspaces, reusable environment configurations, explicit source mappings and checked proof bridges. It runs isolated builds, Comparator statement/axiom checks, and Lean plus Nanoda replay. The existing core/Std environment has onboarding evidence; the additional Lean 4.28 / Mathlib profile has [real onboarding evidence](docs/workspace-onboarding.md) for its explicitly limited module scope. Durable formal archives and reviewer accreditation remain separate activation requirements.
+
+Inspect a project's environment without running its code:
+
+```bash
+python -m verifier inspect-environment /path/to/project
+```
+
+Reuse approved configurations whenever possible. Version differences normally add configuration, not another workflow; special requirements need explicit adaptation. See [environment onboarding](docs/environment-onboarding.md).
 
 ## Adding a candidate
 
 1. Use the [candidate submission form](https://github.com/Federico2014/math-lean-verification/issues/new?template=candidate.yml) to provide the original problem, paper, Lean repository, full commit, and target theorems.
-2. For a new problem, register and independently review its statement in a separate PR. An approved statement and toolchain must already be on `main` before a candidate proof can pass the merge gate.
+2. For a new problem, register and independently review its statement in a separate PR. The workspace and approved environment must already be on `main`; its exact mathematical review must be approved before a candidate can pass the merge gate.
 3. Open a registration PR following the [contribution process](CONTRIBUTING.md). Do not include credentials, KYC data, or materials that are not authorized for publication in an issue.
 4. Required `registry`, `tests`, and `lean-verification` checks must pass before merging a candidate registration. Unsupported or incomplete candidates remain blocked.
 

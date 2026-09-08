@@ -17,26 +17,35 @@ import tempfile
 import time
 import uuid
 
-from .registry import RegistryError, require
+from .registry import RegistryError, require, canonical_digest
 
 PROFILE = 'lean-4-34-rc2-stdlib'
 AXIOMS = ['propext', 'Classical.choice', 'Quot.sound']
 NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_']*(?:\.[A-Za-z_][A-Za-z0-9_']*)*\Z")
 MAX_EXPORT = 128 * 1024 * 1024
 MAX_LOG = 2 * 1024 * 1024
+DEFAULT_RESOURCES = {'memory_mb': 4096, 'cpus': 2, 'work_mb': 1024,
+                     'timeout_seconds': 1800, 'max_files': 100,
+                     'max_source_mb': 8, 'max_export_mb': 128}
 
 
 def sandbox(image: str, inputs: Path, command: list[str], *, timeout=600,
-            max_stdout=MAX_LOG) -> tuple[int, bytes, bytes]:
+            max_stdout=MAX_LOG, resources=None) -> tuple[int, bytes, bytes]:
+    resources = resources or DEFAULT_RESOURCES
+    from jsonschema import Draft202012Validator
+    from .registry import ROOT, read_json
+    limits = read_json(ROOT / 'schemas/environment.schema.json')['properties']['resources']
+    require(Draft202012Validator(limits).is_valid(resources), 'Invalid sandbox resource policy')
     require(bool(re.fullmatch(r'sha256:[0-9a-f]{64}', image)), 'Expected immutable local image ID')
     require(inputs.is_dir() and not inputs.is_symlink(), 'Invalid sandbox input directory')
     name = 'lean-gate-' + uuid.uuid4().hex
     args = ['docker', 'run', '--name', name, '--rm', '--network=none', '--read-only',
             '--user=10001:10001', '--cap-drop=ALL', '--security-opt=no-new-privileges',
             '--security-opt=seccomp=' + str(Path(__file__).resolve().parents[1] / 'backend/seccomp.json'),
-            '--pids-limit=128', '--memory=4g', '--memory-swap=4g', '--cpus=2',
+            '--pids-limit=128', f"--memory={resources['memory_mb']}m",
+            f"--memory-swap={resources['memory_mb']}m", f"--cpus={resources['cpus']}",
             '--ulimit=nofile=256:256', '--ulimit=fsize=268435456:268435456',
-            '--tmpfs=/work:rw,nosuid,nodev,size=1073741824,mode=1777',
+            f"--tmpfs=/work:rw,nosuid,nodev,size={resources['work_mb'] * 1024**2},mode=1777",
             '--tmpfs=/tmp:rw,nosuid,nodev,noexec,size=268435456,mode=1777',
             '--mount', f'type=bind,src={inputs.resolve()},dst=/input,readonly',
             '--workdir=/work', image, *command]
@@ -79,11 +88,12 @@ def checked(image, inputs, command, **kwargs):
     return out
 
 
-def copy_sources(source: Path, destination: Path) -> None:
+def copy_sources(source: Path, destination: Path, resources=None) -> None:
     """Only Lean source is accepted; never copy upstream builds or Lake programs."""
     require(source.is_dir() and not source.is_symlink(), 'Missing source directory')
     destination.mkdir()
     count = total = 0
+    resources = resources or DEFAULT_RESOURCES
     for item in sorted(source.rglob('*')):
         require(not item.is_symlink(), 'Symlink in Lean source')
         if not item.is_file():
@@ -94,36 +104,66 @@ def copy_sources(source: Path, destination: Path) -> None:
                 'Invalid Lean source path')
         total += item.stat().st_size
         count += 1
-        require(count <= 100 and total <= 8 * 1024 * 1024, 'Lean source package exceeds limit')
+        require(count <= resources['max_files'] and total <= resources['max_source_mb'] * 1024**2,
+                'Lean source package exceeds limit')
         out = destination / rel
         out.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(item, out)
 
 
 def verify(image: str, challenge_sources: Path, solution_sources: Path,
-           module: str, theorems: list[str], evidence: Path) -> dict:
+           module: str, theorems: list[str], evidence: Path, environment=None,
+           solution_declarations=None) -> dict:
     require(bool(NAME.fullmatch(module)), 'Invalid solution module')
     require(0 < len(theorems) <= 100 and len(theorems) == len(set(theorems)), 'Invalid targets')
     require(all(NAME.fullmatch(n) for n in theorems), 'Invalid theorem name')
+    solution_declarations = solution_declarations or []
+    require(len(solution_declarations) <= 100 and all(NAME.fullmatch(n) for n in solution_declarations),
+            'Invalid upstream target declarations')
     require(not evidence.exists(), 'Evidence directory already exists')
     evidence.mkdir(parents=True)
     cfg = {'challenge_module': 'Challenge', 'solution_module': module,
            'theorem_names': theorems, 'definition_names': [], 'permitted_axioms': AXIOMS}
     stages = []
-    result = {'schema_version': 1, 'profile': PROFILE, 'image_id': image,
+    resources = environment['resources'] if environment else DEFAULT_RESOURCES
+    result = {'schema_version': 1, 'profile': environment['environment_id'] if environment else PROFILE,
+              'environment_digest': canonical_digest(environment) if environment else None,
+              'resources': resources, 'image_id': image,
               'targets': theorems, 'machine_status': 'failed', 'stages': stages,
               'seccomp_sha256': hashlib.sha256((Path(__file__).resolve().parents[1] / 'backend/seccomp.json').read_bytes()).hexdigest()}
+    started = time.monotonic()
+    executions = []
+    result['executions'] = executions
+    def execute(inputs, command, **kwargs):
+        kwargs['timeout'] = min(kwargs.get('timeout', resources['timeout_seconds']), resources['timeout_seconds'])
+        beginning = time.monotonic()
+        code, out, err = sandbox(image, inputs, command, resources=resources, **kwargs)
+        index = len(executions)
+        log = {'command': command, 'exit_code': code, 'duration_seconds': round(time.monotonic() - beginning, 3),
+               'stdout_bytes': len(out), 'stderr': err.decode('utf-8', errors='replace')}
+        if kwargs.get('max_stdout', MAX_LOG) <= MAX_LOG:
+            log['stdout'] = out.decode('utf-8', errors='replace')
+        (evidence / f'execution-{index}.json').write_text(json.dumps(log, indent=2) + '\n')
+        executions.append({k: v for k, v in log.items() if k not in ('stdout', 'stderr')})
+        require(code == 0, f'Isolated stage rejected input (exit {code}): ' + json.dumps((err + out)[-8000:].decode('utf-8', errors='replace')))
+        return out
+    probe = ['python3', '/opt/gate/probe.py', str(resources['memory_mb']), str(resources['cpus'])]
     try:
         with tempfile.TemporaryDirectory(prefix='lean-gate-') as temporary:
             root = Path(temporary)
             control = root / 'control'
             control.mkdir()
             (control / 'config.json').write_text(json.dumps(cfg))
-            checked(image, control, ['python3', '/opt/gate/probe.py'])
+            execute(control, probe)
             stages.append('sandbox_probes')
+            if environment:
+                identity = execute(control, ['cat', '/opt/environment/identity.json'])
+                require(json.loads(identity)['environment_digest'] == canonical_digest(environment),
+                        'Image does not match the approved environment')
+                (evidence / 'environment.json').write_text(json.dumps(environment, indent=2) + '\n')
             for filename in ['toolchain.json', 'binaries.sha256', 'system-packages.txt']:
-                (evidence / filename).write_bytes(checked(image, control, ['cat', '/opt/gate/' + filename]))
-            targets = checked(image, control, ['/opt/bin/gate-replay', '/input/config.json', 'targets'])
+                (evidence / filename).write_bytes(execute(control, ['cat', '/opt/gate/' + filename]))
+            targets = execute(control, ['/opt/bin/gate-replay', '/input/config.json', 'targets'])
             target_names = json.loads(targets)
             require(isinstance(target_names, list) and all(isinstance(x, str) and NAME.fullmatch(x)
                     for x in target_names), 'Invalid trusted export target list')
@@ -131,28 +171,30 @@ def verify(image: str, challenge_sources: Path, solution_sources: Path,
                                       ('solution', solution_sources, module)]:
                 package = root / kind
                 package.mkdir()
-                copy_sources(source, package / 'source')
-                (package / 'targets.json').write_bytes(targets)
+                copy_sources(source, package / 'source', resources)
+                export_targets = list(dict.fromkeys(target_names + (solution_declarations if kind == 'solution' else [])))
+                (package / 'targets.json').write_text(json.dumps(export_targets))
                 # Probe each actual input mount before executing any Lean source.
-                checked(image, package, ['python3', '/opt/gate/probe.py'])
-                export = checked(image, package, ['python3', '/opt/gate/export.py', mod],
-                                 timeout=1800, max_stdout=MAX_EXPORT)
+                execute(package, probe)
+                export = execute(package, ['python3', '/opt/gate/export.py', mod],
+                                 max_stdout=resources['max_export_mb'] * 1024**2)
                 require(bool(export), 'Empty proof export')
                 (control / (kind + '.ndjson')).write_bytes(export)
                 (evidence / (kind + '.ndjson')).write_bytes(export)
                 stages.append(kind + '_clean_build_export')
-            checked(image, control, ['/opt/bin/gate-replay', '/input/config.json',
+            execute(control, ['/opt/bin/gate-replay', '/input/config.json',
                                      '/input/challenge.ndjson', '/input/solution.ndjson'], timeout=1200)
             stages.extend(['statement_comparison', 'transitive_axiom_audit', 'official_kernel_replay'])
             nanoda = {'use_stdin': False, 'export_file_path': '/input/solution.ndjson',
                       'permitted_axioms': AXIOMS, 'unpermitted_axiom_hard_error': True,
                       'num_threads': 2, 'nat_extension': True, 'string_extension': True}
             (control / 'nanoda.json').write_text(json.dumps(nanoda))
-            checked(image, control, ['/opt/bin/nanoda_bin', '/input/nanoda.json'], timeout=1200)
+            execute(control, ['/opt/bin/nanoda_bin', '/input/nanoda.json'], timeout=1200)
             stages.append('independent_nanoda_replay')
             result['machine_status'] = 'passed'
     except (RegistryError, OSError, ValueError, subprocess.SubprocessError) as exc:
         result['error'] = str(exc)
+    result['duration_seconds'] = round(time.monotonic() - started, 3)
     result['exports'] = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                          for p in evidence.glob('*.ndjson')}
     (evidence / 'result.json').write_text(json.dumps(result, indent=2) + '\n')

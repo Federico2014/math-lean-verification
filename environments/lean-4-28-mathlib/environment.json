@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "environment_id": "lean-4-28-mathlib",
+  "description": "Lean 4.28.0 with fixed Mathlib and the Mathlib.Data.Nat.Basic cache closure; machine-verification scope only.",
+  "status": "approved",
+  "evidence_url": "https://github.com/Federico2014/math-lean-verification/actions/runs/34230107878",
+  "lean_release": "v4.28.0",
+  "lean_archive_sha256": "ceb3a3f844f7aebf63245e2b51c28d5b0ed38942c19f93cf3febd520302160bd",
+  "exporter_commit": "d065b0009aed0520e9e99752847a33b337661690",
+  "dependency_mode": "mathlib-cache",
+  "files": [
+    {
+      "path": "lake-manifest.json",
+      "sha256": "88172374233f14cc4528af76b572ed80e80feb1a21a5d6c7b3c8e40036dcbe7b"
+    },
+    {
+      "path": "lakefile.toml",
+      "sha256": "fd256ee7b39f611f471e4a959e6922663dec1d2a2f01ca140ec1edff6c88f056"
+    },
+    {
+      "path": "lean-toolchain",
+      "sha256": "db7bb24b756d745bbde83fe92718b51bd3625dae3701ba0f598d0eedcd3f3028"
+    }
+  ],
+  "resources": {
+    "memory_mb": 6144,
+    "cpus": 2,
+    "work_mb": 2048,
+    "timeout_seconds": 3600,
+    "max_files": 2000,
+    "max_source_mb": 32,
+    "max_export_mb": 512
+  },
+  "cache_modules": [
+    "Mathlib.Data.Nat.Basic"
+  ]
+}

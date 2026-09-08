@@ -151,8 +151,10 @@ def check_problem(root: Path, path: Path, policy: dict[str, Any]) -> dict[str, A
 
 
 def validate_registry(root: Path) -> dict[str, Any]:
+    from .environments import load_environments, relative_path
     root = root.resolve()
     policy = read_policy(root)
+    environments = load_environments(root)
     problems: dict[tuple[str, str], dict[str, Any]] = {}
     problem_files = data_files(root, "problems")
     for path in problem_files:
@@ -162,6 +164,12 @@ def validate_registry(root: Path) -> dict[str, Any]:
         key = (item["problem_id"], item["statement_version"])
         require(key not in problems, "Duplicate problem version")
         problems[key] = item
+        if 'workspace' in item:
+            require(item['toolchain_id'] in environments, 'Workspace references unknown environment')
+            env = environments[item['toolchain_id']]
+            require(item['workspace']['environment_digest'] == canonical_digest(env), 'Stale workspace environment digest')
+            for pattern in item['workspace']['submission_paths']:
+                relative_path(pattern, pattern=True)
     for path in problem_files:
         relative = path.relative_to(root / "problems").parts
         require(len(relative) >= 3 and (relative[0], relative[1]) in problems,
@@ -180,10 +188,24 @@ def validate_registry(root: Path) -> dict[str, Any]:
         require(len(mapped) == len(set(mapped)), "Duplicate official theorem mapping")
         require(set(mapped) == set(problem["required_theorems"]), "Submission must cover all and only required targets")
         require(item["toolchain_id"] == problem["toolchain_id"], "Submission toolchain differs from its problem")
+        if 'execution' in item:
+            execution = item['execution']
+            relative_path(execution['project_root'], root=True)
+            for pattern in execution['include']:
+                relative_path(pattern, pattern=True)
+            paths = set()
+            for proof in execution['proof_files']:
+                relative_path(proof['path'])
+                require(proof['path'].endswith('.lean'), 'Only Lean proof overlays are supported')
+                require(proof['path'] not in paths, 'Duplicate proof overlay')
+                paths.add(proof['path'])
+                file = safe_file(root, 'proofs/' + item['submission_id'] + '/' + proof['path'])
+                require(file_digest(file) == proof['sha256'], 'Proof overlay hash mismatch')
         submissions[item["submission_id"]] = item
     # No backend/archiver exists at bootstrap: prevent fabricated formal records.
     require(not data_files(root, "records"), "Formal records cannot be registered before backend onboarding")
-    return {"policy": policy, "problems": problems, "submissions": submissions}
+    return {"policy": policy, "problems": problems, "submissions": submissions,
+            "environments": environments}
 
 
 def plan_verification(root: Path, submission_id: str) -> dict[str, Any]:
@@ -197,6 +219,13 @@ def plan_verification(root: Path, submission_id: str) -> dict[str, Any]:
     paths = {"policy/verification.json", f"{base}/problem.json",
              f"submissions/{problem['problem_id']}/{submission_id}.json"}
     paths.update(f"{base}/{item['path']}" for item in problem["trusted_files"])
+    environment = registry['environments'].get(submission['toolchain_id'])
+    if environment:
+        env_base = 'environments/' + environment['environment_id']
+        paths.add(env_base + '/environment.json')
+        paths.update(env_base + '/' + item['path'] for item in environment['files'])
+    paths.update('proofs/' + submission_id + '/' + item['path']
+                 for item in submission.get('execution', {}).get('proof_files', []))
     inputs = [{"path": p, "sha256": file_digest(safe_file(root, p))} for p in sorted(paths)]
     blockers = ["durable_archive_unconfigured"]
     if registry["policy"]["backend"] == "unconfigured":

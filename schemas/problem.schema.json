@@ -187,6 +187,41 @@
         "evidence_url"
       ],
       "additionalProperties": false
+    },
+    "workspace": {
+      "type": "object",
+      "properties": {
+        "environment_digest": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+        },
+        "solution_module": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_']*(?:\\.[A-Za-z_][A-Za-z0-9_']*)*$(?![\\s\\S])"
+        },
+        "submission_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9_][A-Za-z0-9_./*-]*$(?![\\s\\S])"
+          },
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "environment_digest",
+        "solution_module",
+        "submission_paths"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [

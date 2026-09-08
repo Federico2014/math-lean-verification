@@ -1,28 +1,36 @@
-# Implementation status and formal acceptance checklist
+# Implementation status
 
-The repository provides candidate registration and a trusted source-only Lean merge gate. Registration CI and a machine proof verdict are distinct; neither grants formal award acceptance.
+The repository implements the trusted-workspace and reusable-environment architecture. No real award candidates are added by the redesign, and no real candidate is claimed to have passed.
 
 ## Implemented
 
-- [x] Strict registration schemas, fixed commits, complete target coverage, hash binding, safe paths, and statement-review digests.
-- [x] Non-executing `validate`, `list`, and `plan` commands.
-- [x] Protected-base PR controller, exact-head statuses, and separate status publishing.
-- [x] Source-only Lean core/Std execution profile with fixed Lean/Comparator/exporter/Nanoda versions and [onboarding evidence](backend-onboarding.md).
-- [x] Fresh isolated build/export environments, explicit seccomp, read-only mounts, non-root execution, no network, and resource/output/time limits with runtime probes.
-- [x] Comparator statement/dependency comparison, transitive axiom audit, official Lean kernel replay, and independent Nanoda replay.
-- [x] Real positive and negative Lean regression tests in CI; all positive cases must reach both kernels.
-- [x] Fail-closed prerequisites: candidate changes require an already-approved official statement and supported toolchain on `main`; no self-approved Challenge or policy from the PR.
-- [x] Temporary per-run exports, stage results, version/input digests, image ID, tool checksums, and package inventories.
+- Strict registration schemas, all-target coverage, file hashes and mathematical review binding.
+- Static environment discovery: read toolchain/configuration/lock files without executing Lake.
+- Reusable environment descriptors, pinned dependency workspaces, onboarding status and configurable resource budgets.
+- Explicit upstream subdirectory/source mapping and hash-bound local Lean proof bridges.
+- Trusted-base planning, bounded two-job candidate matrix, separate status publication and current-head/base checks.
+- Existing Comparator export comparison and Lean/Nanoda replay, adapted for environment-selected compilers/exporters.
+- Offline non-root execution, read-only trusted inputs and dependency images, seccomp, resource limits and runtime probes.
+- Diagnostic machine execution while a registered workspace review is pending; final merge remains blocked.
+- Input snapshots, per-stage logs/durations, immutable image identity, environment digest and version bindings.
+- Content-addressed evidence ZIPs with complete inventory and readback checks, plus temporary Actions artifact transport.
+- Real proof/sandbox regression workflow including multi-file bridges and a separate Mathlib onboarding configuration.
 
-## Still required for broader verification and formal acceptance
+## Activation boundaries
 
-- [ ] Approve real mathematical reviewers and preserve their independent drafting, conflict disclosures, source snapshots, and statement review evidence.
-- [ ] Onboard Mathlib and additional Lean/dependency combinations with exact locks, clean rebuilds, compatibility/security review, and adversarial tests.
-- [ ] Integrate reviewed multi-module adapters and bridges; do not silently weaken targets or skip unsupported inputs.
-- [ ] Establish durable evidence storage, backups, licensing authorization, readback verification, and immutable formal records.
-- [ ] Implement formal acceptance aggregation and minimal-permission archival publication independently of temporary Actions artifacts.
-- [ ] Review actual candidate contributions, priority, independence scoring, recipient identity, and prize decisions separately.
+- The existing core/Std environment retains its [prior onboarding evidence](backend-onboarding.md).
+- `lean-4-28-mathlib` is admitted with [real onboarding evidence](workspace-onboarding.md). Its initial cache scope is deliberately limited to `Mathlib.Data.Nat.Basic`; it is not a claim of support for every Mathlib module or any particular candidate.
+- Project compiler, exporter and shared checker compatibility must pass actual tests for each new combination. Adding JSON is not approval.
+- Mathematical reviewer accreditation remains empty. Existing two-reviewer, provenance and content-binding requirements are unchanged.
+- Persistent evidence storage, backup/readback operations and formal acceptance publication remain unconfigured. `formal_acceptance_enabled` remains false.
+- Real candidate pilot onboarding, contribution/priority review and award decisions remain separate work.
+- Unsupported custom Lake execution, dependency subdirectories, arbitrary native plugins and Lean 3 require an explicit backend extension. No automatic unsandboxed fallback exists.
+- Peak resource telemetry, richer per-theorem diagnostic classifications and merge-queue support remain future improvements; execution limits, wall time and aggregate target checks are recorded now.
 
-`formal_acceptance_enabled` remains false. The existing Erdős #650 registration is blocked until its independent statement review, supported Lean/Mathlib profile, and required bridges are completed. No successful synthetic proof test changes its status.
+## Validation
 
-See the [merge gate documentation](lean-merge-gate.md) for its supported scope, submission process, and status semantics, and the [technical design](design.md) for the broader target architecture.
+The [workspace onboarding run](workspace-onboarding.md) passed both real backend matrices (27 cases total) and 69 unit tests.
+
+Run unit tests and registry validation locally. The **Lean backend tests** workflow builds real environment images and runs positive/negative proofs; inspect its actual run before approving a new environment. Synthetic test success is infrastructure evidence, not verification of an award candidate.
+
+See [the design](design.md), [the candidate process](../CONTRIBUTING.md) and [the merge gate](lean-merge-gate.md).

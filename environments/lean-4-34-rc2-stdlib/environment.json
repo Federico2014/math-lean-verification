@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "environment_id": "lean-4-34-rc2-stdlib",
+  "description": "Source-only Lean core/Std; reusable across problems.",
+  "status": "approved",
+  "evidence_url": "https://github.com/Federico2014/math-lean-verification/actions/runs/34211111599",
+  "lean_release": "v4.34.0-rc2",
+  "lean_archive_sha256": "3d011041203acacf300d343a39673f7d233743397993797c941346ae9e5df1a8",
+  "exporter_commit": "cacf989bd75f608700820f6afc595f32e7a99a4d",
+  "dependency_mode": "none",
+  "files": [],
+  "resources": {
+    "memory_mb": 4096,
+    "cpus": 2,
+    "work_mb": 1024,
+    "timeout_seconds": 1800,
+    "max_files": 100,
+    "max_source_mb": 8,
+    "max_export_mb": 128
+  },
+  "cache_modules": []
+}

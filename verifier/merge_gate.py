@@ -14,6 +14,8 @@ import tempfile
 import urllib.request
 
 from .lean_backend import PROFILE, verify
+from .environments import matches, relative_path
+from .registry import safe_file, file_digest
 from .registry import ROOT, RegistryError, canonical_digest, read_json, require, validate_registry
 
 MAX_DOWNLOAD = 16 * 1024 * 1024
@@ -56,11 +58,11 @@ class GitHub:
 
 
 def write_snapshot(api, tree, root):
-    for folder in ['problems', 'submissions', 'records', 'policy']:
+    for folder in ['problems', 'submissions', 'proofs', 'records', 'policy', 'environments']:
         (root / folder).mkdir()
     total = count = 0
     for path, item in tree.items():
-        if not path.startswith(('problems/', 'submissions/', 'records/')):
+        if not path.startswith(('problems/', 'submissions/', 'proofs/', 'records/', 'environments/')):
             continue
         require(all(re.fullmatch('[A-Za-z0-9_][A-Za-z0-9_.-]*', p) and p not in ('.', '..')
                     for p in path.split('/')), 'Unsafe registry path')
@@ -93,39 +95,77 @@ def prerequisites(trusted, proposed, identifier):
     require(key in trusted['problems'], 'Official statement must be independently reviewed and merged before candidate registration')
     problem = trusted['problems'][key]
     require(problem == proposed['problems'][key], 'Candidate PR cannot change its official statement or review')
-    require(problem['review']['status'] == 'approved', 'Independent statement review is pending')
-    require(submission['toolchain_id'] == PROFILE and PROFILE in trusted['policy']['toolchains'],
-            'Candidate has no approved supported toolchain')
     require(trusted['policy']['backend'] == 'comparator-export-v1', 'Lean backend is not configured')
-    require(submission['adapter_id'] is None, 'Adapter must be integrated and reviewed before use')
+    require(submission['adapter_id'] is None, 'Legacy adapters are unsupported; use hashed proof overlays')
+    identifier = submission['toolchain_id']
+    require(identifier in trusted['policy']['toolchains'], 'Candidate has no approved supported toolchain')
+    if 'workspace' in problem:
+        environment = trusted.get('environments', {}).get(identifier)
+        require(environment is not None and environment['status'] == 'approved', 'Environment is unsupported or awaiting onboarding')
+        require(environment == proposed.get('environments', {}).get(identifier), 'Candidate PR cannot change its execution environment')
+        require(canonical_digest(environment) == problem['workspace']['environment_digest'], 'Stale environment binding')
+        require('execution' in submission, 'Explicit source mapping is required')
+        # Pending mathematical review permits diagnostics, never a merge pass.
+        return submission, problem, problem['workspace']['solution_module']
+    require(problem['review']['status'] == 'approved', 'Independent statement review is pending')
+    require(identifier == PROFILE, 'Legacy registration requires the supported stdlib toolchain')
     modules = {target['module'] for target in submission['targets']}
-    require(len(modules) == 1, 'This backend profile supports one target module')
+    require(len(modules) == 1, 'Legacy registration supports one target module')
     require(all(t['declaration'] == t['official_theorem'] for t in submission['targets']),
             'A reviewed bridge to official theorem names is required')
     return submission, problem, next(iter(modules))
 
 
-def candidate_sources(submission, destination):
+def candidate_sources(submission, destination, *, problem=None, environment=None, registry_root=None):
     api = GitHub(submission['repository'].removeprefix('https://github.com/'))
     tree = api.tree(submission['commit'])
-    selected = {p: item for p, item in tree.items() if p.endswith('.lean') and not p.startswith('.lake/')}
-    require(0 < len(selected) <= 100, 'Unsupported source tree size')
-    total = 0
-    for path, item in selected.items():
-        require(all(re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', x)
-                    for x in Path(path).with_suffix('').parts), 'Unsupported source path')
-        # Upstream Lake scripts are not part of the accepted source-only profile.
-        if path == 'lakefile.lean':
+    execution = submission.get('execution', {'project_root': '.', 'include': ['**'], 'proof_files': []})
+    root = relative_path(execution['project_root'], root=True)
+    prefix = '' if root == '.' else root + '/'
+    for pattern in execution['include']:
+        relative_path(pattern, pattern=True)
+    selected = {}
+    for path, item in tree.items():
+        if not path.startswith(prefix):
             continue
-        data = api.blob(item)
+        relative = path[len(prefix):]
+        if not matches(relative, execution['include']):
+            continue
+        # Never load upstream Lake programs or precompiled artifacts.
+        if not relative.endswith('.lean') or relative == 'lakefile.lean' or '.lake' in relative.split('/') or '.git' in relative.split('/'):
+            continue
+        relative_path(relative)
+        selected[relative] = item
+    limits = environment['resources'] if environment else {'max_files': 100, 'max_source_mb': 8}
+    require(0 < len(selected) <= limits['max_files'], 'Unsupported source tree size')
+    protected = {f['path'] for f in problem['trusted_files']} if problem else set()
+    allowed = problem['workspace']['submission_paths'] if problem and 'workspace' in problem else ['**']
+    source_hashes = {}
+    total = 0
+    def write(path, data):
+        nonlocal total
+        relative_path(path)
+        require(path not in protected, 'Candidate cannot overwrite a trusted workspace file')
+        require(matches(path, allowed), 'Source is outside the approved submission paths')
+        require(path not in source_hashes, 'Duplicate upstream and proof-overlay path')
         total += len(data)
-        require(total <= 8 * 1024 * 1024, 'Source package exceeds limit')
+        require(total <= limits['max_source_mb'] * 1024**2 and len(source_hashes) < limits['max_files'], 'Source package exceeds limit')
         output = destination / path
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_bytes(data)
+        source_hashes[path] = hashlib.sha256(data).hexdigest()
+    for path, item in selected.items():
+        write(path, api.blob(item))
+    for proof in execution['proof_files']:
+        require(registry_root is not None, 'Missing proof overlay root')
+        source = safe_file(registry_root, 'proofs/' + submission['submission_id'] + '/' + proof['path'])
+        data = source.read_bytes()
+        require(hashlib.sha256(data).hexdigest() == proof['sha256'], 'Stale proof overlay')
+        write(proof['path'], data)
+    return source_hashes
 
 
-def run(repository, pr_number, head, image, output, check_only=False):
+def run(repository, pr_number, head, image, output, check_only=False, submission_id=None, images=None):
     api = GitHub(repository)
     pr = api.get('pulls/' + str(pr_number))
     require(pr['state'] == 'open' and pr['head']['sha'] == head, 'Stale or closed PR')
@@ -138,15 +178,21 @@ def run(repository, pr_number, head, image, output, check_only=False):
         write_snapshot(api, api.tree(head), root)
         proposed = validate_registry(root)
         affected = select_submissions(trusted, proposed)
+        if submission_id:
+            require(submission_id in affected, 'Requested candidate is not in the trusted execution plan')
+            affected = [submission_id]
         result = {'schema_version': 1, 'head_sha': head, 'verifier_sha': base,
                   'status': 'not_applicable' if not affected else ('ready' if check_only else 'passed'), 'submissions': {}}
+        result['matrix'] = {'include': [{'submission': s, 'environment': proposed['submissions'][s]['toolchain_id'] or ''} for s in affected]}
         for identifier in affected:
             try:
                 submission, problem, module = prerequisites(trusted, proposed, identifier)
                 if check_only:
                     result['submissions'][identifier] = {'machine_status': 'not_run', 'prerequisites': 'ready'}
                     continue
-                require(image is not None, 'Missing immutable verifier image')
+                environment = trusted.get('environments', {}).get(submission['toolchain_id']) if 'workspace' in problem else None
+                selected_image = (images or {}).get(submission['toolchain_id'], image)
+                require(selected_image is not None, 'Missing immutable verifier image')
                 with tempfile.TemporaryDirectory(prefix='lean-materials-') as sources:
                     source_root = Path(sources)
                     challenge = source_root / 'challenge'
@@ -159,19 +205,41 @@ def run(repository, pr_number, head, image, output, check_only=False):
                             shutil.copyfile(problem_dir / item['path'], dst)
                     solution = source_root / 'solution'
                     solution.mkdir()
-                    candidate_sources(submission, solution)
-                    proof = verify(image, challenge, solution, module,
-                                   problem['required_theorems'], output / identifier)
+                    source_hashes = candidate_sources(submission, solution, problem=problem if environment else None,
+                        environment=environment, registry_root=root)
+                    if environment:
+                        # Shared trusted definitions are copied after the candidate overlay;
+                        # collision checking above prohibits their replacement.
+                        for item in problem['trusted_files']:
+                            if item['path'].endswith('.lean') and item['path'] != 'Challenge.lean':
+                                dst = solution / item['path']
+                                dst.parent.mkdir(parents=True, exist_ok=True)
+                                shutil.copyfile(problem_dir / item['path'], dst)
+                    proof = verify(selected_image, challenge, solution, module,
+                                   problem['required_theorems'], output / identifier, environment=environment,
+                                   solution_declarations=[t['declaration'] for t in submission['targets']])
+                    proof['source_hashes'] = source_hashes
+                    proof['review_status'] = problem['review']['status']
+                    proof['verification_status'] = ('verified' if problem['review']['status'] == 'approved' else 'review_pending') if proof['machine_status'] == 'passed' else 'failed'
+                    proof['formal_status'] = 'pending'
+                    proof['bindings'] = {'pr_head': head, 'base_sha': base, 'upstream_commit': submission['commit'],
+                        'workspace_digest': canonical_digest(problem), 'environment_digest': canonical_digest(environment),
+                        'policy_digest': canonical_digest(trusted['policy']), 'run_id': os.environ.get('GITHUB_RUN_ID'),
+                        'run_attempt': os.environ.get('GITHUB_RUN_ATTEMPT')}
+                    shutil.copytree(challenge, output / identifier / 'inputs/challenge')
+                    shutil.copytree(solution, output / identifier / 'inputs/solution')
+                    (output / identifier / 'inputs/submission.json').write_text(json.dumps(submission, indent=2))
+                    (output / identifier / 'inputs/problem.json').write_text(json.dumps(problem, indent=2))
                     proof['input_digest'] = canonical_digest({'submission': submission,
-                        'problem': problem, 'policy': trusted['policy'], 'verifier_sha': base})
+                        'problem': problem, 'environment': environment, 'sources': source_hashes, 'policy': trusted['policy'], 'verifier_sha': base})
                     proof['candidate_commit'] = submission['commit']
                     (output / identifier / 'result.json').write_text(json.dumps(proof, indent=2) + '\n')
                     result['submissions'][identifier] = proof
-                    if proof['machine_status'] != 'passed':
+                    if proof['verification_status'] != 'verified':
                         result['status'] = 'failed'
             except (RegistryError, OSError, ValueError) as exc:
                 result['status'] = 'failed'
-                result['submissions'][identifier] = {'machine_status': 'not_run', 'error': str(exc)}
+                result['submissions'][identifier] = {'machine_status': 'not_run', 'verification_status': 'not_run', 'error': str(exc)}
         return result
 
 
@@ -181,13 +249,15 @@ def main():
     parser.add_argument('--pr', type=int, required=True)
     parser.add_argument('--head', required=True)
     parser.add_argument('--image')
+    parser.add_argument('--images', type=Path)
+    parser.add_argument('--submission')
     parser.add_argument('--check-only', action='store_true')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     require(args.pr > 0 and bool(re.fullmatch('[0-9a-f]{40}', args.head)), 'Invalid PR identity')
     args.output.mkdir(parents=True, exist_ok=False)
     try:
-        result = run(args.repository, args.pr, args.head, args.image, args.output, args.check_only)
+        result = run(args.repository, args.pr, args.head, args.image, args.output, args.check_only, args.submission, read_json(args.images) if args.images else None)
     except Exception as exc:
         result = {'schema_version': 1, 'head_sha': args.head, 'status': 'failed', 'error': str(exc)}
     (args.output / 'gate.json').write_text(json.dumps(result, indent=2) + '\n')
@@ -195,6 +265,10 @@ def main():
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
             stream.write('status=' + result['status'] + '\n')
+            matrix = result.get('matrix', {'include': []})
+            if not matrix['include']:
+                matrix = {'include': [{'submission': '', 'environment': ''}]}
+            stream.write('matrix=' + json.dumps(matrix) + '\n')
     allowed = ('passed', 'not_applicable', 'ready') if args.check_only else ('passed', 'not_applicable')
     return 0 if result['status'] in allowed else 1
 

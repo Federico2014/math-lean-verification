@@ -2,14 +2,17 @@
 import os
 from pathlib import Path
 import socket
+import sys
 
 assert os.geteuid() == 10001
 assert os.getpid() == 1
-assert Path("/sys/fs/cgroup/memory.max").read_text().strip() == str(4 * 1024**3)
+memory_mb = int(sys.argv[1]) if len(sys.argv) > 1 else 4096
+cpus = int(sys.argv[2]) if len(sys.argv) > 2 else 2
+assert Path("/sys/fs/cgroup/memory.max").read_text().strip() == str(memory_mb * 1024**2)
 assert Path("/sys/fs/cgroup/memory.swap.max").read_text().strip() == "0"
 assert Path("/sys/fs/cgroup/pids.max").read_text().strip() == "128"
 quota, period = map(int, Path("/sys/fs/cgroup/cpu.max").read_text().split())
-assert quota == 2 * period
+assert quota == cpus * period
 assert not any(k.startswith(('GITHUB_', 'ACTIONS_', 'GH_')) for k in os.environ)
 assert not Path('/var/run/docker.sock').exists()
 assert not Path('/input/.git').exists()

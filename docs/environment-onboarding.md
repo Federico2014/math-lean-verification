@@ -1,0 +1,38 @@
+# Identify, reuse and onboard an environment
+
+An environment is a shared configuration, not a workflow per candidate. Its descriptor fixes compiler/exporter versions, dependency workspace hashes, cache scope and resource limits. The descriptor digest is included in every problem workspace and result.
+
+## Static discovery
+
+```bash
+python -m verifier environments
+python -m verifier inspect-environment /path/to/project
+```
+
+The command reads bounded files only. Dynamic Lake code is never evaluated. Matching compares the Lean version and fixed dependency identities, ignoring project names and lock formatting. The environment listing supplies canonical digests. Results are suggestions with `machine_status: not_run`; reviewers check the lock, special requirements and proposed reuse.
+
+## Reuse
+
+Select an approved environment already admitted in `policy/verification.json`. Configure project subdirectory, source patterns, target declarations and bridge separately. Do not create another environment just because a file or theorem has a different name.
+
+## New version or special requirements
+
+1. Copy an environment descriptor under a new ID; keep `status: pending` and `evidence_url: null`.
+2. Pin the official Lean release archive SHA-256 and a compatible official exporter commit. Freeze every dependency and hash all environment files.
+3. Use `dependency_mode: none` for core/Std or `mathlib-cache` with a reviewed static Lake workspace and complete lock. The latter explicitly trusts fixed dependency caches. Set `cache_modules` to the approved module closure needed by the workspace; an empty list asks the upstream cache tool for its full default cache and may exceed runner disk.
+4. Choose bounded resource limits. Run the real proof/negative cases before deciding a configuration is supported.
+5. Record the immutable workflow run and measured limitations. Only then may a separate reviewed change set `status: approved` and add the ID to the policy allowlist. Recompute the descriptor digest when status or content changes.
+6. Bind a new/reviewed problem workspace to that approved digest. Updating an in-use environment invalidates workspace binding; prefer new IDs.
+
+## Local diagnostic execution
+
+These commands require Docker. Candidate Lean never executes on the host.
+
+```bash
+docker build -t lean-gate-tools backend
+python -m verifier.build_environment lean-4-28-mathlib --allow-pending --output images.json
+```
+
+Pass the immutable image ID in `images.json` to `scripts/backend_smoke.py --image <image-id> --environment lean-4-28-mathlib --output <new-evidence-directory>`. `--allow-pending` is only for onboarding; the trusted candidate gate still rejects pending environments.
+
+The shared checker uses pinned Comparator and Nanoda implementations. The project Lean version can differ, but export compatibility must be tested. Build failures, unsupported primitives, missing caches or missing runtime isolation never downgrade to unchecked execution.

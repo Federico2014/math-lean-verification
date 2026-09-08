@@ -1,0 +1,48 @@
+"""Exercise the actual publisher against a fake GitHub API, never a real status."""
+import io
+import json
+import os
+import runpy
+import unittest
+from unittest.mock import patch
+
+from verifier.registry import ROOT
+
+
+class PublisherTests(unittest.TestCase):
+    def publish(self, plan, execution, *, plan_result='success', moved=False):
+        sent = []
+        def response(request, timeout):
+            if request.data:
+                sent.append(json.loads(request.data))
+                return io.BytesIO(b'{}')
+            return io.BytesIO(json.dumps({'head': {'sha': 'a'*40},
+                'base': {'sha': ('c' if moved else 'b')*40}}).encode())
+        env = {'GITHUB_REPOSITORY': 'example/registry', 'GH_TOKEN': 'test-token', 'GITHUB_RUN_ID': '123',
+               'PR_HEAD': 'a'*40, 'EXPECTED_BASE': 'b'*40, 'PR_NUMBER': '1',
+               'EXECUTION_RESULT': execution, 'PLAN_RESULT': plan_result, 'PLAN_STATUS': plan}
+        with patch.dict(os.environ, env, clear=True), patch('sys.argv', ['gate_status.py', 'finish']), patch('urllib.request.urlopen', side_effect=response):
+            runpy.run_path(str(ROOT / 'scripts/gate_status.py'), run_name='__main__')
+        self.assertEqual(len(sent), 1)
+        return sent[0]
+
+    def test_all_matrix_jobs_required(self):
+        self.assertEqual(self.publish('ready', 'success')['state'], 'success')
+        for state in ('failure', 'cancelled', 'skipped', '', 'unknown'):
+            with self.subTest(state=state):
+                self.assertEqual(self.publish('ready', state)['state'], 'failure')
+
+    def test_no_candidate_is_not_a_proof_verdict(self):
+        verdict = self.publish('not_applicable', 'skipped')
+        self.assertEqual(verdict['state'], 'success')
+        self.assertIn('No candidate proof changes', verdict['description'])
+        self.assertEqual(self.publish('not_applicable', 'success')['state'], 'failure')
+
+    def test_failed_plan_and_stale_base_cannot_publish_success(self):
+        self.assertEqual(self.publish('ready', 'success', plan_result='failure')['state'], 'failure')
+        self.assertEqual(self.publish('ready', 'success', moved=True)['state'], 'failure')
+        self.assertEqual(self.publish('unknown', 'success')['state'], 'failure')
+
+
+if __name__ == '__main__':
+    unittest.main()
