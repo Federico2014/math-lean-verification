@@ -1,52 +1,28 @@
-# Implementation status and formal-verification activation checklist
+# Implementation status and formal acceptance checklist
 
-The initial repository is **a candidate registry and verification infrastructure skeleton**. This document separates implemented behavior from the missing backend so that green repository CI is not mistaken for a verified mathematical proof.
+The repository provides candidate registration and a trusted source-only Lean merge gate. Registration CI and a machine proof verdict are distinct; neither grants formal award acceptance.
 
 ## Implemented
 
-- [x] Problem, submission, adapter, and record directories and registration structure; no formal verification records exist.
-- [x] Candidate and problem intake forms, templates, and operating documentation.
-- [x] JSON Schema 2020-12, duplicate-key/nonfinite-number rejection, and size limits.
-- [x] Fixed commits, directory identities, complete target coverage, and cross-file reference validation.
-- [x] Trusted file hashes, complete directory binding, and path traversal/symlink rejection.
-- [x] Statement review digests and reviewer roster consistency checks.
-- [x] CLI commands that do not execute candidates: `validate`, `list`, and `plan`.
-- [x] Restricted preflight status: an unconfigured backend always exits nonzero and never reports formal success.
-- [x] Automated tests and registration CI, plus a manual preflight entry point.
-- [x] Commit-pinned Actions and hash-pinned Python CI dependencies.
+- [x] Strict registration schemas, fixed commits, complete target coverage, hash binding, safe paths, and statement-review digests.
+- [x] Non-executing `validate`, `list`, and `plan` commands.
+- [x] Protected-base PR controller, exact-head statuses, and separate status publishing.
+- [x] Source-only Lean core/Std execution profile with fixed Lean/Comparator/exporter/Nanoda versions and [onboarding evidence](backend-onboarding.md).
+- [x] Fresh isolated build/export environments, explicit seccomp, read-only mounts, non-root execution, no network, and resource/output/time limits with runtime probes.
+- [x] Comparator statement/dependency comparison, transitive axiom audit, official Lean kernel replay, and independent Nanoda replay.
+- [x] Real positive and negative Lean regression tests in CI; all positive cases must reach both kernels.
+- [x] Fail-closed prerequisites: candidate changes require an already-approved official statement and supported toolchain on `main`; no self-approved Challenge or policy from the PR.
+- [x] Temporary per-run exports, stage results, version/input digests, image ID, tool checksums, and package inventories.
 
-## Before enabling full Lean verification
+## Still required for broader verification and formal acceptance
 
-- [ ] Approve and pin compatible Lean/Mathlib/Comparator/exporter/Nanoda combinations.
-- [ ] Implement preparation that fetches only fixed public sources and safely handles archives, dependencies, and licensing.
-- [ ] Validate non-root execution, disabled networking, filesystem/process isolation, and resource limits in the target Linux environment.
-- [ ] Run sandbox probes on every execution; never fall back to unsandboxed execution on failure.
-- [ ] Rebuild cleanly from source and export inside the sandbox; trusted Challenge and candidate workspaces must not share writable artifacts.
-- [ ] Compare trusted statement dependencies, audit axioms, and replay with two independent kernels.
-- [ ] Pin and review adapters; include bridge proofs among all required targets.
-- [ ] Implement complete result schemas, trusted result generation, and aggregation across every target.
-- [ ] Implement durable evidence archives, readback validation, version binding, and separate publishing with minimal permissions.
-- [ ] Publish review roles, independent blind-drafting materials, and the current toolchain security policy.
+- [ ] Approve real mathematical reviewers and preserve their independent drafting, conflict disclosures, source snapshots, and statement review evidence.
+- [ ] Onboard Mathlib and additional Lean/dependency combinations with exact locks, clean rebuilds, compatibility/security review, and adversarial tests.
+- [ ] Integrate reviewed multi-module adapters and bridges; do not silently weaken targets or skip unsupported inputs.
+- [ ] Establish durable evidence storage, backups, licensing authorization, readback verification, and immutable formal records.
+- [ ] Implement formal acceptance aggregation and minimal-permission archival publication independently of temporary Actions artifacts.
+- [ ] Review actual candidate contributions, priority, independence scoring, recipient identity, and prize decisions separately.
 
-Removing `backend_unconfigured`, setting `formal_acceptance_enabled` to true, or returning fabricated success JSON does not complete these tasks. The bootstrap policy schema explicitly rejects such activation. Integrate the complete backend through a separate implementation and review PR.
+`formal_acceptance_enabled` remains false. The existing Erdős #650 registration is blocked until its independent statement review, supported Lean/Mathlib profile, and required bridges are completed. No successful synthetic proof test changes its status.
 
-## Required tests for the real backend
-
-Use a valid small synthetic proof as a positive case. The following negative cases must be rejected or reported as incomplete:
-
-| Case | Required result |
-| --- | --- |
-| Same theorem name but conclusion changed to True, weakened quantifiers, or changed domain | Statement mismatch |
-| Added False premise or another unauthorized assumption | Complete official conclusion not established |
-| Custom definitions/instances change mathematical meaning | Dependency comparison or human review rejects |
-| Indirect sorryAx or borrowed Challenge placeholder | Incomplete proof |
-| Custom axioms or extra computational trust | Extra assumptions pending review |
-| Only some required targets completed | No overall pass |
-| One kernel fails or is unsupported | No pass |
-| Forged stdout, result JSON, or old evidence | No effect on the trusted verdict |
-| Malicious .olean or shared-cache contamination | Cannot enter the trusted execution boundary |
-| Networking, token reads, or changes to Challenge/checker/Actions control files | Blocked by isolation and recorded |
-| Timeout, resource exhaustion, or malformed output | Explicitly incomplete; no pass |
-| Lost archive, changed inputs, or reused stale approval | No formal acceptance |
-
-These real Lean/sandbox tests have not run yet. Existing Python tests cover only the implemented registration and preflight behavior.
+See the [merge gate documentation](lean-merge-gate.md) for its supported scope, submission process, and status semantics, and the [technical design](design.md) for the broader target architecture.

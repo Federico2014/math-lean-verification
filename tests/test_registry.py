@@ -225,6 +225,8 @@ class RegistryTests(unittest.TestCase):
         self.reject()
 
     def test_plan_never_executes_or_fetches(self):
+        self.policy["backend"] = "unconfigured"
+        self.write("policy/verification.json", self.policy)
         with patch("subprocess.run", side_effect=AssertionError("No execution allowed")), \
              patch("socket.create_connection", side_effect=AssertionError("No networking allowed")):
             result = plan_verification(self.root, "test-submission")
@@ -232,6 +234,23 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(result["formal_status"], "pending")
         self.assertIn("backend_unconfigured", result["blockers"])
         self.assertIn("statement_review_pending", result["blockers"])
+
+    def test_configured_backend_plan_still_does_not_execute(self):
+        self.policy["backend"] = "comparator-export-v1"
+        self.submission["toolchain_id"] = "lean-4-34-rc2-stdlib"
+        self.problem["toolchain_id"] = self.submission["toolchain_id"]
+        self.policy["toolchains"] = [self.submission["toolchain_id"]]
+        self.write("policy/verification.json", self.policy)
+        self.save()
+        with patch("subprocess.run", side_effect=AssertionError("No execution allowed")), \
+             patch("socket.create_connection", side_effect=AssertionError("No networking allowed")):
+            result = plan_verification(self.root, "test-submission")
+        self.assertEqual(result["backend"], "comparator-export-v1")
+        self.assertNotIn("backend_unconfigured", result["blockers"])
+        self.assertNotIn("approved_toolchain_unconfigured", result["blockers"])
+        self.assertIn("durable_archive_unconfigured", result["blockers"])
+        self.assertEqual(result["machine_status"], "not_run")
+        self.assertEqual(result["formal_status"], "pending")
 
     def test_approved_review_does_not_fake_backend_success(self):
         self.approve_for_test()

@@ -5,7 +5,7 @@ Date: 2026-09-08
 Repository name: `math-lean-verification`
 Scope: reproducible Lean proofs, statement correspondence verification, and public evidence archives for Justin Sun Prize candidates.
 
-> Implementation boundary: this document describes the target design. Only registration and non-executing preflight are implemented. The full backend is not integrated; see [implementation status](implementation-status.md). Candidate registrations remain pending until the required reviews and verification are complete.
+> Implementation boundary: this document describes the target design. Registration, non-executing preflight, and the source-only [Lean merge gate](lean-merge-gate.md) are implemented. Broader toolchains and durable formal acceptance are not integrated; see [implementation status](implementation-status.md). Candidate registrations remain pending until the required reviews and verification are complete.
 
 ## 1. Design overview
 

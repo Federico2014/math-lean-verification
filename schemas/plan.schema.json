@@ -89,7 +89,10 @@
       "const": "pending"
     },
     "backend": {
-      "const": "unconfigured"
+      "enum": [
+        "unconfigured",
+        "comparator-export-v1"
+      ]
     }
   },
   "required": [

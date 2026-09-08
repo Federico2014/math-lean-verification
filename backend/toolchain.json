@@ -1,0 +1,10 @@
+{
+  "profile": "lean-4-34-rc2-stdlib",
+  "scope": "Source-only Lean core/Std projects; no Mathlib or arbitrary Lake dependencies",
+  "lean_release": "v4.34.0-rc2",
+  "lean_archive_sha256": "3d011041203acacf300d343a39673f7d233743397993797c941346ae9e5df1a8",
+  "comparator_commit": "2312244ac716564a61cc0bf4e107d9abf1757a61",
+  "exporter_commit": "cacf989bd75f608700820f6afc595f32e7a99a4d",
+  "nanoda_commit": "05055695879dfebb6628a67da88ceca6cd6b0421",
+  "approval": "Source-only execution profile admitted by policy/verification.json; onboarding evidence: docs/backend-onboarding.md. No Mathlib or award acceptance."
+}

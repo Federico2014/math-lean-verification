@@ -55,9 +55,9 @@ python -m verifier validate
 python -m unittest discover -s tests -v
 ```
 
-Open a PR from a new branch, link the registration issue, and explain the change, sources, and verification scope. Creating or updating a PR triggers CI automatically; `registry` and `tests` must pass before merging. PR review approval is currently optional, so authors with merge permission may merge their own PRs.
+Open a PR from a new branch, link the registration issue, and explain the change, sources, and verification scope. Creating or updating a PR triggers CI automatically; `registry`, `tests`, and `lean-verification` must pass before merging. PR review approval is currently optional, so authors with merge permission may merge their own PRs.
 
-Pending statement drafts and candidates may be merged as registrations while `review.status` remains `pending`. Metadata validation checks registration structure and references; it does not establish mathematical correctness. Code-merge permissions do not replace the two independent mathematical reviewers required for formal acceptance.
+Pending statement drafts may be registered separately, but candidate proof PRs must reference an already-approved statement and toolchain on `main` and pass the [Lean merge gate](docs/lean-merge-gate.md). Unsupported profiles, missing bridges, and pending reviews block candidate merging. Metadata validation alone does not establish mathematical correctness. Code-merge permissions do not replace the two independent mathematical reviewers required for formal acceptance.
 
 ## 5. Maintainer preflight and subsequent full verification
 
@@ -65,7 +65,7 @@ After reviewing and merging the registration, a maintainer selects **Verificatio
 
 The current workflow validates registration and produces a `plan.json` bound to input hashes. With no backend configured, it exits with code 3 and explicit blockers. It does not download candidates, run Lean, or mark proofs successful. Its artifact is temporary preflight data, not a formal evidence archive.
 
-Once full verification is implemented, run a clean offline build, trusted statement comparison, axiom audit, dual-checker replay, and durable archiving. Formal acceptance still requires valid statement review; see the [activation checklist](docs/implementation-status.md).
+The supported source-only profile performs a clean offline build, trusted statement comparison, axiom audit, and dual-checker replay before candidate merging. Mathlib integration and durable formal archiving remain outstanding. Formal acceptance still requires valid statement review; see the [activation checklist](docs/implementation-status.md).
 
 ## 6. Changes and resubmission
 

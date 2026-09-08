@@ -26,7 +26,7 @@ def main(argv=None) -> int:
                 with args.output.open("x", encoding="utf-8") as stream:
                     stream.write(output)
             print(output, end="")
-            # Nonzero is intentional: an unconfigured backend must never be green.
+            # Preflight never executes proofs, even with an admitted backend.
             return 3
         registry = validate_registry(args.root)
         if args.command == "list":

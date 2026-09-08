@@ -5,12 +5,14 @@
 Maintainers should verify these settings on GitHub:
 
 - Default branch: `main`; disallow force pushes and deletion of protected branches.
-- Require `registry` and `tests` to pass before merging, including for administrators. Required approvals are currently 0 and CODEOWNERS review is optional; authors with merge permission may merge their own PRs after required CI passes.
+- Require `registry`, `tests`, and the GitHub Actions `lean-verification` status to pass before merging, including for administrators. Required approvals are currently 0 and CODEOWNERS review is optional; authors with merge permission may merge their own PRs after required CI passes.
 - Apply repository approval rules to workflows from external contributors; do not provide secrets or write tokens to forks.
 - Give Actions read-only tokens by default; do not allow Actions to create or approve PRs automatically.
 - Enable private vulnerability reporting. Do not store payment keys or internal materials in this repository.
 
 CODEOWNERS initially assigns `@Federico2014` code maintenance responsibility, not mathematical review qualifications. Approve the mathematical reviewer roster separately. GitHub does not allow authors to Approve their own PRs; removing mandatory code approval allows self-merging. Formal acceptance still requires independent mathematical review, which self-merging cannot replace.
+
+For the trusted status workflow, isolation boundaries, supported profiles, and manual reruns, see the [Lean merge gate](lean-merge-gate.md).
 
 ## Routine registration
 

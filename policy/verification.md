@@ -1,11 +1,11 @@
 # Formal verification and acceptance policy
 
-Version: bootstrap-v1. These are the initial platform constraints. Candidate registrations remain pending; there are no formal verification records.
+Version: lean-gate-v1. The source-only machine verification profile is admitted with [onboarding evidence](../docs/backend-onboarding.md). Independent statement review and durable formal acceptance remain separate; there are no formal verification records.
 
 ## Three separate conclusions
 
 1. **Registration valid:** fields, hashes, version references, and target coverage are complete. Current CI provides this check.
-2. **Machine verification passed:** approved checkers have validated the target proofs, axioms, and statement correspondence. Not yet enabled.
+2. **Machine verification passed:** approved checkers have validated the target proofs, axioms, and statement correspondence. Enabled for the supported source-only profile through the trusted merge gate.
 3. **Formal acceptance passed:** machine verification passed, independent review of the official statement is valid, version policy is satisfied, and evidence is durably archived. Not yet enabled.
 
 Award eligibility, priority, contributions, independence scores, and amounts are assessed separately. Replay by two kernels does not automatically constitute two independent academic validation channels.
@@ -24,7 +24,7 @@ Trusted Challenge templates may use placeholders for proof targets. Candidate So
 
 ## Toolchains and isolation
 
-The approved toolchain list is currently empty. No Lean, Mathlib, Comparator, or external kernel version is approved in advance. Integration must fix complete source identities, binary hashes, minimum secure version policies, and compatibility tests.
+The approved list contains `lean-4-34-rc2-stdlib`, limited to source-only Lean core/Std projects, with exact sources, release checksum, compatibility tests, and isolation evidence in the [onboarding record](../docs/backend-onboarding.md). It does not approve Mathlib, arbitrary Lake dependencies, or other Lean versions. New combinations require their own source identities, binary hashes, security baseline, and compatibility tests.
 
 Builds run offline without privileges, under resource limits, and rebuild candidate sources and dependencies while ignoring submitter caches. Record the bootstrap trust in the toolchain itself. Formal results cover all required top-level targets and bridge proofs.
 
@@ -32,4 +32,4 @@ Builds run offline without privileges, under resource limits, and rebuild candid
 
 Formal evidence requires durable storage, file checksums, and readback verification. Actions artifacts alone are insufficient. Redistribution of original materials must follow upstream licenses. Records pin the problem, submission, toolchain, policy, and verifier versions.
 
-`policy/verification.json` is the machine-enforced bootstrap policy. A boolean switch cannot implement the backend; the current policy schema forbids claims that formal acceptance is enabled.
+`policy/verification.json` is the machine-enforced policy. It admits the tested machine backend and source-only profile while keeping `formal_acceptance_enabled` false. A boolean switch cannot implement durable archives or complete missing mathematical review.
