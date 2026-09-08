@@ -11,6 +11,17 @@ from verifier.registry import ROOT, read_json, validate_registry
 
 
 class RepositoryTests(unittest.TestCase):
+    def test_backend_manifest_matches_build_pins(self):
+        manifest = read_json(ROOT / "backend/toolchain.json")
+        dockerfile = (ROOT / "backend/Dockerfile").read_text()
+        builder = (ROOT / "backend/build-comparator.py").read_text()
+        for key in ("comparator_commit", "exporter_commit", "nanoda_commit", "lean_archive_sha256", "lean_release"):
+            self.assertIn(manifest[key], dockerfile, key)
+        self.assertIn(manifest["exporter_commit"], builder)
+        profile = read_json(ROOT / "backend/seccomp.json")
+        allowed = {name for rule in profile["syscalls"] if rule["action"] == "SCMP_ACT_ALLOW" for name in rule["names"]}
+        self.assertFalse(allowed & {"ptrace", "process_vm_readv", "process_vm_writev"})
+
     def test_schemas_well_formed(self):
         for path in (ROOT / "schemas").glob("*.json"):
             with self.subTest(path=path.name):
