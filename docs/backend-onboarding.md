@@ -9,7 +9,7 @@ Profile: `lean-4-34-rc2-stdlib`. Admission is limited to machine verification of
 - lean4export: `cacf989bd75f608700820f6afc595f32e7a99a4d`, locked in both Lake configuration and manifest.
 - Nanoda: `05055695879dfebb6628a67da88ceca6cd6b0421`, built with Rust 1.90.0 and its Cargo lockfile.
 - Ubuntu and Rust container base digests are pinned in [Dockerfile](../backend/Dockerfile). Runtime uses the immutable built image ID and records tool binary hashes and OS package versions.
-- Both build stages use signed package archive snapshots dated `20260907T000000Z`, configured in `backend/debian.sources` and `backend/ubuntu.sources`.
+- The Debian build stage uses a signed archive snapshot dated `20260907T000000Z`. Ubuntu uses `backend/ubuntu-packages.lock`, containing all 175 exact installed package versions from the successful run below; the complete installed inventory must match after installation. No unpinned dependency may be added.
 - Explicit Docker seccomp profile SHA-256: `4895b5720b8c15faf3680bfee672531a4c6f8d6938b6a50c4e65f7ae822342bd`; provenance and licensing are in [NOTICE.md](../backend/NOTICE.md).
 
 This admits exactly the tested combination, not arbitrary older releases or mutable latest versions. No Mathlib version or upstream candidate cache is approved. Compiler/core/Std release artifacts are an explicit bootstrap trust assumption. Revoke or replace this profile if a relevant checker or toolchain security issue becomes known, retaining old facts and requiring new candidate checks.
@@ -37,7 +37,7 @@ The actual execution probes enforce non-root/PID isolation, read-only input and 
 
 ## Remaining boundaries
 
-Review dispositions and required strict branch protection are recorded in [merge-gate-review.md](merge-gate-review.md). Subsequent backend CI reruns validate the stricter seccomp profile and dated package sources before deployment.
+Review dispositions and required strict branch protection are recorded in [merge-gate-review.md](merge-gate-review.md). Subsequent backend CI reruns validate the stricter seccomp profile and locked package sources before deployment.
 
 Approved mathematical reviewers and original-statement reviews are separate human evidence. The roster is still empty. A candidate must reference an already-approved statement on `main`; neither this profile nor a passing synthetic test supplies that approval.
 
