@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "environment_id": "lean-4-28-mathlib",
-  "description": "Lean 4.28.0 with fixed Mathlib dependencies; onboarding profile, not award approval.",
-  "status": "pending",
-  "evidence_url": null,
+  "description": "Lean 4.28.0 with fixed Mathlib and the Mathlib.Data.Nat.Basic cache closure; machine-verification scope only.",
+  "status": "approved",
+  "evidence_url": "https://github.com/Federico2014/math-lean-verification/actions/runs/34230107878",
   "lean_release": "v4.28.0",
   "lean_archive_sha256": "ceb3a3f844f7aebf63245e2b51c28d5b0ed38942c19f93cf3febd520302160bd",
   "exporter_commit": "d065b0009aed0520e9e99752847a33b337661690",

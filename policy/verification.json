@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "policy_id": "lean-gate-v1",
+  "policy_id": "lean-workspace-v2",
   "standard_axioms": [
     "propext",
     "Classical.choice",
@@ -10,7 +10,8 @@
   "minimum_independent_reviewers": 2,
   "backend": "comparator-export-v1",
   "toolchains": [
-    "lean-4-34-rc2-stdlib"
+    "lean-4-34-rc2-stdlib",
+    "lean-4-28-mathlib"
   ],
   "formal_acceptance_enabled": false
 }

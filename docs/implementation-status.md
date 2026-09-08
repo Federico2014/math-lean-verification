@@ -19,7 +19,7 @@ The repository implements the trusted-workspace and reusable-environment archite
 ## Activation boundaries
 
 - The existing core/Std environment retains its [prior onboarding evidence](backend-onboarding.md).
-- `lean-4-28-mathlib` is pending onboarding and is not on the policy allowlist. Its initial cache scope is deliberately limited to `Mathlib.Data.Nat.Basic`; it is not a claim of support for every Mathlib module or any particular candidate.
+- `lean-4-28-mathlib` is admitted with [real onboarding evidence](workspace-onboarding.md). Its initial cache scope is deliberately limited to `Mathlib.Data.Nat.Basic`; it is not a claim of support for every Mathlib module or any particular candidate.
 - Project compiler, exporter and shared checker compatibility must pass actual tests for each new combination. Adding JSON is not approval.
 - Mathematical reviewer accreditation remains empty. Existing two-reviewer, provenance and content-binding requirements are unchanged.
 - Persistent evidence storage, backup/readback operations and formal acceptance publication remain unconfigured. `formal_acceptance_enabled` remains false.
@@ -28,6 +28,8 @@ The repository implements the trusted-workspace and reusable-environment archite
 - Peak resource telemetry, richer per-theorem diagnostic classifications and merge-queue support remain future improvements; execution limits, wall time and aggregate target checks are recorded now.
 
 ## Validation
+
+The [workspace onboarding run](workspace-onboarding.md) passed both real backend matrices (27 cases total) and 69 unit tests.
 
 Run unit tests and registry validation locally. The **Lean backend tests** workflow builds real environment images and runs positive/negative proofs; inspect its actual run before approving a new environment. Synthetic test success is infrastructure evidence, not verification of an award candidate.
 

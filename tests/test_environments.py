@@ -22,8 +22,12 @@ class EnvironmentTests(unittest.TestCase):
         self.root = Path(self.temp.name)
 
     def test_environment_reuse_is_static_and_reports_pending_approval(self):
+        shutil.copytree(ROOT / 'environments', self.root / 'environments')
+        env_path = self.root / 'environments/lean-4-28-mathlib/environment.json'
+        env = json.loads(env_path.read_text()); env['status'] = 'pending'; env['evidence_url'] = None
+        env_path.write_text(json.dumps(env))
         with patch('subprocess.run', side_effect=AssertionError('Must not execute')), patch('socket.create_connection', side_effect=AssertionError('Must not fetch')):
-            result = discover(ROOT / 'environments/lean-4-28-mathlib', ROOT)
+            result = discover(self.root / 'environments/lean-4-28-mathlib', self.root)
         self.assertEqual(result['machine_status'], 'not_run')
         self.assertEqual(result['matches'][0]['environment_id'], 'lean-4-28-mathlib')
         self.assertEqual(result['matches'][0]['status'], 'pending')
