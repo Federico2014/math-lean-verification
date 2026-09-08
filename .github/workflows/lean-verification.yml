@@ -1,0 +1,106 @@
+name: Trusted Lean verification
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Open PR number to verify against current main
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: trusted-lean-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+jobs:
+  resolve:
+    if: github.event_name == 'pull_request_target' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      statuses: write
+    outputs:
+      head: ${{ steps.resolve.outputs.head }}
+      base: ${{ steps.resolve.outputs.base }}
+      pr: ${{ steps.resolve.outputs.pr }}
+    steps:
+      # Only protected base code is checked out. PR files are fetched as bounded data.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+      - id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/gate_status.py resolve
+  verify:
+    needs: resolve
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    # No write permission or repository secrets in the proof execution job.
+    outputs:
+      status: ${{ steps.gate.outputs.status || steps.precheck.outputs.status }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.resolve.outputs.base }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Install pinned controller dependencies
+        run: >-
+          python -m pip install --only-binary=:all: --require-hashes -r requirements-ci.lock
+      - id: precheck
+        name: Require approved original statement, target mapping, and toolchain
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.resolve.outputs.pr }}
+          PR_HEAD: ${{ needs.resolve.outputs.head }}
+        run: python -m verifier.merge_gate --repository "$GITHUB_REPOSITORY" --pr "$PR_NUMBER" --head "$PR_HEAD" --check-only --output "$RUNNER_TEMP/precheck"
+      - name: Build trusted pinned tools (no candidate input)
+        if: steps.precheck.outputs.status == 'ready'
+        run: docker build -t lean-gate-tools backend
+      - id: gate
+        name: Clean build, trusted statement comparison, axiom audit, and dual replay
+        if: steps.precheck.outputs.status == 'ready'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.resolve.outputs.pr }}
+          PR_HEAD: ${{ needs.resolve.outputs.head }}
+        run: |
+          image_id=$(docker image inspect lean-gate-tools --format '{{.Id}}')
+          python -m verifier.merge_gate --repository "$GITHUB_REPOSITORY" --pr "$PR_NUMBER" --head "$PR_HEAD" --image "$image_id" --output "$RUNNER_TEMP/proof-evidence"
+      - name: Save diagnostics (not a durable formal archive)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: lean-verification-${{ needs.resolve.outputs.head }}
+          path: |
+            ${{ runner.temp }}/precheck
+            ${{ runner.temp }}/proof-evidence
+          retention-days: 30
+  publish:
+    needs: [resolve, verify]
+    if: always() && needs.resolve.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.resolve.outputs.base }}
+          persist-credentials: false
+      # Only the trusted job result and fixed status enum are consumed, never artifacts.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD: ${{ needs.resolve.outputs.head }}
+          PR_NUMBER: ${{ needs.resolve.outputs.pr }}
+          EXPECTED_BASE: ${{ needs.resolve.outputs.base }}
+          EXECUTION_RESULT: ${{ needs.verify.result }}
+          GATE_STATUS: ${{ needs.verify.outputs.status }}
+        run: python3 scripts/gate_status.py finish

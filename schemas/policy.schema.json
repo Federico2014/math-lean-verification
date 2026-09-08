@@ -41,11 +41,20 @@
       "const": 2
     },
     "backend": {
-      "const": "unconfigured"
+      "enum": [
+        "unconfigured",
+        "comparator-export-v1"
+      ]
     },
     "toolchains": {
       "type": "array",
-      "maxItems": 0
+      "items": {
+        "enum": [
+          "lean-4-34-rc2-stdlib"
+        ]
+      },
+      "maxItems": 1,
+      "uniqueItems": true
     },
     "formal_acceptance_enabled": {
       "const": false
