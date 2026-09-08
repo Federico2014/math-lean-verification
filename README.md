@@ -10,7 +10,7 @@ The repository supports candidate registration. **No results have been formally 
 
 Available components include candidate intake forms, registration schemas, original-problem and statement-correspondence templates, hash and target-coverage validation, CI tests, and a maintainer preflight entry point. The CI badge reports only repository code and registration checks.
 
-The [Lean merge gate](docs/lean-merge-gate.md) checks candidate changes using isolated builds, Comparator statement/axiom checks, and Lean plus Nanoda replay. The initial execution profile supports source-only core/Std projects. Approved candidate toolchains and independent reviewers still require onboarding; Mathlib integration and durable formal archives remain outstanding. `plan` remains a non-executing preflight command and cannot produce proof acceptance.
+The [Lean merge gate](docs/lean-merge-gate.md) checks candidate changes using isolated builds, Comparator statement/axiom checks, and Lean plus Nanoda replay. The initial execution profile supports source-only core/Std projects. The source-only profile has [onboarding evidence](docs/backend-onboarding.md); independent reviewers still require approval, and Mathlib integration and durable formal archives remain outstanding. `plan` remains a non-executing preflight command and cannot produce proof acceptance.
 
 ## Adding a candidate
 

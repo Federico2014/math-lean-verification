@@ -18,7 +18,7 @@ The execution profile `lean-4-34-rc2-stdlib` supports source-only Lean core/Std 
 
 Pinned tool sources, release checksum, and container bases are recorded under `backend/`. The official Lean release supplies the compiler and trusted core/Std library artifacts; this bootstrap trust is explicit. Candidate source is rebuilt cleanly, and submitter caches are not accepted. Operating-system package versions and tool binary hashes are recorded in each execution's evidence. The runtime uses the immutable local image ID produced from the protected recipe.
 
-An executable profile is not automatically an approved candidate toolchain. Adding it to `policy/verification.json` requires onboarding evidence and maintainer review. The approved toolchain and independent-reviewer lists remain empty until that review is performed. No award or formal-acceptance flag is enabled by this merge gate.
+An executable profile is not automatically an approved candidate toolchain. Adding it to `policy/verification.json` requires onboarding evidence and maintainer review. The source-only profile is admitted with [onboarding evidence](backend-onboarding.md); the independent-reviewer list remains empty until actual reviewers are approved. No award or formal-acceptance flag is enabled by this merge gate.
 
 ## Candidate process
 

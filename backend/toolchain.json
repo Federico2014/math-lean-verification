@@ -6,5 +6,5 @@
   "comparator_commit": "2312244ac716564a61cc0bf4e107d9abf1757a61",
   "exporter_commit": "cacf989bd75f608700820f6afc595f32e7a99a4d",
   "nanoda_commit": "05055695879dfebb6628a67da88ceca6cd6b0421",
-  "approval": "Execution profile for integration testing; candidate use also requires approval in policy/verification.json"
+  "approval": "Source-only execution profile admitted by policy/verification.json; onboarding evidence: docs/backend-onboarding.md. No Mathlib or award acceptance."
 }

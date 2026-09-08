@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "policy_id": "bootstrap-v1",
+  "policy_id": "lean-gate-v1",
   "standard_axioms": [
     "propext",
     "Classical.choice",
@@ -8,7 +8,9 @@
   ],
   "approved_reviewers": [],
   "minimum_independent_reviewers": 2,
-  "backend": "unconfigured",
-  "toolchains": [],
+  "backend": "comparator-export-v1",
+  "toolchains": [
+    "lean-4-34-rc2-stdlib"
+  ],
   "formal_acceptance_enabled": false
 }

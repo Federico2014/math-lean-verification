@@ -198,7 +198,11 @@ def plan_verification(root: Path, submission_id: str) -> dict[str, Any]:
              f"submissions/{problem['problem_id']}/{submission_id}.json"}
     paths.update(f"{base}/{item['path']}" for item in problem["trusted_files"])
     inputs = [{"path": p, "sha256": file_digest(safe_file(root, p))} for p in sorted(paths)]
-    blockers = ["backend_unconfigured", "approved_toolchain_unconfigured", "durable_archive_unconfigured"]
+    blockers = ["durable_archive_unconfigured"]
+    if registry["policy"]["backend"] == "unconfigured":
+        blockers.insert(0, "backend_unconfigured")
+    if submission["toolchain_id"] not in registry["policy"]["toolchains"]:
+        blockers.append("approved_toolchain_unconfigured")
     if problem["review"]["status"] != "approved":
         blockers.append("statement_review_pending")
     result = {
@@ -206,7 +210,7 @@ def plan_verification(root: Path, submission_id: str) -> dict[str, Any]:
         "input_digest": canonical_digest(inputs), "inputs": inputs,
         "candidate_repository": submission["repository"], "candidate_commit": submission["commit"],
         "required_theorems": problem["required_theorems"], "blockers": blockers,
-        "machine_status": "not_run", "formal_status": "pending", "backend": "unconfigured",
+        "machine_status": "not_run", "formal_status": "pending", "backend": registry["policy"]["backend"],
     }
     schema_validate("plan", result)
     return result
