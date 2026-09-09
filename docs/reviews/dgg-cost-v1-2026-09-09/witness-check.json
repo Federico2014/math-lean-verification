@@ -1,0 +1,182 @@
+{
+  "meaning": "Supplemental finite arithmetic only; not a Lean or review approval result.",
+  "capacity_choice": "u = x",
+  "source_balances_out_minus_in": {
+    "s": 40,
+    "u": 0,
+    "v": 0,
+    "w": 0,
+    "t1": -15,
+    "t2": -10,
+    "t3": -15
+  },
+  "maximum_demand": 15,
+  "fractional_cost": 58,
+  "paths_per_terminal": [
+    2,
+    2,
+    2
+  ],
+  "routing_count": 8,
+  "load_feasible_routing_count": 4,
+  "minimum_load_feasible_cost": 60,
+  "simultaneously_feasible_count": 0,
+  "routings": [
+    {
+      "paths": [
+        [
+          "st1"
+        ],
+        [
+          "st2"
+        ],
+        [
+          "su",
+          "ut3"
+        ]
+      ],
+      "cost": 90,
+      "satisfies_load_bound": true
+    },
+    {
+      "paths": [
+        [
+          "st1"
+        ],
+        [
+          "st2"
+        ],
+        [
+          "su",
+          "uv",
+          "vw",
+          "wt3"
+        ]
+      ],
+      "cost": 60,
+      "satisfies_load_bound": true
+    },
+    {
+      "paths": [
+        [
+          "st1"
+        ],
+        [
+          "su",
+          "uv",
+          "vw",
+          "wt2"
+        ],
+        [
+          "su",
+          "ut3"
+        ]
+      ],
+      "cost": 60,
+      "satisfies_load_bound": true
+    },
+    {
+      "paths": [
+        [
+          "st1"
+        ],
+        [
+          "su",
+          "uv",
+          "vw",
+          "wt2"
+        ],
+        [
+          "su",
+          "uv",
+          "vw",
+          "wt3"
+        ]
+      ],
+      "cost": 30,
+      "satisfies_load_bound": false
+    },
+    {
+      "paths": [
+        [
+          "su",
+          "uv",
+          "vt1"
+        ],
+        [
+          "st2"
+        ],
+        [
+          "su",
+          "ut3"
+        ]
+      ],
+      "cost": 60,
+      "satisfies_load_bound": true
+    },
+    {
+      "paths": [
+        [
+          "su",
+          "uv",
+          "vt1"
+        ],
+        [
+          "st2"
+        ],
+        [
+          "su",
+          "uv",
+          "vw",
+          "wt3"
+        ]
+      ],
+      "cost": 30,
+      "satisfies_load_bound": false
+    },
+    {
+      "paths": [
+        [
+          "su",
+          "uv",
+          "vt1"
+        ],
+        [
+          "su",
+          "uv",
+          "vw",
+          "wt2"
+        ],
+        [
+          "su",
+          "ut3"
+        ]
+      ],
+      "cost": 30,
+      "satisfies_load_bound": false
+    },
+    {
+      "paths": [
+        [
+          "su",
+          "uv",
+          "vt1"
+        ],
+        [
+          "su",
+          "uv",
+          "vw",
+          "wt2"
+        ],
+        [
+          "su",
+          "uv",
+          "vw",
+          "wt3"
+        ]
+      ],
+      "cost": 0,
+      "satisfies_load_bound": false
+    }
+  ]
+}

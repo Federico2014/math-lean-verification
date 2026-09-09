@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "kind": "supplemental_correspondence_review",
+  "review_date": "2026-09-09",
+  "prepared_by": "Codex AI assistant",
+  "independent_blind_draft": false,
+  "accredited_reviewer_approvals": 0,
+  "technical_finding": "No blocking correspondence defect identified for the registered rational counterexample direction.",
+  "mathematical_approval": "pending",
+  "original_source": {
+    "url": "https://arxiv.org/html/2308.02651v1",
+    "retrieval_recorded_at": "2026-09-09T10:24:33.549465+00:00",
+    "media_type": "text/html",
+    "byte_count": 1217319,
+    "sha256": "683aa833792e7bedc7e017cfc3b7af4da8ac88c95e4ebaf6b673b80d0f2c1004",
+    "reviewed_anchors": [
+      "S1.p3",
+      "S1.Thmtheorem1",
+      "S1.Thmtheorem3"
+    ],
+    "full_snapshot_in_repository": false,
+    "durable_snapshot_archive": "not_configured"
+  },
+  "official_problem": {
+    "problem_id": "dgg-cost",
+    "statement_version": "v1",
+    "protected_revision": "3413e29baec76e47c439eeaa2d453e744c658d8d",
+    "statement_digest": "15bd9f85b7569b6cd27f4b0df686645273a0536100faf186aaab6682abf3e8e7",
+    "workspace_digest": "a8ab4bd733ffb55edf17033c57ccba0f2dc7b09ddc023f3d22f6dc9acdd74ff8",
+    "challenge_sha256": "d42324530e9d2565411521ec7b7dfb5debeb30ae9def32c4b32d6c44f58955c5",
+    "environment_digest": "98af3ee95f2fe97c8abf67c05af0a89bafc0fa72a3ee8a20a4d53f3f8309a22d",
+    "policy_digest": "52fe5336271d58532f951e146d11effdc2e89cc908e7f168937c343b71902b6c"
+  },
+  "machine_evidence": {
+    "run_url": "https://github.com/Federico2014/math-lean-verification/actions/runs/34338489851/attempts/1",
+    "run_id": 34338489851,
+    "run_attempt": 1,
+    "pr_number": 14,
+    "pr_head": "7f1b5029d4cb895e2e683bd9c51ed9340aaca3a8",
+    "upstream_commit": "ffba3523f0edd14be3460d039f22a6b98c02fd9e",
+    "artifact_id": 10098873626,
+    "artifact_sha256": "f8e59c97d4342e4fe0f5c24447238439758f90907d3dd26e8d35a34bd38cb656",
+    "artifact_expires_at": "2026-12-08T10:07:09Z",
+    "sealed_archive_sha256": "40b1d438e8e3bb9573a1a03b0a79859c674825205ef82426ea5272f82d35cebb",
+    "sealed_archive_inventory_entries": 33,
+    "sealed_archive_readback_verified": true,
+    "full_archive_in_repository": false,
+    "machine_status": "passed",
+    "verification_status": "review_pending",
+    "image_id": "sha256:270c52f479998aa2dcf1adc97999b8998689c39c996d74ff834072df6e168c5c"
+  },
+  "files": {
+    "review.md": "f6015e6e8ab4f307c3c88730eb024b63e829e43f2c66c8420f9de227f13eabaf",
+    "verification-result.json": "71c5fc83f3b637ad77ac43c8fe106b7d801e23840a70dd117d38a790b54ad95b",
+    "witness-check.json": "9fae78613dc85551a20ab1ec69e09e3cddb4cc6b9eb08e5eaada1c37dc15edb7",
+    "witness-check.py": "5caecbb82fe141369c038d2f1ef323fc4e9625b698fa3146ad9dc189f3db84a7"
+  }
+}
