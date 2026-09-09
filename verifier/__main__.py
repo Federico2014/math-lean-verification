@@ -76,10 +76,10 @@ def main(argv=None) -> int:
             return 3
         registry = validate_registry(args.root)
         if args.command == "list":
-            print(json.dumps(sorted(registry["submissions"]), indent=2))
+            print(json.dumps(sorted(set(registry["submissions"]) | set(registry['candidates'])), indent=2))
         else:
             print(f"Registry valid: {len(registry['problems'])} problem versions, "
-                  f"{len(registry['submissions'])} submissions. No proofs executed.")
+                  f"{len(registry['submissions'])} submissions, {len(registry['candidates'])} simplified candidates. No proofs executed.")
         return 0
     except (RegistryError, OSError) as exc:
         print(f"Validation error: {exc}", file=sys.stderr)

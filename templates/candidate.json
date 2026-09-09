@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "title": "<required>",
+  "problem_id": "example-problem",
+  "source": {
+    "repository": "https://github.com/OWNER/REPOSITORY",
+    "commit": "0000000000000000000000000000000000000000"
+  },
+  "targets": [
+    {
+      "module": "Submission",
+      "declaration": "Submission.result"
+    }
+  ],
+  "attribution": {
+    "proof_authors": [
+      "<required>"
+    ],
+    "formalization_authors": [
+      "<required>"
+    ],
+    "ai_role": "<required>",
+    "proof_route": "<required>",
+    "known_assumptions": []
+  },
+  "public_source_authorized": false
+}

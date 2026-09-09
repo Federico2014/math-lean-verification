@@ -43,9 +43,17 @@ class RepositoryTests(unittest.TestCase):
                 if path.name != "lean-verification.yml":
                     self.assertNotIn("pull_request_target", workflow["on"])
                 self.assertNotIn("workflow_run", workflow["on"])
-                for job in workflow["jobs"].values():
+                for name, job in workflow["jobs"].items():
                     self.assertEqual(job["runs-on"], "ubuntu-24.04")
-                    if path.name != "lean-verification.yml":
+                    allowed = {
+                        ('resume-candidates.yml', 'resume'): {'contents': 'read', 'pull-requests': 'read', 'actions': 'write', 'statuses': 'write'},
+                        ('candidate-catalog.yml', 'build'): {'contents': 'read', 'actions': 'read'},
+                        ('candidate-catalog.yml', 'deploy'): {'pages': 'write', 'id-token': 'write'},
+                    }
+                    if (path.name, name) in allowed:
+                        self.assertEqual(job['permissions'], allowed[path.name, name])
+                        self.assertEqual(job['if'], "github.ref == 'refs/heads/main'")
+                    elif path.name != "lean-verification.yml":
                         self.assertNotIn("permissions", job)
                     self.assertNotIn("secrets", job)
                     self.assertIn("timeout-minutes", job)

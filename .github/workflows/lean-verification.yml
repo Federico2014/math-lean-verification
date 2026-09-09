@@ -1,4 +1,5 @@
 name: Trusted Lean verification
+run-name: Lean PR ${{ github.event.pull_request.number || inputs.pr }} ${{ github.event.pull_request.head.sha || inputs.expected_head }} ${{ github.event.pull_request.base.sha || inputs.expected_base }}
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -7,6 +8,14 @@ on:
       pr:
         description: Open PR number to verify against current main
         required: true
+        type: string
+      expected_head:
+        description: Expected PR head for automatic resumption
+        required: false
+        type: string
+      expected_base:
+        description: Expected protected main revision
+        required: false
         type: string
 permissions:
   contents: read

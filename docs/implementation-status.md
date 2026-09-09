@@ -50,3 +50,16 @@ Run unit tests and registry validation locally. The **Lean backend tests** workf
 See [the design](design.md), [the candidate process](../CONTRIBUTING.md) and [the merge gate](lean-merge-gate.md).
 
 See the [2026-09-09 conformance review](design-conformance-review.md) for requirement coverage, remaining rollout gaps and focused corrective changes.
+
+## Single-PR intake implementation
+
+Implemented candidate schemas/templates, static hash-bound preparation, protected
+exception mappings, automatic import closure/bridging, current-main PR delta
+application, main-triggered recovery, stale-status suppression and a generated
+Pages candidate catalog. See [operations and deployment](simplified-intake.md).
+No existing approved environment, reviewer policy or candidate is changed by this
+implementation. Real backend tests now exercise the generated inferred-type bridge.
+
+Production activation requires merging this implementation, enabling GitHub Pages,
+and recording actual recovery/merge/catalog event-chain evidence. Local orchestration
+tests do not satisfy that acceptance requirement. Formal acceptance remains disabled.

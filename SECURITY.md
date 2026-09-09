@@ -34,3 +34,17 @@ The source-only backend must pass its real proof and sandbox regressions before 
 Do not disclose an exploitable sandbox or result-forgery issue in a public issue. Use GitHub private vulnerability reporting when enabled at the repository's Security tab. General documentation and non-sensitive bugs can use the bug report template.
 
 Reference: [GitHub Actions security](https://docs.github.com/en/actions/reference/security/secure-use), [Lean proof validation](https://lean-lang.org/doc/reference/latest/ValidatingProofs/).
+
+## Candidate preparation and publication
+
+The main-only recovery scheduler has Actions/status write access and handles bounded
+candidate data without executing Lean, Lake or plugins. Candidate PRs cannot alter
+protected mappings or approvals used for their own preparation. An exact candidate
+and metadata digest binds exceptional static adaptation. Description-only problem
+matching requires maintainer correspondence; a matching title is insufficient.
+
+Catalog generation consumes protected-main Actions job metadata with workflow,
+repository, revision, attempt and verification-step checks. It does not ingest PR
+artifacts or trust candidate-provided success JSON. Only the separate Pages deploy
+job has deployment permissions. A published timestamp/revision identifies stale
+views after API or deployment failures. Formal evidence retention remains separate.

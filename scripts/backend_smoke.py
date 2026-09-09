@@ -120,7 +120,7 @@ def main():
         (root/'challenge').mkdir(); (root/'solution/Proofs').mkdir(parents=True)
         (root/'challenge/Challenge.lean').write_text(prefix + BASE + 'by sorry\n')
         (root/'solution/Proofs/Main.lean').write_text(prefix + 'theorem upstream (n : Nat) : n + 0 = n := by rfl\n')
-        (root/'solution/Bridge.lean').write_text('import Proofs.Main\n' + BASE + 'upstream n\n')
+        (root/'solution/Bridge.lean').write_text('import Proofs.Main\ntheorem target : _ := upstream\n')
         result = verify(args.image, root/'challenge', root/'solution', 'Bridge', ['target'], args.output/'bridge',
                         environment=environment, solution_declarations=['upstream'])
         okay = result['machine_status'] == 'passed' and 'independent_nanoda_replay' in result['stages']

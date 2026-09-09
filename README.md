@@ -32,105 +32,74 @@ environment test success never grant approval.
 
 ## Registered candidates
 
-Candidates whose registration PRs are merged into `main` are listed here, one row
-per submission. Each row links the registration, fixed proof commit and actual
-verification evidence. Registration, Lean proof verification and award decisions
-are separate states; environment regression success is not a candidate result.
+[Open the automatically generated candidate list](https://Federico2014.github.io/math-lean-verification/).
+After a candidate PR merges, protected-main CI revalidates it and publishes the
+current status, fixed proof commit and evidence link. The page displays its main
+revision and generation time. Publication runs after main pushes and on a
+15-minute schedule; GitHub may delay scheduled jobs. Contributors do not edit a
+README table. Deployment needs the one-time [Pages setup](docs/simplified-intake.md#deployment).
 
-The DGG submission uses the approved `lean-4-32-rc1-mathlib-dgg` environment and
-[DGG v1 workspace](problems/dgg-cost/v1/statement.md). Its approval is an explicit
-[administrator exception](docs/administrator-approvals/dgg-cost-v1.md) by
-`Federico2014`; two-person independent mathematical review remains incomplete.
-[Issue #12](https://github.com/Federico2014/math-lean-verification/issues/12)
-tracks the review work. [PR #14](https://github.com/Federico2014/math-lean-verification/pull/14)
-was merged at `4677f1f`. Its [successful candidate verification](https://github.com/Federico2014/math-lean-verification/actions/runs/34342252724)
-checked PR head `806d9b0ac4cb6fcc031b42f7aadb8bc02ec90d01` against protected
-base `dec0d00a2e7e2cdedff418f6f25e0aa932b37854`, after the administrator
-approval and policy changes. All eight machine stages completed, including
-statement comparison, transitive axiom auditing, Lean kernel replay and Nanoda
-replay. The result records `machine_status: passed`, `verification_status: verified`,
-`review_approval_kind: administrator_exception` and `formal_status: pending`.
-[Revalidation of merged commit 4677f1f](https://github.com/Federico2014/math-lean-verification/actions/runs/34354995262)
-is a separate run; inspect it for that revision's outcome.
-
-| Candidate / submission | Statement version / registration | Fixed proof source | Lean verification / evidence |
-| --- | --- | --- | --- |
-| DGG / Goemans cost conjecture — `dgg-cost-jyh` | [dgg-cost/v1](problems/dgg-cost/v1/statement.md) / [registration](submissions/dgg-cost/dgg-cost-jyh.json) | [jyh/dinitz-verify @ ffba352](https://github.com/jyh/dinitz-verify/tree/ffba3523f0edd14be3460d039f22a6b98c02fd9e) | `verified` — [PR verification at 806d9b0](https://github.com/Federico2014/math-lean-verification/actions/runs/34342252724); machine `passed`, administrator exception; formal acceptance `pending` |
-
-This table is maintained in documentation; CI publishes checks and evidence but
-does not rewrite the README. Add a row in the registration PR using `not_run`
-until a bound machine result exists. After successful verification and merge,
-update the row in a documentation change with the exact run and checked revision.
-Keep PR verification and subsequent `main` revalidation outcomes distinct. Source,
-environment or verification-rule changes require fresh evidence; an earlier pass
-must not describe changed inputs.
+DGG has historical [successful PR verification](https://github.com/Federico2014/math-lean-verification/actions/runs/34342252724)
+at head `806d9b0ac4cb6fcc031b42f7aadb8bc02ec90d01` and protected base
+`dec0d00a2e7e2cdedff418f6f25e0aa932b37854`, under its explicit
+[administrator exception](docs/administrator-approvals/dgg-cost-v1.md).
+That evidence does not describe subsequent source or verifier revisions.
+Formal acceptance remains pending.
 
 ## Adding a candidate
 
-**The normal path is: provide the proof source → reuse a reviewed problem and approved environment → open a registration PR → inspect the automatic CI result.** The same workflow handles future candidates; an ordinary submission does not need a new workflow. Actual Lean execution happens in isolated CI containers. Local commands below only prepare or validate registration data.
+### 1. Fill in one candidate file
 
-### 1. Provide the candidate materials
+Copy [templates/candidate.json](templates/candidate.json) to
+`candidates/<candidate-id>.json`; IDs use lowercase words separated by hyphens.
+Use the GitHub web editor or your usual Git client. Provide:
 
-Open a [candidate submission issue](https://github.com/Federico2014/math-lean-verification/issues/new?template=candidate.yml) with the original problem and paper links, public GitHub proof repository, full 40-character commit SHA, target Lean modules/declarations, Lean version, dependencies, assumptions and author attribution. A paper without Lean proof source cannot undergo machine verification. Publish only materials you are authorized to share.
+- The registered `problem_id`, or a `problem` object containing `title`,
+  `source_url` and `scope` for maintainer correspondence review.
+- A public GitHub proof repository and full 40-character immutable commit.
+- Every target Lean module and theorem declaration.
+- Proof/formalization authors, proof route, AI contribution and known assumptions.
+- `public_source_authorized: true` only when you have permission to submit the source.
 
-### 2. Confirm the problem and environment
+Replace template placeholders. An Issue is optional. You do not need a local
+Lean installation, environment ID, source hashes, generated registration or
+README edit. Use `source.project_root` for a project in a subdirectory.
 
-With maintainers, identify the existing `problem_id`, `statement_version`, complete official theorem list and approved `toolchain_id`. Reuse these when available.
+### 2. Open one PR against main
 
-For a new problem, maintainers first prepare a separate PR under `problems/<problem-id>/<version>/` containing the trusted Lean statement and permitted proof interface. For a new environment, use the [environment onboarding process](docs/environment-onboarding.md): pin dependencies, run real compatibility tests and record approval in a separate PR. Both configurations must reach `main` before candidate execution. Pending statement review permits diagnostic execution, but the exact statement review must be approved before the candidate gate can pass.
+Opening or updating the PR automatically triggers **Trusted Lean verification**.
+CI reads the fixed source as data, matches approved environments, selects local
+imports, prepares internal registration and generates a proof bridge when the
+mapping is unambiguous. It then runs the real isolated Lean, statement comparison,
+axiom and Nanoda checks. Only changed candidate files and optional bridge files
+belong in this PR.
 
-These are reusable setup steps. A candidate PR cannot approve or alter its own problem, environment or verification policy.
+### 3. Follow the CI result
 
-### 3. Prepare the registration files
-
-Set up this repository's [Python environment](#local-development). From this repository, inspect a local source checkout matching the candidate's fixed commit, then generate a draft. Replace the example IDs, theorem names and commit placeholder:
-
-```bash
-python -m verifier inspect-environment /path/to/candidate-project
-python -m verifier draft-submission /path/to/candidate-project \
-  --repository https://github.com/OWNER/REPOSITORY \
-  --commit FULL_40_HEX_COMMIT \
-  --submission-id example-proof --problem-id example-problem \
-  --statement-version v1 \
-  --target Submission upstream_theorem official_theorem \
-  --output /tmp/candidate-draft.json
-```
-
-`--target` means `MODULE DECLARATION OFFICIAL_THEOREM`; repeat it for every official target. Review the draft's `blockers`, then save **only its `submission` object** as `submissions/example-problem/example-proof.json`. Alternatively, fill in [the submission template](templates/submission.json) directly.
-
-Complete the paper links, authorship, proof route, AI role, assumptions and prior results. The generated draft deliberately leaves publication permission false; confirm it only when authorization actually exists. Check the environment ID and source selection rather than treating a suggested match as approval.
-
-| Registration field | What to provide |
+| Result | Next action |
 | --- | --- |
-| `execution.project_root` | Project directory relative to the upstream repository; `.` for its root. |
-| `execution.include` | Lean files needed by the proof, relative to that root, such as `Submission.lean` and `Submission/**`. |
-| `execution.proof_files` | Optional local bridge paths and SHA-256 hashes. Store them under `proofs/<submission-id>/`. |
-| `execution.source_transforms` | Optional hash-bound renames or exact replacements; see [source adaptation](docs/generic-intake.md#adapt-source-modules-without-a-fork). |
+| `needs_information` | Complete the missing candidate materials and update the PR. |
+| `waiting_problem` / `waiting_review` | Maintainers prepare the official workspace and approved correspondence. |
+| `waiting_environment` | Maintainers test and approve a compatible pinned environment. |
+| `needs_adaptation` | Maintainers review the reported mapping/build requirements; provide an optional checked bridge if needed. |
+| `infrastructure_error` | Retry the trusted workflow after resolving the source/service failure. |
+| `failed` | Inspect proof evidence, correct the source/bridge and update the fixed commit. |
+| `verified` | All machine checks and exact statement approval passed; the maintainer can merge after required repository checks. |
 
-If the upstream theorem needs to expose the official name or statement, complete [the bridge template](templates/Bridge.lean) using the trusted workspace's `solution_module` and permitted paths. Keep `adapter_id` null. Bridges and adapted sources undergo the full proof checks. Custom Lake programs, native plugins and precompiled artifacts require separately supported tooling; they are not ordinary submission inputs.
+The plan artifact lists all preparation blockers. Maintainers merge preparation
+and approval changes in separate PRs. The main scheduler automatically resumes
+waiting candidate PRs against the new main while preserving their submitted head;
+no empty commit or rebase is needed merely to pick up approved configuration.
+Conflicting candidate edits still require normal conflict resolution.
 
-### 4. Open the candidate PR
+Read `lean-plan-*` / scheduler diagnostics for prerequisites, and
+`lean-evidence-*` for `report.md`, `verification-result.json` and stage logs.
+A green registry check, a build or environment test alone is not proof verification.
+Maintainers require `registry`, `tests` and `lean-verification` before merging.
+Formal acceptance and awards remain separate decisions.
 
-Validate the completed registration locally:
-
-```bash
-python -m verifier validate
-```
-
-This checks metadata and hashes; it does not execute Lean. Update the [registered candidate list](#registered-candidates), commit the registration and any bridge files on your branch or fork, then open a PR targeting `main`. Link the candidate issue and describe the official target mapping and any source adaptation. Opening or updating the PR automatically triggers **Trusted Lean verification**; no local Lean run is required.
-
-### 5. Read the CI result and correct failures
-
-The required checks are `registry`, `tests` and `lean-verification`. CI retrieves the fixed source commit, builds in isolation, checks all required statements and axioms, and performs Lean plus Nanoda replay. A successful build or green Registry CI badge alone does not establish proof verification.
-
-Open the **Trusted Lean verification** run from the PR checks. Inspect `lean-plan-*` for prerequisite failures and `lean-evidence-<submission-id>-<head-sha>` for `report.md`, `verification-result.json` and detailed logs.
-
-- Missing workspace, unsupported environment or stale hash: correct the registration or complete maintainer onboarding.
-- Build, statement, axiom or replay failure: fix the proof or bridge, update the bound commit/hashes and push again.
-- `review_pending`: machine checks passed, but mathematical review still blocks the gate.
-- `verified`: machine checks and the bound approval policy passed. Inspect `review_approval_kind`: `independent_review` records normal review, while `administrator_exception` records an explicit statement-specific waiver. Formal acceptance and award decisions remain separate.
-
-Each update needs fresh verification. Maintainers can rerun **Trusted Lean verification** from `main` with the open PR number. After relevant changes reach `main`, **Revalidate registered Lean proofs** rechecks registered candidates. See [the contribution process](CONTRIBUTING.md) for review and evidence requirements.
+See [the contributor guide](CONTRIBUTING.md) and
+[implementation and operations](docs/simplified-intake.md) for details.
 
 ## Verification principles
 
