@@ -60,6 +60,10 @@ if cfg['dependency_mode'] == 'mathlib-cache':
     # Cache retrieval is executed only from the approved image context. It is
     # explicitly a trusted dependency cache, never a candidate build cache.
     run(['lake', 'exe', 'cache', 'get', *cfg['cache_modules']], cwd=project)
+    # Cache archives may omit auxiliary input hashes (for example ProofWidgets'
+    # package-lock.json.hash). Complete the declared dependency build while the
+    # image is writable; offline candidate builds must never update shared inputs.
+    run(['lake', 'build', *['+' + module for module in (cfg['cache_modules'] or ['Mathlib'])]], cwd=project)
     assert json.loads((project / 'lake-manifest.json').read_text()) == lock, 'Lake changed the approved dependency lock'
     for dep in lock['packages']:
         actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=project / '.lake/packages' / dep['name'], text=True).strip()
