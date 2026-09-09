@@ -28,7 +28,7 @@ The repository implements the trusted-workspace and reusable-environment archite
 
 - The existing core/Std environment retains its [prior onboarding evidence](backend-onboarding.md).
 - `lean-4-28-mathlib` is admitted with [real onboarding evidence](workspace-onboarding.md). Its initial cache scope is deliberately limited to `Mathlib.Data.Nat.Basic`; it is not a claim of support for every Mathlib module or any particular candidate.
-- `lean-4-32-rc1-mathlib-dgg` is admitted with [21 passing real onboarding cases](dgg-environment-onboarding.md), including full `Mathlib` import and cache rejection probes. The DGG candidate itself still requires a trusted problem workspace and separate proof verification.
+- `lean-4-32-rc1-mathlib-dgg` is admitted with [21 passing real onboarding cases](dgg-environment-onboarding.md), including full `Mathlib` import and cache rejection probes. The [DGG v1 problem workspace](../problems/dgg-cost/v1/statement.md) is registered with mathematical review pending; candidate registration and actual proof verification remain separate work.
 - Project compiler, exporter and shared checker compatibility must pass actual tests for each new combination. Adding JSON is not approval.
 - Mathematical reviewer accreditation remains empty. Existing two-reviewer, provenance and content-binding requirements are unchanged.
 - Persistent evidence storage, backup/readback operations and formal acceptance publication remain unconfigured. `formal_acceptance_enabled` remains false.
