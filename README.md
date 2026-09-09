@@ -32,9 +32,11 @@ per submission. Each row links the registration, fixed proof commit and actual
 verification evidence. Registration, Lean proof verification and award decisions
 are separate states; environment regression success is not a candidate result.
 
-**No candidates are registered yet.** DGG environment onboarding is tracked in
-[PR #10](https://github.com/Federico2014/math-lean-verification/pull/10); its proof
-has not been registered or verified by this repository.
+**No candidates are registered yet.** The DGG-compatible environment
+`lean-4-32-rc1-mathlib-dgg` is approved with
+[21 passing onboarding cases](docs/dgg-environment-onboarding.md). The DGG proof
+has not been registered or verified by this repository. Its next steps are a
+trusted problem workspace followed by a candidate registration PR.
 
 | Candidate / submission | Statement version / registration | Fixed proof source | Lean verification / evidence |
 | --- | --- | --- | --- |
