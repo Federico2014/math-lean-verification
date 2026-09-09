@@ -59,6 +59,60 @@
     },
     "formal_acceptance_enabled": {
       "const": false
+    },
+    "administrator_exceptions": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "properties": {
+          "problem_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])"
+          },
+          "statement_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "pattern": "^v[1-9][0-9]*$(?![\\s\\S])"
+          },
+          "statement_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "minLength": 64,
+            "maxLength": 64
+          },
+          "administrator": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 39,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,38}$(?![\\s\\S])"
+          },
+          "evidence_url": {
+            "type": "string",
+            "pattern": "^https://[^\\s]+$(?![\\s\\S])",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "problem_id",
+          "statement_version",
+          "statement_digest",
+          "administrator",
+          "evidence_url",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [

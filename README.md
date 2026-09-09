@@ -112,7 +112,7 @@ Open the **Trusted Lean verification** run from the PR checks. Inspect `lean-pla
 - Missing workspace, unsupported environment or stale hash: correct the registration or complete maintainer onboarding.
 - Build, statement, axiom or replay failure: fix the proof or bridge, update the bound commit/hashes and push again.
 - `review_pending`: machine checks passed, but mathematical review still blocks the gate.
-- `verified`: machine checks and the bound statement review passed; formal acceptance and award decisions remain separate.
+- `verified`: machine checks and the bound approval policy passed. Inspect `review_approval_kind`: `independent_review` records normal review, while `administrator_exception` records an explicit statement-specific waiver. Formal acceptance and award decisions remain separate.
 
 Each update needs fresh verification. Maintainers can rerun **Trusted Lean verification** from `main` with the open PR number. After relevant changes reach `main`, **Revalidate registered Lean proofs** rechecks registered candidates. See [the contribution process](CONTRIBUTING.md) for review and evidence requirements.
 
