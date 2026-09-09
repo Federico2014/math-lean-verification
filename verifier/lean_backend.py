@@ -17,12 +17,11 @@ import tempfile
 import time
 import uuid
 
-from .registry import RegistryError, require, canonical_digest
+from .registry import (RegistryError, VerificationError, STANDARD_AXIOMS,
+                       require, canonical_digest)
 
 PROFILE = 'lean-4-34-rc2-stdlib'
-AXIOMS = ['propext', 'Classical.choice', 'Quot.sound']
 NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_']*(?:\.[A-Za-z_][A-Za-z0-9_']*)*\Z")
-MAX_EXPORT = 128 * 1024 * 1024
 MAX_LOG = 2 * 1024 * 1024
 DEFAULT_RESOURCES = {'memory_mb': 4096, 'cpus': 2, 'work_mb': 1024,
                      'timeout_seconds': 1800, 'max_files': 100,
@@ -57,7 +56,8 @@ def sandbox(image: str, inputs: Path, command: list[str], *, timeout=600,
     deadline = time.monotonic() + timeout
     try:
         while selector.get_map():
-            require(time.monotonic() < deadline, 'Sandbox execution timed out')
+            if time.monotonic() >= deadline:
+                raise VerificationError('Sandbox execution timed out', 'infrastructure_error')
             for key, _ in selector.select(timeout=0.25):
                 data = os.read(key.fileobj.fileno(), 65536)
                 if not data:
@@ -65,7 +65,8 @@ def sandbox(image: str, inputs: Path, command: list[str], *, timeout=600,
                     continue
                 chunks[key.fileobj].extend(data)
                 limit = max_stdout if key.fileobj is proc.stdout else MAX_LOG
-                require(len(chunks[key.fileobj]) <= limit, 'Sandbox output exceeds limit')
+                if len(chunks[key.fileobj]) > limit:
+                    raise VerificationError('Sandbox output exceeds limit', 'infrastructure_error')
         code = proc.wait(timeout=max(1, deadline - time.monotonic()))
         return code, bytes(chunks[proc.stdout]), bytes(chunks[proc.stderr])
     finally:
@@ -77,15 +78,6 @@ def sandbox(image: str, inputs: Path, command: list[str], *, timeout=600,
         proc.stderr.close()
         subprocess.run(['docker', 'rm', '-f', name], stdout=subprocess.DEVNULL,
                        stderr=subprocess.DEVNULL, timeout=30, check=False)
-
-
-def checked(image, inputs, command, **kwargs):
-    code, out, err = sandbox(image, inputs, command, **kwargs)
-    if code:
-        # JSON escaping prevents Actions command injection through untrusted logs.
-        detail = json.dumps((err + out)[-8000:].decode('utf-8', errors='replace'))
-        raise RegistryError(f'Isolated stage rejected input (exit {code}): {detail}')
-    return out
 
 
 def copy_sources(source: Path, destination: Path, resources=None) -> None:
@@ -123,13 +115,14 @@ def verify(image: str, challenge_sources: Path, solution_sources: Path,
     require(not evidence.exists(), 'Evidence directory already exists')
     evidence.mkdir(parents=True)
     cfg = {'challenge_module': 'Challenge', 'solution_module': module,
-           'theorem_names': theorems, 'definition_names': [], 'permitted_axioms': AXIOMS}
+           'theorem_names': theorems, 'definition_names': [], 'permitted_axioms': sorted(STANDARD_AXIOMS)}
     stages = []
     resources = environment['resources'] if environment else DEFAULT_RESOURCES
     result = {'schema_version': 1, 'profile': environment['environment_id'] if environment else PROFILE,
               'environment_digest': canonical_digest(environment) if environment else None,
               'resources': resources, 'image_id': image,
-              'targets': theorems, 'machine_status': 'failed', 'stages': stages,
+              'targets': theorems, 'candidate_targets': solution_declarations,
+              'machine_status': 'failed', 'stages': stages,
               'seccomp_sha256': hashlib.sha256((Path(__file__).resolve().parents[1] / 'backend/seccomp.json').read_bytes()).hexdigest()}
     started = time.monotonic()
     executions = []
@@ -137,15 +130,25 @@ def verify(image: str, challenge_sources: Path, solution_sources: Path,
     def execute(inputs, command, **kwargs):
         kwargs['timeout'] = min(kwargs.get('timeout', resources['timeout_seconds']), resources['timeout_seconds'])
         beginning = time.monotonic()
-        code, out, err = sandbox(image, inputs, command, resources=resources, **kwargs)
         index = len(executions)
+        try:
+            code, out, err = sandbox(image, inputs, command, resources=resources, **kwargs)
+        except (RegistryError, OSError, ValueError, subprocess.SubprocessError) as exc:
+            log = {'command': command, 'exit_code': None,
+                   'duration_seconds': round(time.monotonic() - beginning, 3), 'error': str(exc)}
+            (evidence / f'execution-{index}.json').write_text(json.dumps(log, indent=2) + '\n')
+            executions.append(log)
+            raise
         log = {'command': command, 'exit_code': code, 'duration_seconds': round(time.monotonic() - beginning, 3),
                'stdout_bytes': len(out), 'stderr': err.decode('utf-8', errors='replace')}
         if kwargs.get('max_stdout', MAX_LOG) <= MAX_LOG:
             log['stdout'] = out.decode('utf-8', errors='replace')
         (evidence / f'execution-{index}.json').write_text(json.dumps(log, indent=2) + '\n')
         executions.append({k: v for k, v in log.items() if k not in ('stdout', 'stderr')})
-        require(code == 0, f'Isolated stage rejected input (exit {code}): ' + json.dumps((err + out)[-8000:].decode('utf-8', errors='replace')))
+        if code:
+            status = 'infrastructure_error' if code in (125, 126, 127, 137) or code < 0 else 'failed'
+            raise VerificationError(f'Isolated stage rejected input (exit {code}): ' +
+                                    json.dumps((err + out)[-8000:].decode('utf-8', errors='replace')), status)
         return out
     probe = ['python3', '/opt/gate/probe.py', str(resources['memory_mb']), str(resources['cpus'])]
     try:
@@ -154,6 +157,7 @@ def verify(image: str, challenge_sources: Path, solution_sources: Path,
             control = root / 'control'
             control.mkdir()
             (control / 'config.json').write_text(json.dumps(cfg))
+            (evidence / 'config.json').write_text(json.dumps(cfg, indent=2) + '\n')
             execute(control, probe)
             stages.append('sandbox_probes')
             if environment:
@@ -182,11 +186,16 @@ def verify(image: str, challenge_sources: Path, solution_sources: Path,
                 (control / (kind + '.ndjson')).write_bytes(export)
                 (evidence / (kind + '.ndjson')).write_bytes(export)
                 stages.append(kind + '_clean_build_export')
+            (control / 'required-targets.json').write_text(json.dumps(list(dict.fromkeys(theorems + solution_declarations))))
+            shutil.copyfile(control / 'required-targets.json', evidence / 'required-targets.json')
+            execute(control, ['/opt/bin/gate-replay', '/input/config.json', 'required-targets',
+                              '/input/solution.ndjson', '/input/required-targets.json'], timeout=1200)
+            stages.append('candidate_target_coverage')
             execute(control, ['/opt/bin/gate-replay', '/input/config.json',
                                      '/input/challenge.ndjson', '/input/solution.ndjson'], timeout=1200)
             stages.extend(['statement_comparison', 'transitive_axiom_audit', 'official_kernel_replay'])
             nanoda = {'use_stdin': False, 'export_file_path': '/input/solution.ndjson',
-                      'permitted_axioms': AXIOMS, 'unpermitted_axiom_hard_error': True,
+                      'permitted_axioms': sorted(STANDARD_AXIOMS), 'unpermitted_axiom_hard_error': True,
                       'num_threads': 2, 'nat_extension': True, 'string_extension': True}
             (control / 'nanoda.json').write_text(json.dumps(nanoda))
             execute(control, ['/opt/bin/nanoda_bin', '/input/nanoda.json'], timeout=1200)
@@ -194,6 +203,8 @@ def verify(image: str, challenge_sources: Path, solution_sources: Path,
             result['machine_status'] = 'passed'
     except (RegistryError, OSError, ValueError, subprocess.SubprocessError) as exc:
         result['error'] = str(exc)
+        result['failure_status'] = (exc.status if isinstance(exc, VerificationError) else
+                                    'infrastructure_error' if isinstance(exc, (OSError, subprocess.SubprocessError)) else 'failed')
     result['duration_seconds'] = round(time.monotonic() - started, 3)
     result['exports'] = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                          for p in evidence.glob('*.ndjson')}

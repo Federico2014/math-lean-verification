@@ -51,6 +51,19 @@ class MergeGateTests(unittest.TestCase):
         self.assertEqual(select_submissions(proposed, proposed), [])
         with self.assertRaises(RegistryError): select_submissions(proposed, trusted)
 
+    def test_environment_and_policy_changes_invalidate_candidates(self):
+        _, trusted = self.fixture()
+        trusted['environments'] = {'lean-4-34-rc2-stdlib': {'revision': 1}, 'unused': {'revision': 1}}
+        for kind in ['referenced_environment', 'policy', 'unused_environment']:
+            proposed = copy.deepcopy(trusted)
+            if kind == 'policy':
+                proposed['policy']['backend'] = 'unconfigured'
+            else:
+                key = 'unused' if kind == 'unused_environment' else 'lean-4-34-rc2-stdlib'
+                proposed['environments'][key]['revision'] = 2
+            with self.subTest(kind=kind):
+                self.assertEqual(select_submissions(trusted, proposed), [] if kind == 'unused_environment' else ['example'])
+
     def test_source_rejects_precompiled_files_and_symlinks(self):
         for kind in ['binary','symlink']:
             with tempfile.TemporaryDirectory() as temp:

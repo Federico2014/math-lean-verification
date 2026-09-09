@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import fnmatch
 from functools import lru_cache
-import json
 from pathlib import Path
 import re
 import tomllib
@@ -87,10 +86,10 @@ def inspect_project(project):
         except (ValueError, UnicodeError) as exc:
             raise RegistryError('Invalid static Lake configuration') from exc
         result['project_name'] = config.get('name')
-    elif (project / 'lakefile.lean').exists():
+    if (project / 'lakefile.lean').exists():
         safe_file(project, 'lakefile.lean')
         result['warnings'].append('dynamic_lakefile_requires_review')
-    else:
+    elif config is None:
         result['warnings'].append('missing_lake_configuration')
     if (project / 'lake-manifest.json').exists():
         manifest_path = safe_file(project, 'lake-manifest.json')
@@ -100,16 +99,22 @@ def inspect_project(project):
         names = set()
         for dep in manifest['packages']:
             require(isinstance(dep, dict), 'Invalid dependency entry')
-            require(dep.get('type') == 'git' and re.fullmatch(r'[0-9a-f]{40}', dep.get('rev', '')),
+            require(dep.get('type') == 'git' and isinstance(dep.get('rev'), str) and re.fullmatch(r'[0-9a-f]{40}', dep['rev']),
                     'Dependency must use a fixed Git commit')
-            require(re.fullmatch(r'https://github\.com/[A-Za-z0-9_-]+/[A-Za-z0-9_.-]+', dep.get('url', '')),
+            require(isinstance(dep.get('url'), str) and re.fullmatch(r'https://github\.com/[A-Za-z0-9_-]+/[A-Za-z0-9_.-]+', dep['url']),
                     'Dependency repository must be public GitHub HTTPS')
             name = dep.get('name', '')
-            require(re.fullmatch('[A-Za-z][A-Za-z0-9_-]*', name) and name not in names, 'Invalid dependency name')
+            require(isinstance(name, str) and re.fullmatch('[A-Za-z][A-Za-z0-9_-]*', name) and name not in names, 'Invalid dependency name')
             require(dep.get('subDir') in (None, ''), 'Dependency subdirectories require a dedicated backend')
             names.add(name)
             result['dependencies'].append({k: dep[k] for k in ('name', 'url', 'rev')})
         result['manifest_sha256'] = file_digest(manifest_path)
+        if config is not None:
+            dependencies = config.get('require', [])
+            require(isinstance(dependencies, list) and all(isinstance(d, dict) and
+                    isinstance(d.get('name'), str) for d in dependencies), 'Invalid static dependency declarations')
+            if any(d['name'] not in names for d in dependencies):
+                result['warnings'].append('declared_dependency_missing_from_lock')
     else:
         if config is None or config.get('require'):
             result['warnings'].append('missing_dependency_lock')

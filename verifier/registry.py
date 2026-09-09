@@ -16,13 +16,22 @@ MAX_JSON_BYTES = 2 * 1024 * 1024
 MAX_INPUT_BYTES = 8 * 1024 * 1024
 MAX_REGISTRY_FILES = 5000
 ID = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*\Z")
-VERSION = re.compile(r"v[1-9][0-9]*\Z")
 MANDATORY_FILES = {"Challenge.lean", "statement.md", "correspondence.md", "definitions.md"}
 STANDARD_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
 
 
 class RegistryError(ValueError):
     """Invalid input or a registry invariant violation."""
+
+
+class VerificationError(RegistryError):
+    """A controller-classified failure; never infer a verdict from candidate logs."""
+
+    def __init__(self, message: str, status: str):
+        if status not in {"failed", "unsupported", "infrastructure_error", "not_run"}:
+            raise ValueError("Invalid failure classification")
+        super().__init__(message)
+        self.status = status
 
 
 def require(condition: bool, message: str) -> None:
@@ -202,8 +211,8 @@ def validate_registry(root: Path) -> dict[str, Any]:
                 file = safe_file(root, 'proofs/' + item['submission_id'] + '/' + proof['path'])
                 require(file_digest(file) == proof['sha256'], 'Proof overlay hash mismatch')
         submissions[item["submission_id"]] = item
-    # No backend/archiver exists at bootstrap: prevent fabricated formal records.
-    require(not data_files(root, "records"), "Formal records cannot be registered before backend onboarding")
+    # Formal acceptance and durable archive publication are not enabled.
+    require(not data_files(root, "records"), "Formal records require durable archival and acceptance onboarding")
     return {"policy": policy, "problems": problems, "submissions": submissions,
             "environments": environments}
 

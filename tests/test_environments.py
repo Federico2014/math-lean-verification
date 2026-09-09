@@ -38,6 +38,31 @@ class EnvironmentTests(unittest.TestCase):
             result = inspect_project(self.root)
         self.assertIn('dynamic_lakefile_requires_review', result['warnings'])
 
+    def test_dynamic_configuration_cannot_hide_behind_toml(self):
+        (self.root / 'lean-toolchain').write_text('leanprover/lean4:v4.34.0-rc2\n')
+        (self.root / 'lakefile.toml').write_text('name = "project"\n')
+        (self.root / 'lakefile.lean').write_text('unreviewed dynamic configuration')
+        result = discover(self.root, ROOT)
+        self.assertIn('dynamic_lakefile_requires_review', result['warnings'])
+        self.assertEqual(result['matches'], [])
+
+    def test_declared_dependency_cannot_use_an_empty_lock(self):
+        (self.root / 'lean-toolchain').write_text('leanprover/lean4:v4.34.0-rc2\n')
+        (self.root / 'lakefile.toml').write_text('name = "project"\n[[require]]\nname = "mathlib"\n')
+        (self.root / 'lake-manifest.json').write_text('{"packages": []}')
+        result = discover(self.root, ROOT)
+        self.assertIn('declared_dependency_missing_from_lock', result['warnings'])
+        self.assertEqual(result['matches'], [])
+
+    def test_malformed_dependency_fields_are_validation_errors(self):
+        for field in ['name', 'url', 'rev']:
+            for value in [None, 42, []]:
+                dep = {'name': 'dep', 'type': 'git', 'rev': 'a'*40, 'url': 'https://github.com/example/dep'}
+                dep[field] = value
+                (self.root / 'lake-manifest.json').write_text(json.dumps({'packages': [dep]}))
+                with self.subTest(field=field, value=value), self.assertRaises(RegistryError):
+                    inspect_project(self.root)
+
     def test_matching_ignores_project_name_and_lock_formatting(self):
         source = ROOT / 'environments/lean-4-28-mathlib'
         for name in ('lean-toolchain', 'lakefile.toml', 'lake-manifest.json'):
@@ -95,6 +120,15 @@ class EnvironmentTests(unittest.TestCase):
             hashes = candidate_sources(submission, dest, problem=problem)
         self.assertEqual(list(hashes), ['Proofs/Main.lean'])
         self.assertEqual((dest / 'Proofs/Main.lean').read_bytes(), b'proof')
+
+    def test_target_module_must_be_in_selected_sources(self):
+        submission, problem, dest = self.source_fixture()
+        submission['targets'] = [{'module': 'Proofs.Missing'}]
+        with patch('verifier.merge_gate.GitHub') as api:
+            api.return_value.tree.return_value = {'src/submission/Proofs/Main.lean': {}}
+            api.return_value.blob.return_value = b'proof'
+            with self.assertRaisesRegex(RegistryError, 'Required target module is absent'):
+                candidate_sources(submission, dest, problem=problem)
 
     def test_candidate_cannot_overwrite_trusted_files_or_escape_slots(self):
         for name in ('Challenge.lean', 'Outside.lean'):

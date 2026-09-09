@@ -13,6 +13,9 @@ The repository implements the trusted-workspace and reusable-environment archite
 - Offline non-root execution, read-only trusted inputs and dependency images, seccomp, resource limits and runtime probes.
 - Diagnostic machine execution while a registered workspace review is pending; final merge remains blocked.
 - Input snapshots, per-stage logs/durations, immutable image identity, environment digest and version bindings.
+- Required target-module source checks and clean-checker declaration coverage/axiom audits for every registered upstream target, including declarations silently omitted by the exporter.
+- Explicit unsupported/infrastructure failure categories and bound failure reports even when source retrieval fails.
+- English per-candidate reports and interrupted-stage metadata; static environment discovery rejects ambiguous dynamic configuration and incomplete direct dependency locks as automatic matches.
 - Content-addressed evidence ZIPs with complete inventory and readback checks, plus temporary Actions artifact transport.
 - Real proof/sandbox regression workflow including multi-file bridges and a separate Mathlib onboarding configuration.
 
@@ -26,6 +29,7 @@ The repository implements the trusted-workspace and reusable-environment archite
 - Real candidate pilot onboarding, contribution/priority review and award decisions remain separate work.
 - Unsupported custom Lake execution, dependency subdirectories, arbitrary native plugins and Lean 3 require an explicit backend extension. No automatic unsandboxed fallback exists.
 - Peak resource telemetry, richer per-theorem diagnostic classifications and merge-queue support remain future improvements; execution limits, wall time and aggregate target checks are recorded now.
+- Automatic revalidation of existing candidates after global controller/policy changes remains unimplemented. The protected PR controller cannot validate its own replacement; a separate protected-base revalidation workflow is needed.
 
 ## Validation
 
@@ -34,3 +38,5 @@ The [workspace onboarding run](workspace-onboarding.md) passed both real backend
 Run unit tests and registry validation locally. The **Lean backend tests** workflow builds real environment images and runs positive/negative proofs; inspect its actual run before approving a new environment. Synthetic test success is infrastructure evidence, not verification of an award candidate.
 
 See [the design](design.md), [the candidate process](../CONTRIBUTING.md) and [the merge gate](lean-merge-gate.md).
+
+See the [2026-09-09 conformance review](design-conformance-review.md) for requirement coverage, remaining rollout gaps and focused corrective changes.
