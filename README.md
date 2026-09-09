@@ -6,7 +6,12 @@ Infrastructure for verifying Lean formalizations of mathematical results, initia
 
 ## Current status
 
-The repository supports candidate registration. **No results have been formally verified.** Use `python -m verifier list` to list registered submissions and inspect their referenced statement review records.
+The DGG candidate has passed real Lean proof verification in CI, with result
+**`verified` under an explicit administrator exception for statement review**.
+See [Registered candidates](#registered-candidates) for the fixed proof source and
+exact verification run. **Formal acceptance remains pending.** Use
+`python -m verifier list` to list registrations and their statement review records;
+it does not retrieve CI results.
 
 Available components include candidate intake forms, registration schemas, original-problem and statement-correspondence templates, hash and target-coverage validation, CI tests, and a maintainer preflight entry point. The CI badge reports only repository code and registration checks.
 
@@ -37,18 +42,28 @@ The DGG submission uses the approved `lean-4-32-rc1-mathlib-dgg` environment and
 [administrator exception](docs/administrator-approvals/dgg-cost-v1.md) by
 `Federico2014`; two-person independent mathematical review remains incomplete.
 [Issue #12](https://github.com/Federico2014/math-lean-verification/issues/12)
-tracks the review work. The [earlier machine diagnostic](https://github.com/Federico2014/math-lean-verification/actions/runs/34338489851)
-passed at candidate PR commit `7f1b502`, with final state `review_pending`.
-Fresh evidence is required after the changed statement approval and policy.
+tracks the review work. [PR #14](https://github.com/Federico2014/math-lean-verification/pull/14)
+was merged at `4677f1f`. Its [successful candidate verification](https://github.com/Federico2014/math-lean-verification/actions/runs/34342252724)
+checked PR head `806d9b0ac4cb6fcc031b42f7aadb8bc02ec90d01` against protected
+base `dec0d00a2e7e2cdedff418f6f25e0aa932b37854`, after the administrator
+approval and policy changes. All eight machine stages completed, including
+statement comparison, transitive axiom auditing, Lean kernel replay and Nanoda
+replay. The result records `machine_status: passed`, `verification_status: verified`,
+`review_approval_kind: administrator_exception` and `formal_status: pending`.
+[Revalidation of merged commit 4677f1f](https://github.com/Federico2014/math-lean-verification/actions/runs/34354995262)
+is a separate run; inspect it for that revision's outcome.
 
 | Candidate / submission | Statement version / registration | Fixed proof source | Lean verification / evidence |
 | --- | --- | --- | --- |
-| DGG / Goemans cost conjecture — `dgg-cost-jyh` | [dgg-cost/v1](problems/dgg-cost/v1/statement.md) / [registration](submissions/dgg-cost/dgg-cost-jyh.json) | [jyh/dinitz-verify @ ffba352](https://github.com/jyh/dinitz-verify/tree/ffba3523f0edd14be3460d039f22a6b98c02fd9e) | `not_run` — awaiting fresh evidence after administrator approval |
+| DGG / Goemans cost conjecture — `dgg-cost-jyh` | [dgg-cost/v1](problems/dgg-cost/v1/statement.md) / [registration](submissions/dgg-cost/dgg-cost-jyh.json) | [jyh/dinitz-verify @ ffba352](https://github.com/jyh/dinitz-verify/tree/ffba3523f0edd14be3460d039f22a6b98c02fd9e) | `verified` — [PR verification at 806d9b0](https://github.com/Federico2014/math-lean-verification/actions/runs/34342252724); machine `passed`, administrator exception; formal acceptance `pending` |
 
-Add the row in the candidate registration PR so it appears on `main` when merged.
-Use `not_run` until a bound machine result exists; link the exact run when reporting
-`passed` or `failed`. Source, environment or verification-rule changes require a
-fresh result; an earlier pass must not describe changed inputs.
+This table is maintained in documentation; CI publishes checks and evidence but
+does not rewrite the README. Add a row in the registration PR using `not_run`
+until a bound machine result exists. After successful verification and merge,
+update the row in a documentation change with the exact run and checked revision.
+Keep PR verification and subsequent `main` revalidation outcomes distinct. Source,
+environment or verification-rule changes require fresh evidence; an earlier pass
+must not describe changed inputs.
 
 ## Adding a candidate
 
