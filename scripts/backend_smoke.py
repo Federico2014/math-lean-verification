@@ -75,6 +75,21 @@ def main():
         okay = result['machine_status'] == 'passed' and 'independent_nanoda_replay' in result['stages']
         results.append({'case': 'multi_file_bridge', 'test_passed': okay, 'error': result.get('error')})
         print(json.dumps(results[-1]), flush=True)
+        # Exporters may silently omit unknown declarations. A valid official
+        # bridge must not hide a missing or axiom-dependent registered target.
+        for name, extra, declarations in [
+            ('missing_upstream_target', '', ['upstream', 'missing_upstream']),
+            ('unproved_upstream_target', '\ntheorem unproved : False := by sorry\n', ['upstream', 'unproved']),
+        ]:
+            (root/'solution/Proofs/Main.lean').write_text(prefix +
+                'theorem upstream (n : Nat) : n + 0 = n := by rfl\n' + extra)
+            result = verify(args.image, root/'challenge', root/'solution', 'Bridge', ['target'], args.output/name,
+                            environment=environment, solution_declarations=declarations)
+            reason = ('Required candidate declaration missing from export: missing_upstream' if not extra else 'sorryAx')
+            okay = (result['machine_status'] == 'failed' and 'solution_clean_build_export' in result['stages']
+                    and 'candidate_target_coverage' not in result['stages'] and reason in result.get('error', ''))
+            results.append({'case': name, 'test_passed': okay, 'error': result.get('error')})
+            print(json.dumps(results[-1]), flush=True)
     (args.output/'summary.json').write_text(json.dumps(results,indent=2)+'\n')
     return 0 if all(r['test_passed'] for r in results) else 1
 

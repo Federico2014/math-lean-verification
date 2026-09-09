@@ -14,6 +14,20 @@ def main (args : List String) : IO Unit := do
       return (← Comparator.builtinTargets) ++ (← Comparator.getTheoremNames) ++
         (← Comparator.getLegalAxioms) ++ (← Comparator.primitiveTargets)) cfg
     IO.println <| Lean.Json.compress <| Lean.toJson <| targets.map Lean.Name.toString
+  else if args[1]? == some "required-targets" then
+    let some (solutionPath : String) := args[2]? | throw <| IO.userError "Missing solution export"
+    let some (targetsPath : String) := args[3]? | throw <| IO.userError "Missing required targets"
+    let targetsJson ← IO.ofExcept <| Lean.Json.parse (← IO.FS.readFile targetsPath)
+    let targets : Array String ← IO.ofExcept <| Lean.FromJson.fromJson? targetsJson
+    if targets.isEmpty then
+      throw <| IO.userError "Empty required target list"
+    let solution ← Export.parseStream (← Comparator.stringStream (← IO.FS.readFile solutionPath))
+    for target in targets do
+      if solution.constMap[target.toName]?.isNone then
+        throw <| IO.userError s!"Required candidate declaration missing from export: {target}"
+    Comparator.M.run (do
+      IO.ofExcept <| Comparator.checkAxioms solution (targets.map String.toName) #[]
+        (← Comparator.getLegalAxioms)) cfg
   else
     let some (challengePath : String) := args[1]? | throw <| IO.userError "Missing challenge export"
     let some (solutionPath : String) := args[2]? | throw <| IO.userError "Missing solution export"

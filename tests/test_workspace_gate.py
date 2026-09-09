@@ -14,7 +14,7 @@ from verifier.environments import load_environments
 
 
 class WorkspaceGateTests(unittest.TestCase):
-    def exercise(self, review):
+    def exercise(self, review, *, backend_failure=None, source_failure=False):
         from test_registry import RegistryTests
         fixture = RegistryTests(); fixture.setUp()
         self.addCleanup(fixture.temp.cleanup)
@@ -45,6 +45,8 @@ class WorkspaceGateTests(unittest.TestCase):
             self.assertEqual(module, 'Proofs.Main')
             self.assertEqual(targets, ['target'])
             self.assertEqual((solution/'Proofs/Main.lean').read_text(), 'theorem target : True := by trivial\n')
+            if backend_failure:
+                return {'machine_status': 'failed', 'failure_status': backend_failure, 'error': 'test failure'}
             return {'machine_status': 'passed', 'stages': ['unit_test_stub_only']}
         with patch('verifier.merge_gate.ROOT', root), patch('verifier.merge_gate.subprocess.check_output', return_value='d'*40), \
              patch('verifier.merge_gate.GitHub') as api, patch('verifier.merge_gate.verify', side_effect=proof_engine):
@@ -55,7 +57,28 @@ class WorkspaceGateTests(unittest.TestCase):
             plan = run('example/registry', 1, 'c'*40, None, root/'plan', check_only=True)
             self.assertEqual(plan['matrix']['include'], [{'submission': 'test-submission', 'environment': env['environment_id']}])
             self.assertEqual(plan['status'], 'ready')
-            return run('example/registry', 1, 'c'*40, 'sha256:'+'e'*64, root/'evidence')
+            if source_failure:
+                def fail_source(submission, *args, **kwargs):
+                    raise OSError('Source download unavailable')
+                with patch('verifier.merge_gate.candidate_sources', side_effect=fail_source):
+                    result = run('example/registry', 1, 'c'*40, 'sha256:'+'e'*64, root/'evidence')
+            else:
+                result = run('example/registry', 1, 'c'*40, 'sha256:'+'e'*64, root/'evidence')
+            report = root/'evidence/test-submission'
+            self.assertEqual(json.loads((report/'result.json').read_text()), result['submissions']['test-submission'])
+            self.assertIn(result['submissions']['test-submission']['verification_status'], (report/'report.md').read_text())
+            return result
+
+    def test_infrastructure_failures_preserve_identity_and_evidence(self):
+        for source_failure in [False, True]:
+            with self.subTest(source_failure=source_failure):
+                result = self.exercise('approved', backend_failure='infrastructure_error', source_failure=source_failure)
+                proof = result['submissions']['test-submission']
+                self.assertEqual(result['status'], 'failed')
+                self.assertEqual(proof['verification_status'], 'infrastructure_error')
+                self.assertEqual(proof['bindings']['pr_head'], 'c'*40)
+                self.assertEqual(proof['targets'], ['target'])
+                self.assertEqual(proof['formal_status'], 'pending')
 
     def test_successful_machine_diagnostics_cannot_bypass_pending_review(self):
         result = self.exercise('pending')

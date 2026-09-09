@@ -15,10 +15,29 @@ import urllib.request
 
 from .lean_backend import PROFILE, verify
 from .environments import matches, relative_path
-from .registry import safe_file, file_digest
-from .registry import ROOT, RegistryError, canonical_digest, read_json, require, validate_registry
+from .registry import (ROOT, RegistryError, VerificationError, canonical_digest,
+                       read_json, require, safe_file, validate_registry)
 
 MAX_DOWNLOAD = 16 * 1024 * 1024
+
+
+def write_report(path, identifier, proof):
+    """Human-readable evidence; JSON remains the machine-readable record."""
+    lines = ['# Lean verification report', '', '```json', json.dumps({
+        'submission_id': identifier,
+        'verification_status': proof['verification_status'],
+        'machine_status': proof['machine_status'],
+        'review_status': proof['review_status'],
+        'formal_status': proof['formal_status'],
+        'bindings': proof['bindings'],
+        'required_theorems': proof['targets'],
+        'candidate_targets': proof['candidate_targets'],
+        'error': proof.get('error'),
+    }, indent=2), '```', '',
+        'This report does not grant formal acceptance or decide award eligibility.', '',
+        'See result.json and execution-*.json for stage outcomes. The controller records',
+        'aggregate target checks; per-theorem axiom inventories are not yet available.', '']
+    path.write_text('\n'.join(lines))
 
 
 class GitHub:
@@ -84,6 +103,10 @@ def select_submissions(trusted, proposed):
     for identifier, submission in new.items():
         key = (submission['problem_id'], submission['statement_version'])
         changed = submission != old.get(identifier) or proposed['problems'][key] != trusted['problems'].get(key)
+        environment_id = submission['toolchain_id']
+        changed = changed or (proposed.get('environments', {}).get(environment_id) !=
+                              trusted.get('environments', {}).get(environment_id))
+        changed = changed or proposed['policy'] != trusted['policy']
         if changed:
             affected.append(identifier)
     return sorted(affected)
@@ -96,19 +119,23 @@ def prerequisites(trusted, proposed, identifier):
     problem = trusted['problems'][key]
     require(problem == proposed['problems'][key], 'Candidate PR cannot change its official statement or review')
     require(trusted['policy']['backend'] == 'comparator-export-v1', 'Lean backend is not configured')
-    require(submission['adapter_id'] is None, 'Legacy adapters are unsupported; use hashed proof overlays')
+    if submission['adapter_id'] is not None:
+        raise VerificationError('Legacy adapters are unsupported; use hashed proof overlays', 'unsupported')
     identifier = submission['toolchain_id']
-    require(identifier in trusted['policy']['toolchains'], 'Candidate has no approved supported toolchain')
+    if identifier not in trusted['policy']['toolchains']:
+        raise VerificationError('Candidate has no approved supported toolchain', 'unsupported')
     if 'workspace' in problem:
         environment = trusted.get('environments', {}).get(identifier)
-        require(environment is not None and environment['status'] == 'approved', 'Environment is unsupported or awaiting onboarding')
+        if environment is None or environment['status'] != 'approved':
+            raise VerificationError('Environment is unsupported or awaiting onboarding', 'unsupported')
         require(environment == proposed.get('environments', {}).get(identifier), 'Candidate PR cannot change its execution environment')
         require(canonical_digest(environment) == problem['workspace']['environment_digest'], 'Stale environment binding')
         require('execution' in submission, 'Explicit source mapping is required')
         # Pending mathematical review permits diagnostics, never a merge pass.
         return submission, problem, problem['workspace']['solution_module']
     require(problem['review']['status'] == 'approved', 'Independent statement review is pending')
-    require(identifier == PROFILE, 'Legacy registration requires the supported stdlib toolchain')
+    if identifier != PROFILE:
+        raise VerificationError('Legacy registration requires the supported stdlib toolchain', 'unsupported')
     modules = {target['module'] for target in submission['targets']}
     require(len(modules) == 1, 'Legacy registration supports one target module')
     require(all(t['declaration'] == t['official_theorem'] for t in submission['targets']),
@@ -162,6 +189,9 @@ def candidate_sources(submission, destination, *, problem=None, environment=None
         data = source.read_bytes()
         require(hashlib.sha256(data).hexdigest() == proof['sha256'], 'Stale proof overlay')
         write(proof['path'], data)
+    for target in submission.get('targets', []):
+        path = target['module'].replace('.', '/') + '.lean'
+        require(path in source_hashes, 'Required target module is absent from selected candidate sources: ' + path)
     return source_hashes
 
 
@@ -185,12 +215,19 @@ def run(repository, pr_number, head, image, output, check_only=False, submission
                   'status': 'not_applicable' if not affected else ('ready' if check_only else 'passed'), 'submissions': {}}
         result['matrix'] = {'include': [{'submission': s, 'environment': proposed['submissions'][s]['toolchain_id'] or ''} for s in affected]}
         for identifier in affected:
+            submission = proposed['submissions'][identifier]
+            key = (submission['problem_id'], submission['statement_version'])
+            problem = trusted['problems'].get(key, proposed['problems'][key])
+            environment = trusted.get('environments', {}).get(submission['toolchain_id']) if 'workspace' in problem else None
+            bindings = {'pr_head': head, 'base_sha': base, 'upstream_commit': submission['commit'],
+                'workspace_digest': canonical_digest(problem), 'environment_digest': canonical_digest(environment),
+                'policy_digest': canonical_digest(trusted['policy']), 'run_id': os.environ.get('GITHUB_RUN_ID'),
+                'run_attempt': os.environ.get('GITHUB_RUN_ATTEMPT')}
             try:
                 submission, problem, module = prerequisites(trusted, proposed, identifier)
                 if check_only:
                     result['submissions'][identifier] = {'machine_status': 'not_run', 'prerequisites': 'ready'}
                     continue
-                environment = trusted.get('environments', {}).get(submission['toolchain_id']) if 'workspace' in problem else None
                 selected_image = (images or {}).get(submission['toolchain_id'], image)
                 require(selected_image is not None, 'Missing immutable verifier image')
                 with tempfile.TemporaryDirectory(prefix='lean-materials-') as sources:
@@ -219,13 +256,7 @@ def run(repository, pr_number, head, image, output, check_only=False, submission
                                    problem['required_theorems'], output / identifier, environment=environment,
                                    solution_declarations=[t['declaration'] for t in submission['targets']])
                     proof['source_hashes'] = source_hashes
-                    proof['review_status'] = problem['review']['status']
-                    proof['verification_status'] = ('verified' if problem['review']['status'] == 'approved' else 'review_pending') if proof['machine_status'] == 'passed' else 'failed'
-                    proof['formal_status'] = 'pending'
-                    proof['bindings'] = {'pr_head': head, 'base_sha': base, 'upstream_commit': submission['commit'],
-                        'workspace_digest': canonical_digest(problem), 'environment_digest': canonical_digest(environment),
-                        'policy_digest': canonical_digest(trusted['policy']), 'run_id': os.environ.get('GITHUB_RUN_ID'),
-                        'run_attempt': os.environ.get('GITHUB_RUN_ATTEMPT')}
+                    proof['verification_status'] = ('verified' if problem['review']['status'] == 'approved' else 'review_pending') if proof['machine_status'] == 'passed' else proof.get('failure_status', 'failed')
                     shutil.copytree(challenge, output / identifier / 'inputs/challenge')
                     shutil.copytree(solution, output / identifier / 'inputs/solution')
                     (output / identifier / 'inputs/submission.json').write_text(json.dumps(submission, indent=2))
@@ -233,13 +264,23 @@ def run(repository, pr_number, head, image, output, check_only=False, submission
                     proof['input_digest'] = canonical_digest({'submission': submission,
                         'problem': problem, 'environment': environment, 'sources': source_hashes, 'policy': trusted['policy'], 'verifier_sha': base})
                     proof['candidate_commit'] = submission['commit']
-                    (output / identifier / 'result.json').write_text(json.dumps(proof, indent=2) + '\n')
                     result['submissions'][identifier] = proof
                     if proof['verification_status'] != 'verified':
                         result['status'] = 'failed'
             except (RegistryError, OSError, ValueError) as exc:
                 result['status'] = 'failed'
-                result['submissions'][identifier] = {'machine_status': 'not_run', 'verification_status': 'not_run', 'error': str(exc)}
+                classification = (exc.status if isinstance(exc, VerificationError) else
+                                  'infrastructure_error' if isinstance(exc, OSError) else 'not_run')
+                result['submissions'][identifier] = {'machine_status': 'not_run', 'verification_status': classification, 'error': str(exc)}
+            proof = result['submissions'][identifier]
+            proof.update({'bindings': bindings, 'targets': problem['required_theorems'],
+                          'candidate_targets': [t['declaration'] for t in submission['targets']],
+                          'review_status': problem['review']['status'], 'formal_status': 'pending'})
+            if not check_only:
+                evidence = output / identifier
+                evidence.mkdir(parents=True, exist_ok=True)
+                (evidence / 'result.json').write_text(json.dumps(proof, indent=2) + '\n')
+                write_report(evidence / 'report.md', identifier, proof)
         return result
 
 
