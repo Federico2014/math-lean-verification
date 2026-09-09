@@ -207,3 +207,17 @@ class ResumeTests(unittest.TestCase):
         # Two attempts at dispatch exhaust the automatic retry budget.
         api, pr = self.setup_api([previous, dict(previous, id=78)])
         self.assertEqual(resume(api, 'b'*40, Mock())[0]['status'], 'already_dispatched')
+
+    def test_initial_pr_run_uses_pr_head_for_deduplication(self):
+        previous = {'event': 'pull_request_target', 'display_title': marker(1, 'a'*40, 'b'*40),
+                    'head_sha': 'a'*40, 'head_repository': {'full_name': 'example/registry'},
+                    'status': 'in_progress'}
+        api, pr = self.setup_api()
+        pr['head']['repo'] = {'full_name': 'contributor/fork'}
+        previous['head_repository'] = {'full_name': 'contributor/fork'}
+        original = api.pages.side_effect
+        api.pages.side_effect = lambda path, *args, **kwargs: iter([previous]) if 'head_sha=' + 'a'*40 in path else original(path, *args, **kwargs)
+        planner = Mock()
+        self.assertEqual(resume(api, 'b'*40, planner)[0]['status'], 'already_dispatched')
+        planner.assert_not_called()
+        api.request.assert_not_called()

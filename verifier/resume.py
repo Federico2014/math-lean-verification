@@ -37,8 +37,17 @@ def resume(api, base, planner=run):
         if not any(f['filename'].startswith(('candidates/', 'submissions/', 'proofs/')) for f in files):
             continue
         identity = marker(number, head, base)
-        previous = [r for r in runs if r.get('display_title') == identity and r.get('head_sha') == base
-                    and r.get('head_repository', {}).get('full_name') == api.repository
+        # GitHub reports PR head_sha for pull_request_target runs, but main
+        # head_sha for dispatches. Query both identities to avoid cancelling an
+        # already-running initial PR verification with a duplicate dispatch.
+        initial = [r for r in api.pages('actions/workflows/' + WORKFLOW + '/runs?head_sha=' + head,
+                                       'workflow_runs', max_pages=10)
+                   if r.get('event') == 'pull_request_target']
+        source_repository = pr['head'].get('repo', {}).get('full_name', api.repository)
+        previous = [r for r in runs + initial if r.get('display_title') == identity
+                    and r.get('head_sha') == (head if r.get('event') == 'pull_request_target' else base)
+                    and r.get('head_repository', {}).get('full_name') == (
+                        source_repository if r.get('event') == 'pull_request_target' else api.repository)
                     and r.get('event') in ('pull_request_target', 'workflow_dispatch')]
         retry = False
         if len(previous) == 1 and previous[0].get('status') == 'completed' and previous[0].get('run_attempt') == 1 and previous[0].get('conclusion') in ('failure', 'cancelled', 'timed_out'):
