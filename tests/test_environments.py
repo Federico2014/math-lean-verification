@@ -3,7 +3,10 @@ import copy
 import hashlib
 import json
 from pathlib import Path
+import shlex
 import shutil
+import stat
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -20,6 +23,38 @@ class EnvironmentTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+
+    def test_image_permissions_expose_private_cache_reads_without_writes(self):
+        # Reproduce root-created cache metadata (0600) and private directories
+        # (0700). The sandbox UID needs the other-user read/traverse bits.
+        cache = self.root / 'environment'
+        nested = cache / 'packages/cache'
+        nested.mkdir(parents=True)
+        trace = nested / 'Module.trace'
+        trace.write_text('fixed cache trace\n')
+        trace.chmod(0o600)
+        tool = cache / 'lean4export'
+        tool.write_text('fixture only; never executed\n')
+        tool.chmod(0o700)
+        for directory in (cache, cache / 'packages', nested):
+            directory.chmod(0o700)
+        dockerfile = (ROOT / 'backend/environment.Dockerfile').read_text()
+        step = next(line for line in dockerfile.splitlines()
+                    if line.startswith('RUN ') and 'chmod ' in line)
+        command = shlex.split(step.split(' && ')[-1])
+        self.assertEqual(command[:2], ['chmod', '-R'])
+        self.assertEqual(command[-1], '/opt/environment')
+        subprocess.run([*command[:-1], str(cache)], check=True)
+        for entry in [cache, *cache.rglob('*')]:
+            mode = stat.S_IMODE(entry.stat().st_mode)
+            with self.subTest(path=entry.relative_to(cache)):
+                self.assertEqual(mode & 0o222, 0, 'Shared inputs must not be writable')
+                self.assertTrue(mode & stat.S_IROTH, 'Sandbox UID must be able to read inputs')
+                if entry.is_dir() or entry == tool:
+                    self.assertTrue(mode & stat.S_IXOTH)
+                else:
+                    self.assertEqual(mode & 0o111, 0, 'Metadata must not become executable')
+        self.assertEqual(trace.read_text(), 'fixed cache trace\n')
 
     def test_environment_reuse_is_static_and_reports_pending_approval(self):
         shutil.copytree(ROOT / 'environments', self.root / 'environments')
