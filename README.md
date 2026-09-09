@@ -35,8 +35,11 @@ are separate states; environment regression success is not a candidate result.
 **No candidates are registered yet.** The DGG-compatible environment
 `lean-4-32-rc1-mathlib-dgg` is approved with
 [21 passing onboarding cases](docs/dgg-environment-onboarding.md). The DGG proof
-has not been registered or verified by this repository. Its next steps are a
-trusted problem workspace followed by a candidate registration PR.
+has not been registered or verified by this repository.
+[Issue #12](https://github.com/Federico2014/math-lean-verification/issues/12)
+tracks its intake. The [DGG v1 problem workspace](problems/dgg-cost/v1/statement.md)
+is registered with mathematical review `pending`; the next step is a separate
+candidate registration PR using its approved environment and proof interface.
 
 | Candidate / submission | Statement version / registration | Fixed proof source | Lean verification / evidence |
 | --- | --- | --- | --- |
