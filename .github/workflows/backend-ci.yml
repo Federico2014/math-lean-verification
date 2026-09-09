@@ -4,6 +4,12 @@ on:
     paths:
       - 'backend/**'
       - 'verifier/**'
+      # These entrypoints do not participate in the real backend regression run.
+      # Registry CI still tests their orchestration and trust boundaries.
+      - '!verifier/__main__.py'
+      - '!verifier/catalog.py'
+      - '!verifier/onboarding.py'
+      - '!verifier/resume.py'
       - 'environments/**'
       - 'schemas/**'
       - 'scripts/backend_smoke.py'

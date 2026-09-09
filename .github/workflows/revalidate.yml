@@ -12,8 +12,10 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: lean-revalidation-${{ github.sha }}-${{ inputs.submission || 'all' }}
-  cancel-in-progress: false
+  # Only current-main evidence can populate the catalog. Superseded runs for
+  # the same selection need not finish; individual manual selections stay separate.
+  group: lean-revalidation-${{ github.ref }}-${{ inputs.submission || 'all' }}
+  cancel-in-progress: true
 jobs:
   plan:
     if: github.ref == 'refs/heads/main'

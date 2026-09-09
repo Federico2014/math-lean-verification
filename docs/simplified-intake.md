@@ -93,3 +93,23 @@ onboarding merge; automatic dispatch preserving candidate head; merge and catalo
 publication; stale/closed PR rejection; and source/base changes invalidating a pass.
 Record actual run URLs and SHA/attempts. Unit mocks are not acceptance evidence for
 these GitHub events. Schedule times are targets, not guaranteed delivery times.
+
+## CI scope and cost
+
+`registry`, `tests` and `lean-verification` remain required on candidate PRs.
+The trusted gate starts expensive candidate jobs only for a ready plan; blocked
+or maintenance-only PRs finish without building Lean images.
+
+**Lean backend tests** runs on backend, execution-controller, environment, schema,
+test-driver or pinned-dependency changes. Changes confined to catalog generation,
+the recovery scheduler, the static environment-draft command or the general CLI
+use Registry CI's unit tests instead. Manual backend dispatch remains available.
+The standalone preflight workflow has been removed; `verifier plan` remains a
+local diagnostic command.
+
+Main revalidation cancels superseded runs for the same selection; manually
+selected candidates have separate concurrency groups. Every new main revision
+still needs its own evidence, including documentation commits. Recovery and
+catalog schedules remain necessary for retries and for publishing results after
+asynchronous proof jobs finish. See GitHub's
+[workflow filtering and concurrency rules](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax).
