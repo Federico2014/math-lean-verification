@@ -32,19 +32,18 @@ per submission. Each row links the registration, fixed proof commit and actual
 verification evidence. Registration, Lean proof verification and award decisions
 are separate states; environment regression success is not a candidate result.
 
-**No candidates are registered yet.** The DGG-compatible environment
-`lean-4-32-rc1-mathlib-dgg` is approved with
-[21 passing onboarding cases](docs/dgg-environment-onboarding.md). The DGG proof
-has not been registered or verified by this repository.
+The DGG submission uses the approved `lean-4-32-rc1-mathlib-dgg` environment and
+[DGG v1 workspace](problems/dgg-cost/v1/statement.md). Its approval is an explicit
+[administrator exception](docs/administrator-approvals/dgg-cost-v1.md) by
+`Federico2014`; two-person independent mathematical review remains incomplete.
 [Issue #12](https://github.com/Federico2014/math-lean-verification/issues/12)
-tracks its intake. The [DGG v1 problem workspace](problems/dgg-cost/v1/statement.md)
-is approved through an explicit [administrator exception](docs/administrator-approvals/dgg-cost-v1.md)
-by `Federico2014`; two-person independent mathematical review remains incomplete.
-[Candidate PR #14](https://github.com/Federico2014/math-lean-verification/pull/14)
-must obtain fresh machine evidence against this approved problem and policy.
+tracks the review work. The [earlier machine diagnostic](https://github.com/Federico2014/math-lean-verification/actions/runs/34338489851)
+passed at candidate PR commit `7f1b502`, with final state `review_pending`.
+Fresh evidence is required after the changed statement approval and policy.
 
 | Candidate / submission | Statement version / registration | Fixed proof source | Lean verification / evidence |
 | --- | --- | --- | --- |
+| DGG / Goemans cost conjecture — `dgg-cost-jyh` | [dgg-cost/v1](problems/dgg-cost/v1/statement.md) / [registration](submissions/dgg-cost/dgg-cost-jyh.json) | [jyh/dinitz-verify @ ffba352](https://github.com/jyh/dinitz-verify/tree/ffba3523f0edd14be3460d039f22a6b98c02fd9e) | `not_run` — awaiting fresh evidence after administrator approval |
 
 Add the row in the candidate registration PR so it appears on `main` when merged.
 Use `not_run` until a bound machine result exists; link the exact run when reporting

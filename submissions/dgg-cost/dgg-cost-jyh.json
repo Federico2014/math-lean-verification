@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "submission_id": "dgg-cost-jyh",
+  "problem_id": "dgg-cost",
+  "statement_version": "v1",
+  "repository": "https://github.com/jyh/dinitz-verify",
+  "commit": "ffba3523f0edd14be3460d039f22a6b98c02fd9e",
+  "targets": [
+    {
+      "module": "Submission",
+      "declaration": "Submission.goemans_cost_conjecture_false",
+      "official_theorem": "OfficialDGG.goemans_cost_conjecture_false"
+    }
+  ],
+  "toolchain_id": "lean-4-32-rc1-mathlib-dgg",
+  "adapter_id": null,
+  "paper_urls": [
+    "https://arxiv.org/abs/2308.02651v1",
+    "https://github.com/jyh/dinitz-verify/blob/ffba3523f0edd14be3460d039f22a6b98c02fd9e/README.md"
+  ],
+  "contribution": {
+    "proof_authors": [
+      "Dmitry Rybin"
+    ],
+    "formalization_authors": [
+      "Jason Hickey"
+    ],
+    "proof_route": "The fixed upstream source formalizes a finite rational counterexample with seven vertices and nine arcs. It verifies a feasible fractional flow of cost 58 and rules out a routing simultaneously meeting the additive maximum-demand load bound and that cost bound. Discovery and authorship are attributed as reported by the upstream README; they are not independent priority findings. The bridge derives the complete registered rational refutation from the upstream theorem.",
+    "ai_role": "The fixed upstream README attributes discovery to a GPT-5.6 Pro session run by Dmitry Rybin and formal verification to Jason Hickey with Claude. These upstream contribution claims remain subject to review. Codex prepared this registration, declarative source adaptation and bridge; no discovery contribution is claimed for this integration.",
+    "known_assumptions": [],
+    "prior_results": "The source targets the Goemans cost strengthening in Traub-Vargas Koch-Zenklusen, arXiv:2308.02651v1, Conjecture 1.3, not the separate Dinitz-Garg-Goemans congestion theorem. Upstream reports no axioms beyond propext, Classical.choice and Quot.sound; this registration claims no additional assumptions, and actual closure auditing is delegated to CI. Statement correspondence, discovery date and priority remain unapproved. Related formalization DiscreteAlias/unsplittable-flow uses its own statement catalogue and is not the selected source. The pinned source is distributed under Apache-2.0; its full license accompanies the bridge in verification source snapshots.",
+    "public_source_authorized": true
+  },
+  "execution": {
+    "project_root": ".",
+    "include": [
+      "Challenge.lean",
+      "Submission.lean"
+    ],
+    "proof_files": [
+      {
+        "path": "Bridge.lean",
+        "sha256": "f058bf725a81b2b7aa2abeaa786b3afe1ea8e956a64c80805d10fda36c3e3fec"
+      }
+    ],
+    "source_transforms": [
+      {
+        "path": "Challenge.lean",
+        "destination": "CandidateChallenge.lean",
+        "sha256": "4b39f3767460ffcc6a9bec177959c47639ee4ebb807b6635a7df7cf22a58208c",
+        "replacements": []
+      },
+      {
+        "path": "Submission.lean",
+        "destination": "Submission.lean",
+        "sha256": "47aeb788d2a1487e83a2b174aee5ee79208bfb99a810c30006265dcf32504604",
+        "replacements": [
+          {
+            "old": "import Challenge\n",
+            "new": "-- Adapted for math-lean-verification: import the renamed candidate statement module.\nimport CandidateChallenge\n",
+            "count": 1
+          }
+        ]
+      }
+    ]
+  }
+}
