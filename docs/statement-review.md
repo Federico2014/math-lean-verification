@@ -58,3 +58,11 @@ must never be described as completion of the two-person independent process.
 The normal requirement remains two distinct accredited reviewers; formal
 acceptance and award decisions remain disabled/separate. Changes to a bound
 statement require a fresh exact grant and fresh machine evidence.
+
+## Supplemental technical evidence
+
+- [DGG v1 correspondence assessment, 2026-09-09](reviews/dgg-cost-v1-2026-09-09/review.md):
+  candidate-informed technical analysis with exact-input machine evidence and
+  a finite arithmetic cross-check. It is not an independent blind draft or an
+  accredited reviewer approval. Prospective blind reviewers should draft from
+  the original sources before reading this report.
