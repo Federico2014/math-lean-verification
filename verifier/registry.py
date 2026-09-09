@@ -118,12 +118,21 @@ def read_policy(root: Path) -> dict[str, Any]:
     require(set(policy["standard_axioms"]) == STANDARD_AXIOMS, "Unexpected standard axiom policy")
     reviewers = policy["approved_reviewers"]
     require(len({x.lower() for x in reviewers}) == len(reviewers), "Duplicate reviewer identity")
+    exceptions = policy.get('administrator_exceptions', [])
+    keys = [(e['problem_id'], e['statement_version']) for e in exceptions]
+    require(len(set(keys)) == len(keys), 'Duplicate administrator exception scope')
     return policy
 
 
 def statement_digest(problem: dict[str, Any]) -> str:
     # Bind meaning, all trusted files, target list, and environment selection.
     return canonical_digest({key: value for key, value in problem.items() if key != "review"})
+
+
+def review_approval_kind(review):
+    if review['status'] != 'approved':
+        return 'unapproved'
+    return review.get('approval_kind', 'independent_review')
 
 
 def check_problem(root: Path, path: Path, policy: dict[str, Any]) -> dict[str, Any]:
@@ -147,11 +156,22 @@ def check_problem(root: Path, path: Path, policy: dict[str, Any]) -> dict[str, A
     review = data["review"]
     if review["status"] == "approved":
         require(review["statement_digest"] == statement_digest(data), "Stale statement review")
-        reviewers = {x.lower() for x in review["reviewers"]}
-        allowed = {x.lower() for x in policy["approved_reviewers"]}
-        require(len(reviewers) == len(review["reviewers"]), "Duplicate review identity")
-        require(len(reviewers) >= policy["minimum_independent_reviewers"], "Two distinct reviewers required")
-        require(reviewers <= allowed, "Reviewer is not in the approved registry")
+        if review_approval_kind(review) == 'administrator_exception':
+            require(not review['reviewers'], 'Administrator exception cannot claim independent reviewers')
+            matches = [e for e in policy.get('administrator_exceptions', [])
+                       if e['problem_id'] == data['problem_id']
+                       and e['statement_version'] == data['statement_version']
+                       and e['statement_digest'] == review['statement_digest']
+                       and e['administrator'] == review.get('administrator')
+                       and e['evidence_url'] == review['evidence_url']]
+            require(len(matches) == 1, 'Missing exact protected administrator authorization')
+        else:
+            require('administrator' not in review, 'Administrator identity requires an explicit exception')
+            reviewers = {x.lower() for x in review["reviewers"]}
+            allowed = {x.lower() for x in policy["approved_reviewers"]}
+            require(len(reviewers) == len(review["reviewers"]), "Duplicate review identity")
+            require(len(reviewers) >= policy["minimum_independent_reviewers"], "Two distinct reviewers required")
+            require(reviewers <= allowed, "Reviewer is not in the approved registry")
         require(review["evidence_url"] is not None, "Missing review evidence")
         require(data["toolchain_id"] is not None, "Approved statement must bind its environment")
         require(all(x["snapshot_sha256"] for x in data["original_sources"]), "Approved statement needs source snapshots")

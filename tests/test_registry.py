@@ -83,6 +83,72 @@ class RegistryTests(unittest.TestCase):
         result = validate_registry(self.root)
         self.assertEqual(list(result["submissions"]), ["test-submission"])
 
+    def authorize_administrator_for_test(self):
+        self.problem['toolchain_id'] = self.submission['toolchain_id'] = 'test-environment'
+        self.problem['original_sources'][0]['snapshot_sha256'] = 'b' * 64
+        digest = statement_digest(self.problem)
+        self.problem['review'] = {'status': 'approved', 'statement_digest': digest,
+            'reviewers': [], 'evidence_url': 'https://example.org/admin-approval',
+            'approval_kind': 'administrator_exception', 'administrator': 'test-admin'}
+        self.policy['administrator_exceptions'] = [{'problem_id': 'test-problem',
+            'statement_version': 'v1', 'statement_digest': digest,
+            'administrator': 'test-admin', 'evidence_url': 'https://example.org/admin-approval',
+            'reason': 'Synthetic administrator authorization for this exact statement only.'}]
+        self.write('policy/verification.json', self.policy)
+        self.save()
+
+    def test_exact_administrator_exception_preserves_empty_independent_roster(self):
+        self.authorize_administrator_for_test()
+        result = validate_registry(self.root)
+        self.assertEqual(result['problems'][('test-problem', 'v1')]['review']['reviewers'], [])
+        self.assertEqual(result['policy']['minimum_independent_reviewers'], 2)
+
+    def test_administrator_exception_cannot_be_reused_for_another_binding(self):
+        self.authorize_administrator_for_test()
+        original = copy.deepcopy(self.policy['administrator_exceptions'][0])
+        for key, value in [('problem_id', 'other-problem'), ('statement_version', 'v2'),
+                           ('statement_digest', 'f' * 64), ('administrator', 'other-admin'),
+                           ('evidence_url', 'https://example.org/other')]:
+            with self.subTest(key=key):
+                self.policy['administrator_exceptions'] = [dict(original, **{key: value})]
+                self.write('policy/verification.json', self.policy)
+                self.reject()
+
+    def test_candidate_cannot_supply_its_own_administrator_permission(self):
+        self.authorize_administrator_for_test()
+        self.policy.pop('administrator_exceptions')
+        self.write('policy/verification.json', self.policy)
+        self.reject()
+
+    def test_administrator_exception_still_requires_source_hash_and_fresh_statement(self):
+        self.authorize_administrator_for_test()
+        self.problem['original_sources'][0]['snapshot_sha256'] = None
+        digest = statement_digest(self.problem)
+        self.problem['review']['statement_digest'] = digest
+        self.policy['administrator_exceptions'][0]['statement_digest'] = digest
+        self.write('policy/verification.json', self.policy)
+        self.reject()
+        self.authorize_administrator_for_test()
+        self.problem['scope'] += ' Changed.'
+        self.reject()
+
+    def test_administrator_exception_cannot_claim_independent_reviews(self):
+        self.authorize_administrator_for_test()
+        self.problem['review']['reviewers'] = ['test-admin']
+        self.reject()
+
+    def test_administrator_identity_does_not_bypass_normal_review(self):
+        self.authorize_administrator_for_test()
+        self.problem['review'].pop('approval_kind')
+        self.reject()
+
+    def test_duplicate_administrator_scopes_are_rejected(self):
+        self.authorize_administrator_for_test()
+        other = dict(self.policy['administrator_exceptions'][0], statement_digest='f' * 64)
+        self.policy['administrator_exceptions'].append(other)
+        self.write('policy/verification.json', self.policy)
+        self.reject()
+
     def test_empty_registry_is_valid(self):
         import shutil
         shutil.rmtree(self.root / "problems/test-problem")

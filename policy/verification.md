@@ -16,6 +16,12 @@ The path from the original problem to the official Lean statement requires revie
 
 Machines can verify relationships between formal statements. They cannot independently establish correct natural-language interpretation or the authenticity of reviewers' blind drafting.
 
+A repository administrator may grant a narrowly scoped exception through a
+protected policy change, as described in [administrator exceptions](../docs/statement-review.md#administrator-exceptions).
+Such approval permits the machine merge gate to proceed for the exact bound
+statement while explicitly recording incomplete independent review. It grants
+no reviewer accreditation or formal acceptance and never waives proof checking.
+
 ## Axioms
 
 The proposed standard allowlist is `propext`, `Classical.choice`, and `Quot.sound`. The empty set or any subset is acceptable. `sorryAx` in the transitive target proof dependencies is unacceptable; extra axioms require individual review and do not disappear when compilation succeeds.

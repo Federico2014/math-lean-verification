@@ -193,6 +193,26 @@ class GenericIntakeTests(unittest.TestCase):
         with self.assertRaisesRegex(RegistryError, 'machine success'):
             write_result(self.root/'result.json', 'example', proof)
 
+    def test_administrator_result_discloses_authority_and_still_requires_machine_success(self):
+        proof = {'verification_status': 'verified', 'machine_status': 'passed',
+                 'review_status': 'approved', 'review_approval_kind': 'administrator_exception',
+                 'review_administrator': 'test-admin', 'targets': ['official'],
+                 'candidate_targets': ['proof'], 'bindings': {
+                     'pr_head': None, 'base_sha': 'a'*40, 'upstream_commit': 'b'*40,
+                     'workspace_digest': 'c'*64, 'environment_digest': 'd'*64,
+                     'policy_digest': 'e'*64, 'run_id': None, 'run_attempt': None}}
+        result = write_result(self.root/'admin-result.json', 'example', proof)
+        self.assertEqual(result['review_approval_kind'], 'administrator_exception')
+        self.assertEqual(result['review_administrator'], 'test-admin')
+        self.assertEqual(result['formal_status'], 'pending')
+        proof['machine_status'] = 'failed'
+        with self.assertRaisesRegex(RegistryError, 'machine success'):
+            write_result(self.root/'failed-admin.json', 'example', proof)
+        proof['machine_status'] = 'passed'
+        proof['review_administrator'] = None
+        with self.assertRaisesRegex(RegistryError, 'identify its authority'):
+            write_result(self.root/'anonymous-admin.json', 'example', proof)
+
 
 if __name__ == '__main__':
     unittest.main()
