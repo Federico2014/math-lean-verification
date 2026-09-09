@@ -37,12 +37,13 @@ Follow [the repository statement-review process](../../../docs/statement-review.
 2. Freeze both drafts before comparison, then document discrepancies and
    resolutions against this candidate-informed encoding.
 3. Preserve an identifiable source snapshot and its SHA-256. The versioned
-   source link is recorded now; `snapshot_sha256` remains null pending archival
-   evidence, which must be completed before statement approval.
+   source link and retrieved HTML hash are recorded in `problem.json`;
+   durable source archival remains outstanding for formal acceptance.
 4. Confirm the approved reviewer roster and bind the final statement digest
    only after the evidence is complete. Changed meaning requires a new
    statement version and invalidation of affected verification evidence.
 
-Current review fields stay `pending`, with no reviewers, approval URL or
-approval digest. A future successful machine check can report `review_pending`;
-it cannot satisfy the final gate while these obligations remain open.
+Independent mathematical review remains pending. A separately authorized
+administrator exception, if activated, changes the merge-gate approval basis
+without completing these independent-review obligations. See
+[the authorization record](../../../docs/administrator-approvals/dgg-cost-v1.md).

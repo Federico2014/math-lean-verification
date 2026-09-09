@@ -38,8 +38,10 @@ are separate states; environment regression success is not a candidate result.
 has not been registered or verified by this repository.
 [Issue #12](https://github.com/Federico2014/math-lean-verification/issues/12)
 tracks its intake. The [DGG v1 problem workspace](problems/dgg-cost/v1/statement.md)
-is registered with mathematical review `pending`; the next step is a separate
-candidate registration PR using its approved environment and proof interface.
+is approved through an explicit [administrator exception](docs/administrator-approvals/dgg-cost-v1.md)
+by `Federico2014`; two-person independent mathematical review remains incomplete.
+[Candidate PR #14](https://github.com/Federico2014/math-lean-verification/pull/14)
+must obtain fresh machine evidence against this approved problem and policy.
 
 | Candidate / submission | Statement version / registration | Fixed proof source | Lean verification / evidence |
 | --- | --- | --- | --- |
@@ -112,7 +114,7 @@ Open the **Trusted Lean verification** run from the PR checks. Inspect `lean-pla
 - Missing workspace, unsupported environment or stale hash: correct the registration or complete maintainer onboarding.
 - Build, statement, axiom or replay failure: fix the proof or bridge, update the bound commit/hashes and push again.
 - `review_pending`: machine checks passed, but mathematical review still blocks the gate.
-- `verified`: machine checks and the bound statement review passed; formal acceptance and award decisions remain separate.
+- `verified`: machine checks and the bound approval policy passed. Inspect `review_approval_kind`: `independent_review` records normal review, while `administrator_exception` records an explicit statement-specific waiver. Formal acceptance and award decisions remain separate.
 
 Each update needs fresh verification. Maintainers can rerun **Trusted Lean verification** from `main` with the open PR number. After relevant changes reach `main`, **Revalidate registered Lean proofs** rechecks registered candidates. See [the contribution process](CONTRIBUTING.md) for review and evidence requirements.
 

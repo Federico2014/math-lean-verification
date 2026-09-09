@@ -38,6 +38,27 @@ If a candidate uses a different encoding, provide a reviewed Lean bridge proof d
 
 The initial version does not allow arbitrary definition holes. Corrections invalidate the old official statement and require a new version and review. Keep old evidence records and mark them invalidated.
 
+## Administrator exceptions
+
+An administrator may explicitly authorize a statement-specific exception to
+the independent-review requirement. Record the authority, reason and public
+evidence in `policy/verification.json` under `administrator_exceptions`, bound
+to one problem ID, statement version and exact statement digest. Such a grant
+is a protected policy decision, not mathematical-review accreditation.
+
+Merge the policy grant before activating the problem's approval in a separate
+maintenance PR. Activation uses `review.status: approved`,
+`review.approval_kind: administrator_exception`, the matching `administrator`
+and evidence URL, and an empty independent `reviewers` list. Source hashes,
+statement binding, environment approval and all machine checks remain required.
+The candidate PR cannot supply its own grant or change the protected problem.
+
+Results expose `review_approval_kind` and `review_administrator`. An exception
+must never be described as completion of the two-person independent process.
+The normal requirement remains two distinct accredited reviewers; formal
+acceptance and award decisions remain disabled/separate. Changes to a bound
+statement require a fresh exact grant and fresh machine evidence.
+
 ## Supplemental technical evidence
 
 - [DGG v1 correspondence assessment, 2026-09-09](reviews/dgg-cost-v1-2026-09-09/review.md):

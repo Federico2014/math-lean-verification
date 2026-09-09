@@ -17,7 +17,7 @@ from .lean_backend import PROFILE, verify
 from .environments import matches, relative_path
 from .source_adaptation import adapt, transforms_by_path
 from .registry import (ROOT, RegistryError, VerificationError, canonical_digest,
-                       read_json, require, safe_file, validate_registry)
+                       read_json, require, review_approval_kind, safe_file, validate_registry)
 
 MAX_DOWNLOAD = 16 * 1024 * 1024
 
@@ -29,6 +29,8 @@ def write_report(path, identifier, proof):
         'verification_status': proof['verification_status'],
         'machine_status': proof['machine_status'],
         'review_status': proof['review_status'],
+        'review_approval_kind': proof.get('review_approval_kind', 'independent_review' if proof['review_status'] == 'approved' else 'unapproved'),
+        'review_administrator': proof.get('review_administrator'),
         'formal_status': proof['formal_status'],
         'bindings': proof['bindings'],
         'required_theorems': proof['targets'],
@@ -306,6 +308,9 @@ def execute_candidates(trusted, proposed, registry_root, affected, base, head, i
         proof.update({'bindings': bindings, 'targets': problem['required_theorems'],
                       'candidate_targets': [t['declaration'] for t in submission['targets']],
                       'review_status': problem['review']['status'], 'formal_status': 'pending'})
+        proof['review_approval_kind'] = review_approval_kind(problem['review'])
+        proof['review_administrator'] = (problem['review'].get('administrator')
+            if proof['review_approval_kind'] == 'administrator_exception' else None)
         if not check_only:
             evidence = output / identifier
             evidence.mkdir(parents=True, exist_ok=True)
