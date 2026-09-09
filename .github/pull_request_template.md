@@ -11,6 +11,7 @@ Explain the problem, scope, and behavior. Link the issue for candidate registrat
 
 - [ ] Existing environment reused, or a separate environment onboarding PR linked
 - [ ] Workspace digest, permitted source paths and bridge hashes are bound (candidate registrations)
+- [ ] README candidate list includes the registration, fixed proof source, and accurate verification status/evidence (candidate registrations)
 
 ## Review impact
 

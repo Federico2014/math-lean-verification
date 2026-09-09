@@ -6,6 +6,8 @@ from pathlib import Path
 import shutil
 import subprocess
 
+from cache_guard import check_cached_modules
+
 
 def run(args, **kwargs):
     subprocess.run(args, check=True, **kwargs)
@@ -60,6 +62,10 @@ if cfg['dependency_mode'] == 'mathlib-cache':
     # Cache retrieval is executed only from the approved image context. It is
     # explicitly a trusted dependency cache, never a candidate build cache.
     run(['lake', 'exe', 'cache', 'get', *cfg['cache_modules']], cwd=project)
+    # Cache archives may omit auxiliary input hashes (for example ProofWidgets'
+    # package-lock.json.hash). Check traces and complete hashes while the image
+    # is writable, but reject stale/missing targets instead of rebuilding Mathlib.
+    check_cached_modules(project, cfg['cache_modules'])
     assert json.loads((project / 'lake-manifest.json').read_text()) == lock, 'Lake changed the approved dependency lock'
     for dep in lock['packages']:
         actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=project / '.lake/packages' / dep['name'], text=True).strip()

@@ -29,7 +29,7 @@ def build(identifier, *, allow_pending=False):
             target = root / 'project' / file['path']
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(safe_file(ROOT / 'environments' / identifier, file['path']), target)
-        for name in ('environment.Dockerfile', 'prepare-environment.py'):
+        for name in ('environment.Dockerfile', 'prepare-environment.py', 'cache_guard.py'):
             shutil.copyfile(ROOT / 'backend' / name, root / name)
         subprocess.run(['docker', 'build', '-f', str(root / 'environment.Dockerfile'),
                         '--build-arg', 'BASE_IMAGE=' + base_tag,

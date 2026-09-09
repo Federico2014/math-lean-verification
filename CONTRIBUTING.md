@@ -35,6 +35,14 @@ transforms for projects that need module renaming or import adaptation.
 
 Use [the bridge template](templates/Bridge.lean) when needed. A bridge calls the upstream theorem and proves the official statement with the required name. It is checked proof code, not trusted configuration. Selected upstream files and bridge overlays may not collide or replace trusted files. Arbitrary shell commands, upstream Lake programs and precompiled binaries are not accepted inputs. `adapter_id` remains null; use proof overlays for Lean bridges.
 
+Add one row per submission to the [README candidate list](README.md#registered-candidates)
+in the registration PR. Include the problem title, submission ID, statement version,
+registration link, fixed source commit and Lean verification status/evidence.
+Remove the empty-list notice when adding the first registration. Only report a
+machine pass with evidence bound to those inputs; pending onboarding or successful
+metadata checks do not establish a proof pass. Update the row when inputs or
+verification results change.
+
 Link the candidate issue in the PR and run:
 
 ```bash
