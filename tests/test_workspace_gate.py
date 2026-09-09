@@ -8,13 +8,13 @@ import shutil
 import unittest
 from unittest.mock import patch
 
-from verifier.merge_gate import run
-from verifier.registry import ROOT, canonical_digest, statement_digest
+from verifier.merge_gate import execute_candidates, run
+from verifier.registry import ROOT, canonical_digest, statement_digest, validate_registry
 from verifier.environments import load_environments
 
 
 class WorkspaceGateTests(unittest.TestCase):
-    def exercise(self, review, *, backend_failure=None, source_failure=False):
+    def exercise(self, review, *, backend_failure=None, source_failure=False, revalidate=False):
         from test_registry import RegistryTests
         fixture = RegistryTests(); fixture.setUp()
         self.addCleanup(fixture.temp.cleanup)
@@ -57,7 +57,15 @@ class WorkspaceGateTests(unittest.TestCase):
             plan = run('example/registry', 1, 'c'*40, None, root/'plan', check_only=True)
             self.assertEqual(plan['matrix']['include'], [{'submission': 'test-submission', 'environment': env['environment_id']}])
             self.assertEqual(plan['status'], 'ready')
-            if source_failure:
+            if revalidate:
+                # Revalidation uses the registered protected-base inputs without
+                # a PR snapshot or a PR-head status binding.
+                source_file.write_bytes(candidate)
+                registry = validate_registry(root)
+                result = execute_candidates(registry, registry, root, ['test-submission'],
+                    'd'*40, None, None, root/'evidence',
+                    images={env['environment_id']: 'sha256:'+'e'*64})
+            elif source_failure:
                 def fail_source(submission, *args, **kwargs):
                     raise OSError('Source download unavailable')
                 with patch('verifier.merge_gate.candidate_sources', side_effect=fail_source):
@@ -66,6 +74,9 @@ class WorkspaceGateTests(unittest.TestCase):
                 result = run('example/registry', 1, 'c'*40, 'sha256:'+'e'*64, root/'evidence')
             report = root/'evidence/test-submission'
             self.assertEqual(json.loads((report/'result.json').read_text()), result['submissions']['test-submission'])
+            normalized = json.loads((report/'verification-result.json').read_text())
+            self.assertEqual(normalized['verification_status'], result['submissions']['test-submission']['verification_status'])
+            self.assertEqual(normalized['bindings']['pr_head'], None if revalidate else 'c'*40)
             self.assertIn(result['submissions']['test-submission']['verification_status'], (report/'report.md').read_text())
             return result
 
@@ -98,6 +109,19 @@ class WorkspaceGateTests(unittest.TestCase):
         self.assertEqual(proof['bindings']['upstream_commit'], 'a'*40)
         self.assertIn('Proofs/Main.lean', proof['source_hashes'])
         self.assertEqual(proof['formal_status'], 'pending')
+
+    def test_revalidation_preserves_machine_and_review_gates_without_pr_identity(self):
+        for review, failure, expected in [('pending', None, 'review_pending'),
+                                          ('approved', 'infrastructure_error', 'infrastructure_error'),
+                                          ('approved', None, 'verified')]:
+            with self.subTest(review=review, failure=failure):
+                result = self.exercise(review, backend_failure=failure, revalidate=True)
+                proof = result['submissions']['test-submission']
+                self.assertEqual(proof['verification_status'], expected)
+                self.assertEqual(result['status'], 'passed' if expected == 'verified' else 'failed')
+                self.assertIsNone(proof['bindings']['pr_head'])
+                self.assertEqual(proof['bindings']['base_sha'], 'd'*40)
+                self.assertEqual(proof['formal_status'], 'pending')
 
 
 if __name__ == '__main__':

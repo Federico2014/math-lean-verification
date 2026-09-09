@@ -18,6 +18,11 @@ The repository implements the trusted-workspace and reusable-environment archite
 - English per-candidate reports and interrupted-stage metadata; static environment discovery rejects ambiguous dynamic configuration and incomplete direct dependency locks as automatic matches.
 - Content-addressed evidence ZIPs with complete inventory and readback checks, plus temporary Actions artifact transport.
 - Real proof/sandbox regression workflow including multi-file bridges and a separate Mathlib onboarding configuration.
+- Static submission/environment draft generation with explicit unresolved fields and no automatic approvals.
+- Hash-bound source renaming and exact replacements, with original/adapted source evidence and protected-path checks.
+- Automatically discovered environment regression matrices, including pending descriptors and offline cache import probes.
+- Protected-main revalidation of registered candidates after trusted input changes, separate from PR status publication.
+- A versioned verification-result summary and explicit failed-stage diagnostics.
 
 ## Activation boundaries
 
@@ -29,11 +34,15 @@ The repository implements the trusted-workspace and reusable-environment archite
 - Real candidate pilot onboarding, contribution/priority review and award decisions remain separate work.
 - Unsupported custom Lake execution, dependency subdirectories, arbitrary native plugins and Lean 3 require an explicit backend extension. No automatic unsandboxed fallback exists.
 - Peak resource telemetry, richer per-theorem diagnostic classifications and merge-queue support remain future improvements; execution limits, wall time and aggregate target checks are recorded now.
-- Automatic revalidation of existing candidates after global controller/policy changes remains unimplemented. The protected PR controller cannot validate its own replacement; a separate protected-base revalidation workflow is needed.
+- Revalidation conservatively selects all registered candidates, up to the 256-job matrix limit; larger registries currently require selecting individual submissions. Dependency-based incremental revalidation remains an optimization.
 
 ## Validation
 
 The [workspace onboarding run](workspace-onboarding.md) passed both real backend matrices (27 cases total) and 69 unit tests.
+
+Those historical runs do not validate later generic-intake changes. The expanded
+backend matrix includes adapted Challenge positive/negative cases and cache import
+probes; inspect a run of the current revision before admitting changed environments.
 
 Run unit tests and registry validation locally. The **Lean backend tests** workflow builds real environment images and runs positive/negative proofs; inspect its actual run before approving a new environment. Synthetic test success is infrastructure evidence, not verification of an award candidate.
 

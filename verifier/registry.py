@@ -199,6 +199,18 @@ def validate_registry(root: Path) -> dict[str, Any]:
         require(item["toolchain_id"] == problem["toolchain_id"], "Submission toolchain differs from its problem")
         if 'execution' in item:
             execution = item['execution']
+            from .source_adaptation import transforms_by_path
+            from .environments import matches
+            transforms = transforms_by_path(execution)
+            destinations = [change['destination'] for change in transforms.values()]
+            require(len(destinations) == len(set(destinations)), 'Duplicate transformed destination')
+            for original, change in transforms.items():
+                require(matches(original, execution['include']), 'Transform source is outside selected patterns')
+                require(change['destination'] not in {f['path'] for f in problem['trusted_files']},
+                        'Transformed source cannot overwrite a trusted file')
+                if 'workspace' in problem:
+                    require(matches(change['destination'], problem['workspace']['submission_paths']),
+                            'Transformed source is outside the approved submission paths')
             relative_path(execution['project_root'], root=True)
             for pattern in execution['include']:
                 relative_path(pattern, pattern=True)
@@ -207,6 +219,7 @@ def validate_registry(root: Path) -> dict[str, Any]:
                 relative_path(proof['path'])
                 require(proof['path'].endswith('.lean'), 'Only Lean proof overlays are supported')
                 require(proof['path'] not in paths, 'Duplicate proof overlay')
+                require(proof['path'] not in destinations, 'Proof overlay collides with transformed source')
                 paths.add(proof['path'])
                 file = safe_file(root, 'proofs/' + item['submission_id'] + '/' + proof['path'])
                 require(file_digest(file) == proof['sha256'], 'Proof overlay hash mismatch')

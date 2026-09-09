@@ -20,12 +20,77 @@ python -m verifier inspect-environment /path/to/project
 
 Reuse approved configurations whenever possible. Version differences normally add configuration, not another workflow; special requirements need explicit adaptation. See [environment onboarding](docs/environment-onboarding.md).
 
+The [generic intake guide](docs/generic-intake.md) covers `draft-submission`,
+`draft-environment`, hash-bound source adaptation without a fork, automatic
+environment regression matrices and protected-main revalidation. Drafts and
+environment test success never grant approval.
+
 ## Adding a candidate
 
-1. Use the [candidate submission form](https://github.com/Federico2014/math-lean-verification/issues/new?template=candidate.yml) to provide the original problem, paper, Lean repository, full commit, and target theorems.
-2. For a new problem, register and independently review its statement in a separate PR. The workspace and approved environment must already be on `main`; its exact mathematical review must be approved before a candidate can pass the merge gate.
-3. Open a registration PR following the [contribution process](CONTRIBUTING.md). Do not include credentials, KYC data, or materials that are not authorized for publication in an issue.
-4. Required `registry`, `tests`, and `lean-verification` checks must pass before merging a candidate registration. Unsupported or incomplete candidates remain blocked.
+**The normal path is: provide the proof source → reuse a reviewed problem and approved environment → open a registration PR → inspect the automatic CI result.** The same workflow handles future candidates; an ordinary submission does not need a new workflow. Actual Lean execution happens in isolated CI containers. Local commands below only prepare or validate registration data.
+
+### 1. Provide the candidate materials
+
+Open a [candidate submission issue](https://github.com/Federico2014/math-lean-verification/issues/new?template=candidate.yml) with the original problem and paper links, public GitHub proof repository, full 40-character commit SHA, target Lean modules/declarations, Lean version, dependencies, assumptions and author attribution. A paper without Lean proof source cannot undergo machine verification. Publish only materials you are authorized to share.
+
+### 2. Confirm the problem and environment
+
+With maintainers, identify the existing `problem_id`, `statement_version`, complete official theorem list and approved `toolchain_id`. Reuse these when available.
+
+For a new problem, maintainers first prepare a separate PR under `problems/<problem-id>/<version>/` containing the trusted Lean statement and permitted proof interface. For a new environment, use the [environment onboarding process](docs/environment-onboarding.md): pin dependencies, run real compatibility tests and record approval in a separate PR. Both configurations must reach `main` before candidate execution. Pending statement review permits diagnostic execution, but the exact statement review must be approved before the candidate gate can pass.
+
+These are reusable setup steps. A candidate PR cannot approve or alter its own problem, environment or verification policy.
+
+### 3. Prepare the registration files
+
+Set up this repository's [Python environment](#local-development). From this repository, inspect a local source checkout matching the candidate's fixed commit, then generate a draft. Replace the example IDs, theorem names and commit placeholder:
+
+```bash
+python -m verifier inspect-environment /path/to/candidate-project
+python -m verifier draft-submission /path/to/candidate-project \
+  --repository https://github.com/OWNER/REPOSITORY \
+  --commit FULL_40_HEX_COMMIT \
+  --submission-id example-proof --problem-id example-problem \
+  --statement-version v1 \
+  --target Submission upstream_theorem official_theorem \
+  --output /tmp/candidate-draft.json
+```
+
+`--target` means `MODULE DECLARATION OFFICIAL_THEOREM`; repeat it for every official target. Review the draft's `blockers`, then save **only its `submission` object** as `submissions/example-problem/example-proof.json`. Alternatively, fill in [the submission template](templates/submission.json) directly.
+
+Complete the paper links, authorship, proof route, AI role, assumptions and prior results. The generated draft deliberately leaves publication permission false; confirm it only when authorization actually exists. Check the environment ID and source selection rather than treating a suggested match as approval.
+
+| Registration field | What to provide |
+| --- | --- |
+| `execution.project_root` | Project directory relative to the upstream repository; `.` for its root. |
+| `execution.include` | Lean files needed by the proof, relative to that root, such as `Submission.lean` and `Submission/**`. |
+| `execution.proof_files` | Optional local bridge paths and SHA-256 hashes. Store them under `proofs/<submission-id>/`. |
+| `execution.source_transforms` | Optional hash-bound renames or exact replacements; see [source adaptation](docs/generic-intake.md#adapt-source-modules-without-a-fork). |
+
+If the upstream theorem needs to expose the official name or statement, complete [the bridge template](templates/Bridge.lean) using the trusted workspace's `solution_module` and permitted paths. Keep `adapter_id` null. Bridges and adapted sources undergo the full proof checks. Custom Lake programs, native plugins and precompiled artifacts require separately supported tooling; they are not ordinary submission inputs.
+
+### 4. Open the candidate PR
+
+Validate the completed registration locally:
+
+```bash
+python -m verifier validate
+```
+
+This checks metadata and hashes; it does not execute Lean. Commit the registration and any bridge files on your branch or fork, then open a PR targeting `main`. Link the candidate issue and describe the official target mapping and any source adaptation. Opening or updating the PR automatically triggers **Trusted Lean verification**; no local Lean run is required.
+
+### 5. Read the CI result and correct failures
+
+The required checks are `registry`, `tests` and `lean-verification`. CI retrieves the fixed source commit, builds in isolation, checks all required statements and axioms, and performs Lean plus Nanoda replay. A successful build or green Registry CI badge alone does not establish proof verification.
+
+Open the **Trusted Lean verification** run from the PR checks. Inspect `lean-plan-*` for prerequisite failures and `lean-evidence-<submission-id>-<head-sha>` for `report.md`, `verification-result.json` and detailed logs.
+
+- Missing workspace, unsupported environment or stale hash: correct the registration or complete maintainer onboarding.
+- Build, statement, axiom or replay failure: fix the proof or bridge, update the bound commit/hashes and push again.
+- `review_pending`: machine checks passed, but mathematical review still blocks the gate.
+- `verified`: machine checks and the bound statement review passed; formal acceptance and award decisions remain separate.
+
+Each update needs fresh verification. Maintainers can rerun **Trusted Lean verification** from `main` with the open PR number. After relevant changes reach `main`, **Revalidate registered Lean proofs** rechecks registered candidates. See [the contribution process](CONTRIBUTING.md) for review and evidence requirements.
 
 ## Verification principles
 

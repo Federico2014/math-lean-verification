@@ -198,7 +198,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 256,
-            "pattern": "^[A-Za-z0-9_][A-Za-z0-9_./*-]*$(?![\\s\\S])"
+            "pattern": "^[A-Za-z0-9_*][A-Za-z0-9_./*-]*$(?![\\s\\S])"
           },
           "minItems": 1,
           "maxItems": 100,
@@ -230,6 +230,67 @@
           },
           "maxItems": 100,
           "uniqueItems": true
+        },
+        "source_transforms": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:/[A-Za-z_][A-Za-z0-9_]*)*\\.lean$(?![\\s\\S])"
+              },
+              "destination": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:/[A-Za-z_][A-Za-z0-9_]*)*\\.lean$(?![\\s\\S])"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+              },
+              "replacements": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "old": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 8192
+                    },
+                    "new": {
+                      "type": "string",
+                      "maxLength": 8192
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 1000
+                    }
+                  },
+                  "required": [
+                    "old",
+                    "new",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "path",
+              "destination",
+              "sha256",
+              "replacements"
+            ],
+            "additionalProperties": false
+          }
         }
       },
       "required": [

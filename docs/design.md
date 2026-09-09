@@ -78,6 +78,11 @@ The existing registration fields retain attribution and complete target coverage
 
 Upstream paths are relative to `project_root`. Local proof overlays live in `proofs/<submission-id>/`, are hash-bound, and may not collide with selected upstream files or trusted workspace files. Only Lean sources enter proof execution. Target declarations are included in the solution export as well as the official targets. A bridge is an untrusted proof which must pass the same checks; it cannot change the official statement.
 
+Optional `source_transforms` binds original file hashes, destination paths and exact
+text replacements. It supports import/module adaptation while retaining both
+source versions. The adapted code remains untrusted. See [generic intake](generic-intake.md)
+for draft generation, configuration examples and collision rules.
+
 Legacy source-only registrations remain supported. New submissions should use explicit workspace and execution fields.
 
 ## CI and trust boundaries
@@ -108,7 +113,7 @@ Every executed candidate job writes `result.json` and an English `report.md`, in
 
 Per-candidate evidence includes selected source snapshots, problem/submission metadata, resource policy, tool/image identities, exported proofs, stage logs and duration. The `evidence` CLI creates a content-addressed ZIP with a checksum inventory and verifies readback without extracting executable content.
 
-Candidate selection compares referenced environment descriptors and effective policies in addition to submissions and problems. The live PR controller deliberately substitutes the protected policy for PR policy data. Automatic revalidation of already-merged candidates after global controller/policy changes is still missing; selection comparisons alone do not implement that lifecycle. See the [design conformance review](design-conformance-review.md).
+Candidate selection compares referenced environment descriptors and effective policies in addition to submissions and problems. The live PR controller deliberately substitutes the protected policy for PR policy data. A separate protected-main revalidation workflow runs after relevant changes are merged. It conservatively selects all registered candidates and generates fresh evidence without replacing historical records or PR statuses. This addresses the lifecycle gap recorded in the earlier [design conformance review](design-conformance-review.md).
 
 Actions artifacts are temporary diagnostic transport (90 days for candidate evidence). Persistent archival storage, backup/readback policy, reviewer onboarding and formal acceptance aggregation remain separate activation requirements. `formal_acceptance_enabled` stays false and `formal_status` stays pending. A sealed ZIP alone is not a durable archive or award decision.
 

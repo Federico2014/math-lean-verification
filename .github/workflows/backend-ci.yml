@@ -7,6 +7,7 @@ on:
       - 'environments/**'
       - 'schemas/**'
       - 'scripts/backend_smoke.py'
+      - 'requirements-ci.lock'
       - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
 permissions:
@@ -15,14 +16,30 @@ concurrency:
   group: backend-tests-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  environments:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - run: >-
+          python -m pip install --only-binary=:all: --require-hashes -r requirements-ci.lock
+      - id: discover
+        run: python -m verifier.environment_matrix
   backend-tests:
+    needs: environments
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     strategy:
       fail-fast: false
       max-parallel: 2
-      matrix:
-        environment: [lean-4-34-rc2-stdlib, lean-4-28-mathlib]
+      matrix: ${{ fromJSON(needs.environments.outputs.matrix) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

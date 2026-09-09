@@ -151,6 +151,7 @@ def verify(image: str, challenge_sources: Path, solution_sources: Path,
                                     json.dumps((err + out)[-8000:].decode('utf-8', errors='replace')), status)
         return out
     probe = ['python3', '/opt/gate/probe.py', str(resources['memory_mb']), str(resources['cpus'])]
+    stage = 'sandbox_probes'
     try:
         with tempfile.TemporaryDirectory(prefix='lean-gate-') as temporary:
             root = Path(temporary)
@@ -161,10 +162,12 @@ def verify(image: str, challenge_sources: Path, solution_sources: Path,
             execute(control, probe)
             stages.append('sandbox_probes')
             if environment:
+                stage = 'environment_identity'
                 identity = execute(control, ['cat', '/opt/environment/identity.json'])
                 require(json.loads(identity)['environment_digest'] == canonical_digest(environment),
                         'Image does not match the approved environment')
                 (evidence / 'environment.json').write_text(json.dumps(environment, indent=2) + '\n')
+            stage = 'tool_identity'
             for filename in ['toolchain.json', 'binaries.sha256', 'system-packages.txt']:
                 (evidence / filename).write_bytes(execute(control, ['cat', '/opt/gate/' + filename]))
             targets = execute(control, ['/opt/bin/gate-replay', '/input/config.json', 'targets'])
@@ -173,13 +176,16 @@ def verify(image: str, challenge_sources: Path, solution_sources: Path,
                     for x in target_names), 'Invalid trusted export target list')
             for kind, source, mod in [('challenge', challenge_sources, 'Challenge'),
                                       ('solution', solution_sources, module)]:
+                stage = kind + '_source_preparation'
                 package = root / kind
                 package.mkdir()
                 copy_sources(source, package / 'source', resources)
                 export_targets = list(dict.fromkeys(target_names + (solution_declarations if kind == 'solution' else [])))
                 (package / 'targets.json').write_text(json.dumps(export_targets))
                 # Probe each actual input mount before executing any Lean source.
+                stage = kind + '_sandbox_probes'
                 execute(package, probe)
+                stage = kind + '_clean_build_export'
                 export = execute(package, ['python3', '/opt/gate/export.py', mod],
                                  max_stdout=resources['max_export_mb'] * 1024**2)
                 require(bool(export), 'Empty proof export')
@@ -188,9 +194,11 @@ def verify(image: str, challenge_sources: Path, solution_sources: Path,
                 stages.append(kind + '_clean_build_export')
             (control / 'required-targets.json').write_text(json.dumps(list(dict.fromkeys(theorems + solution_declarations))))
             shutil.copyfile(control / 'required-targets.json', evidence / 'required-targets.json')
+            stage = 'candidate_target_coverage'
             execute(control, ['/opt/bin/gate-replay', '/input/config.json', 'required-targets',
                               '/input/solution.ndjson', '/input/required-targets.json'], timeout=1200)
             stages.append('candidate_target_coverage')
+            stage = 'statement_axioms_and_official_replay'
             execute(control, ['/opt/bin/gate-replay', '/input/config.json',
                                      '/input/challenge.ndjson', '/input/solution.ndjson'], timeout=1200)
             stages.extend(['statement_comparison', 'transitive_axiom_audit', 'official_kernel_replay'])
@@ -198,11 +206,13 @@ def verify(image: str, challenge_sources: Path, solution_sources: Path,
                       'permitted_axioms': sorted(STANDARD_AXIOMS), 'unpermitted_axiom_hard_error': True,
                       'num_threads': 2, 'nat_extension': True, 'string_extension': True}
             (control / 'nanoda.json').write_text(json.dumps(nanoda))
+            stage = 'independent_nanoda_replay'
             execute(control, ['/opt/bin/nanoda_bin', '/input/nanoda.json'], timeout=1200)
             stages.append('independent_nanoda_replay')
             result['machine_status'] = 'passed'
     except (RegistryError, OSError, ValueError, subprocess.SubprocessError) as exc:
         result['error'] = str(exc)
+        result['failed_stage'] = stage
         result['failure_status'] = (exc.status if isinstance(exc, VerificationError) else
                                     'infrastructure_error' if isinstance(exc, (OSError, subprocess.SubprocessError)) else 'failed')
     result['duration_seconds'] = round(time.monotonic() - started, 3)

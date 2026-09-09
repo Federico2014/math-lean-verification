@@ -1,0 +1,118 @@
+name: Revalidate registered Lean proofs
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'verifier/**'
+      - 'backend/**'
+      - 'schemas/**'
+      - 'policy/**'
+      - 'environments/**'
+      - 'problems/**'
+      - 'submissions/**'
+      - 'proofs/**'
+      - 'requirements-ci.lock'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+    inputs:
+      submission:
+        description: Optional registered submission ID; blank revalidates all
+        required: false
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: lean-revalidation-${{ github.sha }}-${{ inputs.submission || 'all' }}
+  cancel-in-progress: false
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      has_work: ${{ steps.plan.outputs.has_work }}
+      unblocked: ${{ steps.plan.outputs.unblocked }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - run: >-
+          python -m pip install --only-binary=:all: --require-hashes -r requirements-ci.lock
+      - id: plan
+        env:
+          SELECTED_SUBMISSION: ${{ inputs.submission }}
+        run: |
+          args=()
+          if [ -n "$SELECTED_SUBMISSION" ]; then args+=(--submission "$SELECTED_SUBMISSION"); fi
+          python -m verifier.revalidate --revision "$GITHUB_SHA" --plan "${args[@]}" --output "$RUNNER_TEMP/revalidation-plan"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: revalidation-plan-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/revalidation-plan
+          retention-days: 90
+  verify:
+    needs: plan
+    if: needs.plan.outputs.has_work == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - run: >-
+          python -m pip install --only-binary=:all: --require-hashes -r requirements-ci.lock
+      - run: docker build -t lean-gate-tools backend
+      - env:
+          ENVIRONMENT_ID: ${{ matrix.environment }}
+        run: python -m verifier.build_environment "$ENVIRONMENT_ID" --output "$RUNNER_TEMP/images.json"
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          SUBMISSION_ID: ${{ matrix.submission }}
+        run: python -m verifier.revalidate --revision "$GITHUB_SHA" --submission "$SUBMISSION_ID" --images "$RUNNER_TEMP/images.json" --output "$RUNNER_TEMP/revalidation"
+      - if: always()
+        run: python -m verifier.evidence seal "$RUNNER_TEMP/revalidation" --output "$RUNNER_TEMP/sealed"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: revalidation-${{ matrix.submission }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/revalidation
+            ${{ runner.temp }}/sealed
+          retention-days: 90
+  summary:
+    needs: [plan, verify]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # Only trusted job outcomes are used; this never posts a candidate PR status.
+      - env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          HAS_WORK: ${{ needs.plan.outputs.has_work }}
+          UNBLOCKED: ${{ needs.plan.outputs.unblocked }}
+          VERIFY_RESULT: ${{ needs.verify.result }}
+        run: |
+          test "$PLAN_RESULT" = success
+          test "$UNBLOCKED" = true
+          if [ "$HAS_WORK" = true ]; then
+            test "$VERIFY_RESULT" = success
+          else
+            test "$HAS_WORK" = false
+            test "$VERIFY_RESULT" = skipped
+            echo 'No registered candidates; no proof was verified.' >> "$GITHUB_STEP_SUMMARY"
+          fi

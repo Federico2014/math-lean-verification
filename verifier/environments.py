@@ -17,7 +17,7 @@ def relative_path(value, *, pattern=False, root=False):
     require(isinstance(value, str) and len(value) <= 256, 'Invalid source path')
     require(all(p not in ('', '.', '..', '.git', '.lake') for p in value.split('/')),
             'Unsafe source path component')
-    regex = r'[A-Za-z0-9_][A-Za-z0-9_.*-]*' if pattern else r'[A-Za-z0-9_][A-Za-z0-9_.-]*'
+    regex = r'[A-Za-z0-9_*][A-Za-z0-9_.*-]*' if pattern else r'[A-Za-z0-9_][A-Za-z0-9_.-]*'
     require(all(re.fullmatch(regex, p) or (pattern and p in ('*', '**'))
                 for p in value.split('/')), 'Unsupported source path')
     return value
@@ -86,6 +86,11 @@ def inspect_project(project):
         except (ValueError, UnicodeError) as exc:
             raise RegistryError('Invalid static Lake configuration') from exc
         result['project_name'] = config.get('name')
+        supported = {'name', 'version', 'defaultTargets', 'require', 'lean_lib'}
+        libraries = config.get('lean_lib', [])
+        if (set(config) - supported or not isinstance(libraries, list) or
+                any(not isinstance(lib, dict) or set(lib) - {'name'} for lib in libraries)):
+            result['warnings'].append('custom_lake_configuration_requires_review')
     if (project / 'lakefile.lean').exists():
         safe_file(project, 'lakefile.lean')
         result['warnings'].append('dynamic_lakefile_requires_review')

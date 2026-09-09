@@ -15,6 +15,7 @@ import urllib.request
 
 from .lean_backend import PROFILE, verify
 from .environments import matches, relative_path
+from .source_adaptation import adapt, transforms_by_path
 from .registry import (ROOT, RegistryError, VerificationError, canonical_digest,
                        read_json, require, safe_file, validate_registry)
 
@@ -143,7 +144,8 @@ def prerequisites(trusted, proposed, identifier):
     return submission, problem, next(iter(modules))
 
 
-def candidate_sources(submission, destination, *, problem=None, environment=None, registry_root=None):
+def candidate_sources(submission, destination, *, problem=None, environment=None, registry_root=None,
+                      original_sources=None, adaptations=None):
     api = GitHub(submission['repository'].removeprefix('https://github.com/'))
     tree = api.tree(submission['commit'])
     execution = submission.get('execution', {'project_root': '.', 'include': ['**'], 'proof_files': []})
@@ -165,6 +167,8 @@ def candidate_sources(submission, destination, *, problem=None, environment=None
         selected[relative] = item
     limits = environment['resources'] if environment else {'max_files': 100, 'max_source_mb': 8}
     require(0 < len(selected) <= limits['max_files'], 'Unsupported source tree size')
+    transforms = transforms_by_path(execution)
+    require(set(transforms) <= set(selected), 'Source transform does not refer to a selected upstream file')
     protected = {f['path'] for f in problem['trusted_files']} if problem else set()
     allowed = problem['workspace']['submission_paths'] if problem and 'workspace' in problem else ['**']
     source_hashes = {}
@@ -181,8 +185,21 @@ def candidate_sources(submission, destination, *, problem=None, environment=None
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_bytes(data)
         source_hashes[path] = hashlib.sha256(data).hexdigest()
+    original_total = 0
     for path, item in selected.items():
-        write(path, api.blob(item))
+        data = api.blob(item)
+        original_total += len(data)
+        require(original_total <= limits['max_source_mb'] * 1024**2, 'Original source package exceeds limit')
+        if original_sources is not None:
+            original = original_sources / path
+            original.parent.mkdir(parents=True, exist_ok=True)
+            original.write_bytes(data)
+        target, adapted = adapt(path, data, transforms.get(path), max_bytes=limits['max_source_mb'] * 1024**2)
+        write(target, adapted)
+        if adaptations is not None:
+            adaptations.append({'path': path, 'destination': target,
+                'original_sha256': hashlib.sha256(data).hexdigest(),
+                'adapted_sha256': hashlib.sha256(adapted).hexdigest()})
     for proof in execution['proof_files']:
         require(registry_root is not None, 'Missing proof overlay root')
         source = safe_file(registry_root, 'proofs/' + submission['submission_id'] + '/' + proof['path'])
@@ -191,6 +208,7 @@ def candidate_sources(submission, destination, *, problem=None, environment=None
         write(proof['path'], data)
     for target in submission.get('targets', []):
         path = target['module'].replace('.', '/') + '.lean'
+        path = transforms.get(path, {}).get('destination', path)
         require(path in source_hashes, 'Required target module is absent from selected candidate sources: ' + path)
     return source_hashes
 
@@ -211,77 +229,91 @@ def run(repository, pr_number, head, image, output, check_only=False, submission
         if submission_id:
             require(submission_id in affected, 'Requested candidate is not in the trusted execution plan')
             affected = [submission_id]
-        result = {'schema_version': 1, 'head_sha': head, 'verifier_sha': base,
-                  'status': 'not_applicable' if not affected else ('ready' if check_only else 'passed'), 'submissions': {}}
-        result['matrix'] = {'include': [{'submission': s, 'environment': proposed['submissions'][s]['toolchain_id'] or ''} for s in affected]}
-        for identifier in affected:
-            submission = proposed['submissions'][identifier]
-            key = (submission['problem_id'], submission['statement_version'])
-            problem = trusted['problems'].get(key, proposed['problems'][key])
-            environment = trusted.get('environments', {}).get(submission['toolchain_id']) if 'workspace' in problem else None
-            bindings = {'pr_head': head, 'base_sha': base, 'upstream_commit': submission['commit'],
-                'workspace_digest': canonical_digest(problem), 'environment_digest': canonical_digest(environment),
-                'policy_digest': canonical_digest(trusted['policy']), 'run_id': os.environ.get('GITHUB_RUN_ID'),
-                'run_attempt': os.environ.get('GITHUB_RUN_ATTEMPT')}
-            try:
-                submission, problem, module = prerequisites(trusted, proposed, identifier)
-                if check_only:
-                    result['submissions'][identifier] = {'machine_status': 'not_run', 'prerequisites': 'ready'}
-                    continue
-                selected_image = (images or {}).get(submission['toolchain_id'], image)
-                require(selected_image is not None, 'Missing immutable verifier image')
-                with tempfile.TemporaryDirectory(prefix='lean-materials-') as sources:
-                    source_root = Path(sources)
-                    challenge = source_root / 'challenge'
-                    challenge.mkdir()
-                    problem_dir = ROOT / 'problems' / problem['problem_id'] / problem['statement_version']
+        return execute_candidates(trusted, proposed, root, affected, base, head, image,
+                                  output, check_only=check_only, images=images)
+
+
+def execute_candidates(trusted, proposed, registry_root, affected, base, head, image,
+                       output, *, check_only=False, images=None):
+    """Shared PR and protected-base execution; never selects or approves inputs."""
+    result = {'schema_version': 1, 'head_sha': head, 'verifier_sha': base,
+              'status': 'not_applicable' if not affected else ('ready' if check_only else 'passed'), 'submissions': {}}
+    result['matrix'] = {'include': [{'submission': s, 'environment': proposed['submissions'][s]['toolchain_id'] or ''} for s in affected]}
+    for identifier in affected:
+        submission = proposed['submissions'][identifier]
+        key = (submission['problem_id'], submission['statement_version'])
+        problem = trusted['problems'].get(key, proposed['problems'][key])
+        environment = trusted.get('environments', {}).get(submission['toolchain_id']) if 'workspace' in problem else None
+        bindings = {'pr_head': head, 'base_sha': base, 'upstream_commit': submission['commit'],
+            'workspace_digest': canonical_digest(problem), 'environment_digest': canonical_digest(environment),
+            'policy_digest': canonical_digest(trusted['policy']), 'run_id': os.environ.get('GITHUB_RUN_ID'),
+            'run_attempt': os.environ.get('GITHUB_RUN_ATTEMPT')}
+        try:
+            submission, problem, module = prerequisites(trusted, proposed, identifier)
+            if check_only:
+                result['submissions'][identifier] = {'machine_status': 'not_run', 'prerequisites': 'ready'}
+                continue
+            selected_image = (images or {}).get(submission['toolchain_id'], image)
+            require(selected_image is not None, 'Missing immutable verifier image')
+            with tempfile.TemporaryDirectory(prefix='lean-materials-') as sources:
+                source_root = Path(sources)
+                original_sources = source_root / 'original'
+                adaptations = []
+                challenge = source_root / 'challenge'
+                challenge.mkdir()
+                problem_dir = ROOT / 'problems' / problem['problem_id'] / problem['statement_version']
+                for item in problem['trusted_files']:
+                    if item['path'].endswith('.lean'):
+                        dst = challenge / item['path']
+                        dst.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copyfile(problem_dir / item['path'], dst)
+                solution = source_root / 'solution'
+                solution.mkdir()
+                source_hashes = candidate_sources(submission, solution, problem=problem if environment else None,
+                    environment=environment, registry_root=registry_root, original_sources=original_sources, adaptations=adaptations)
+                if environment:
+                    # Shared trusted definitions are copied after the candidate overlay;
+                    # collision checking above prohibits their replacement.
                     for item in problem['trusted_files']:
-                        if item['path'].endswith('.lean'):
-                            dst = challenge / item['path']
+                        if item['path'].endswith('.lean') and item['path'] != 'Challenge.lean':
+                            dst = solution / item['path']
                             dst.parent.mkdir(parents=True, exist_ok=True)
                             shutil.copyfile(problem_dir / item['path'], dst)
-                    solution = source_root / 'solution'
-                    solution.mkdir()
-                    source_hashes = candidate_sources(submission, solution, problem=problem if environment else None,
-                        environment=environment, registry_root=root)
-                    if environment:
-                        # Shared trusted definitions are copied after the candidate overlay;
-                        # collision checking above prohibits their replacement.
-                        for item in problem['trusted_files']:
-                            if item['path'].endswith('.lean') and item['path'] != 'Challenge.lean':
-                                dst = solution / item['path']
-                                dst.parent.mkdir(parents=True, exist_ok=True)
-                                shutil.copyfile(problem_dir / item['path'], dst)
-                    proof = verify(selected_image, challenge, solution, module,
-                                   problem['required_theorems'], output / identifier, environment=environment,
-                                   solution_declarations=[t['declaration'] for t in submission['targets']])
-                    proof['source_hashes'] = source_hashes
-                    proof['verification_status'] = ('verified' if problem['review']['status'] == 'approved' else 'review_pending') if proof['machine_status'] == 'passed' else proof.get('failure_status', 'failed')
-                    shutil.copytree(challenge, output / identifier / 'inputs/challenge')
-                    shutil.copytree(solution, output / identifier / 'inputs/solution')
-                    (output / identifier / 'inputs/submission.json').write_text(json.dumps(submission, indent=2))
-                    (output / identifier / 'inputs/problem.json').write_text(json.dumps(problem, indent=2))
-                    proof['input_digest'] = canonical_digest({'submission': submission,
-                        'problem': problem, 'environment': environment, 'sources': source_hashes, 'policy': trusted['policy'], 'verifier_sha': base})
-                    proof['candidate_commit'] = submission['commit']
-                    result['submissions'][identifier] = proof
-                    if proof['verification_status'] != 'verified':
-                        result['status'] = 'failed'
-            except (RegistryError, OSError, ValueError) as exc:
-                result['status'] = 'failed'
-                classification = (exc.status if isinstance(exc, VerificationError) else
-                                  'infrastructure_error' if isinstance(exc, OSError) else 'not_run')
-                result['submissions'][identifier] = {'machine_status': 'not_run', 'verification_status': classification, 'error': str(exc)}
-            proof = result['submissions'][identifier]
-            proof.update({'bindings': bindings, 'targets': problem['required_theorems'],
-                          'candidate_targets': [t['declaration'] for t in submission['targets']],
-                          'review_status': problem['review']['status'], 'formal_status': 'pending'})
-            if not check_only:
-                evidence = output / identifier
-                evidence.mkdir(parents=True, exist_ok=True)
-                (evidence / 'result.json').write_text(json.dumps(proof, indent=2) + '\n')
-                write_report(evidence / 'report.md', identifier, proof)
-        return result
+                proof = verify(selected_image, challenge, solution, module,
+                               problem['required_theorems'], output / identifier, environment=environment,
+                               solution_declarations=[t['declaration'] for t in submission['targets']])
+                proof['source_hashes'] = source_hashes
+                proof['source_adaptations'] = adaptations
+                if original_sources.exists():
+                    shutil.copytree(original_sources, output / identifier / 'inputs/original')
+                proof['verification_status'] = ('verified' if problem['review']['status'] == 'approved' else 'review_pending') if proof['machine_status'] == 'passed' else proof.get('failure_status', 'failed')
+                shutil.copytree(challenge, output / identifier / 'inputs/challenge')
+                shutil.copytree(solution, output / identifier / 'inputs/solution')
+                (output / identifier / 'inputs/submission.json').write_text(json.dumps(submission, indent=2))
+                (output / identifier / 'inputs/problem.json').write_text(json.dumps(problem, indent=2))
+                proof['input_digest'] = canonical_digest({'submission': submission,
+                    'problem': problem, 'environment': environment, 'sources': source_hashes, 'policy': trusted['policy'], 'verifier_sha': base})
+                proof['candidate_commit'] = submission['commit']
+                result['submissions'][identifier] = proof
+                if proof['verification_status'] != 'verified':
+                    result['status'] = 'failed'
+        except (RegistryError, OSError, ValueError) as exc:
+            result['status'] = 'failed'
+            classification = (exc.status if isinstance(exc, VerificationError) else
+                              'infrastructure_error' if isinstance(exc, OSError) else 'not_run')
+            result['submissions'][identifier] = {'machine_status': 'not_run', 'verification_status': classification, 'error': str(exc)}
+        proof = result['submissions'][identifier]
+        proof.update({'bindings': bindings, 'targets': problem['required_theorems'],
+                      'candidate_targets': [t['declaration'] for t in submission['targets']],
+                      'review_status': problem['review']['status'], 'formal_status': 'pending'})
+        if not check_only:
+            evidence = output / identifier
+            evidence.mkdir(parents=True, exist_ok=True)
+            (evidence / 'result.json').write_text(json.dumps(proof, indent=2) + '\n')
+            write_report(evidence / 'report.md', identifier, proof)
+            from .results import write_result
+            write_result(evidence / 'verification-result.json', identifier, proof)
+    return result
 
 
 def main():

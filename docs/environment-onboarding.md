@@ -2,6 +2,11 @@
 
 An environment is a shared configuration, not a workflow per candidate. Its descriptor fixes compiler/exporter versions, dependency workspace hashes, cache scope and resource limits. The descriptor digest is included in every problem workspace and result.
 
+Use `python -m verifier draft-environment --help` to generate a pending descriptor
+from static metadata and explicitly supplied tool pins. Backend regression CI now
+discovers descriptors automatically; no per-environment workflow entry is needed.
+See [generic intake](generic-intake.md) for the complete draft and test procedure.
+
 ## Static discovery
 
 ```bash

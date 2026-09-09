@@ -1,5 +1,6 @@
 """Real positive and adversarial proof tests; requires an immutable backend image."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -9,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from verifier.lean_backend import verify
 from verifier.environments import load_environments
 from verifier.registry import ROOT
+from verifier.source_adaptation import adapt
 
 BASE = 'theorem target (n : Nat) : n + 0 = n := '
 CASES = [
@@ -90,6 +92,52 @@ def main():
                     and 'candidate_target_coverage' not in result['stages'] and reason in result.get('error', ''))
             results.append({'case': name, 'test_passed': okay, 'error': result.get('error')})
             print(json.dumps(results[-1]), flush=True)
+    # The common source adapter must support an upstream Challenge module without
+    # allowing the candidate to replace the official Challenge input.
+    for borrows_placeholder in (False, True):
+        name = 'adapted_challenge_sorry' if borrows_placeholder else 'adapted_challenge'
+        with tempfile.TemporaryDirectory(prefix='lean-adapt-') as folder:
+            root = Path(folder)
+            (root/'challenge').mkdir(); (root/'solution').mkdir()
+            definition = 'def claim (n : Nat) : Prop := n + 0 = n\n'
+            (root/'challenge/Challenge.lean').write_text(prefix + definition +
+                'theorem official (n : Nat) : claim n := by sorry\n')
+            original_challenge = (prefix + definition +
+                'theorem placeholder (n : Nat) : claim n := by sorry\n').encode()
+            original_solution = ('import Challenge\ntheorem upstream (n : Nat) : claim n := ' +
+                ('placeholder n\n' if borrows_placeholder else 'by rfl\n')).encode()
+            for path, data, destination, replacements in [
+                ('Challenge.lean', original_challenge, 'CandidateChallenge.lean', []),
+                ('Submission.lean', original_solution, 'Submission.lean',
+                 [{'old':'import Challenge\n','new':'import CandidateChallenge\n','count':1}]),
+            ]:
+                transform = {'destination':destination,'sha256':hashlib.sha256(data).hexdigest(),'replacements':replacements}
+                target, changed = adapt(path, data, transform, max_bytes=1024*1024)
+                (root/'solution'/target).write_bytes(changed)
+            (root/'solution/Bridge.lean').write_text('import Submission\ntheorem official (n : Nat) : claim n := upstream n\n')
+            result = verify(args.image, root/'challenge', root/'solution', 'Bridge', ['official'],
+                            args.output/name, environment=environment, solution_declarations=['upstream'])
+            okay = (result['machine_status'] == ('failed' if borrows_placeholder else 'passed') and
+                    'solution_clean_build_export' in result['stages'])
+            if borrows_placeholder:
+                okay = okay and 'sorryAx' in result.get('error', '')
+            results.append({'case':name,'test_passed':okay,'error':result.get('error')})
+            print(json.dumps(results[-1]), flush=True)
+    # Check every declared cache entry is actually importable offline. These are
+    # availability probes, not proof compatibility evidence for arbitrary users
+    # of those modules; each candidate still undergoes the complete check chain.
+    if environment and environment['dependency_mode'] == 'mathlib-cache':
+        for module in environment['cache_modules'] or ['Mathlib']:
+            name = 'cache-import-' + module
+            with tempfile.TemporaryDirectory(prefix='lean-import-') as folder:
+                root = Path(folder)
+                (root/'challenge').mkdir(); (root/'solution').mkdir()
+                (root/'challenge/Challenge.lean').write_text('import ' + module + '\ntheorem target : True := by sorry\n')
+                (root/'solution/Solution.lean').write_text('import ' + module + '\ntheorem target : True := by trivial\n')
+                result = verify(args.image, root/'challenge', root/'solution', 'Solution', ['target'],
+                                args.output/name, environment=environment)
+                results.append({'case':name,'test_passed':result['machine_status'] == 'passed','error':result.get('error')})
+                print(json.dumps(results[-1]), flush=True)
     (args.output/'summary.json').write_text(json.dumps(results,indent=2)+'\n')
     return 0 if all(r['test_passed'] for r in results) else 1
 
