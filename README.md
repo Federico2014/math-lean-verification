@@ -32,17 +32,15 @@ per submission. Each row links the registration, fixed proof commit and actual
 verification evidence. Registration, Lean proof verification and award decisions
 are separate states; environment regression success is not a candidate result.
 
-**No candidates are registered yet.** The DGG-compatible environment
-`lean-4-32-rc1-mathlib-dgg` is approved with
-[21 passing onboarding cases](docs/dgg-environment-onboarding.md). The DGG proof
-has not been registered or verified by this repository.
-[Issue #12](https://github.com/Federico2014/math-lean-verification/issues/12)
-tracks its intake. The [DGG v1 problem workspace](problems/dgg-cost/v1/statement.md)
-is registered with mathematical review `pending`; the next step is a separate
-candidate registration PR using its approved environment and proof interface.
+The DGG submission uses the approved `lean-4-32-rc1-mathlib-dgg` environment and
+the [DGG v1 problem workspace](problems/dgg-cost/v1/statement.md). Mathematical
+review remains `pending`; even a successful machine check reports
+`review_pending` until that review is approved. [Issue #12](https://github.com/Federico2014/math-lean-verification/issues/12)
+tracks the intake and review work.
 
 | Candidate / submission | Statement version / registration | Fixed proof source | Lean verification / evidence |
 | --- | --- | --- | --- |
+| DGG / Goemans cost conjecture — `dgg-cost-jyh` | [dgg-cost/v1](problems/dgg-cost/v1/statement.md) / [registration](submissions/dgg-cost/dgg-cost-jyh.json) | [jyh/dinitz-verify @ ffba352](https://github.com/jyh/dinitz-verify/tree/ffba3523f0edd14be3460d039f22a6b98c02fd9e) | `not_run` — initial registration; real CI evidence pending |
 
 Add the row in the candidate registration PR so it appears on `main` when merged.
 Use `not_run` until a bound machine result exists; link the exact run when reporting
