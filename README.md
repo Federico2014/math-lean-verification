@@ -25,6 +25,25 @@ The [generic intake guide](docs/generic-intake.md) covers `draft-submission`,
 environment regression matrices and protected-main revalidation. Drafts and
 environment test success never grant approval.
 
+## Registered candidates
+
+Candidates whose registration PRs are merged into `main` are listed here, one row
+per submission. Each row links the registration, fixed proof commit and actual
+verification evidence. Registration, Lean proof verification and award decisions
+are separate states; environment regression success is not a candidate result.
+
+**No candidates are registered yet.** DGG environment onboarding is tracked in
+[PR #10](https://github.com/Federico2014/math-lean-verification/pull/10); its proof
+has not been registered or verified by this repository.
+
+| Candidate / submission | Statement version / registration | Fixed proof source | Lean verification / evidence |
+| --- | --- | --- | --- |
+
+Add the row in the candidate registration PR so it appears on `main` when merged.
+Use `not_run` until a bound machine result exists; link the exact run when reporting
+`passed` or `failed`. Source, environment or verification-rule changes require a
+fresh result; an earlier pass must not describe changed inputs.
+
 ## Adding a candidate
 
 **The normal path is: provide the proof source → reuse a reviewed problem and approved environment → open a registration PR → inspect the automatic CI result.** The same workflow handles future candidates; an ordinary submission does not need a new workflow. Actual Lean execution happens in isolated CI containers. Local commands below only prepare or validate registration data.
@@ -77,7 +96,7 @@ Validate the completed registration locally:
 python -m verifier validate
 ```
 
-This checks metadata and hashes; it does not execute Lean. Commit the registration and any bridge files on your branch or fork, then open a PR targeting `main`. Link the candidate issue and describe the official target mapping and any source adaptation. Opening or updating the PR automatically triggers **Trusted Lean verification**; no local Lean run is required.
+This checks metadata and hashes; it does not execute Lean. Update the [registered candidate list](#registered-candidates), commit the registration and any bridge files on your branch or fork, then open a PR targeting `main`. Link the candidate issue and describe the official target mapping and any source adaptation. Opening or updating the PR automatically triggers **Trusted Lean verification**; no local Lean run is required.
 
 ### 5. Read the CI result and correct failures
 
