@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "environment_id": "lean-4-32-rc1-mathlib-dgg",
-  "description": "Pending Lean 4.32.0-rc1 environment matching jyh/dinitz-verify at ffba3523f0edd14be3460d039f22a6b98c02fd9e, with fixed Mathlib 360da6fa66c1273b76b6b2d8c5666fd5ac2e3b56 and its full import scope. Compatibility and resource coverage require real onboarding tests; this descriptor does not register or verify the DGG candidate.",
-  "status": "pending",
-  "evidence_url": null,
+  "description": "Approved Lean 4.32.0-rc1 environment matching jyh/dinitz-verify at ffba3523f0edd14be3460d039f22a6b98c02fd9e, with fixed Mathlib 360da6fa66c1273b76b6b2d8c5666fd5ac2e3b56 and its full import scope. Real proof, cache and sandbox regressions passed within the configured limits; candidate proofs require separate verification.",
+  "status": "approved",
+  "evidence_url": "https://github.com/Federico2014/math-lean-verification/actions/runs/34332650985",
   "lean_release": "v4.32.0-rc1",
   "lean_archive_sha256": "ce6e79dd19ea03c0bc17f9d565c3bac20cd2884561e3b431e5b293c1fbb2b5b3",
   "exporter_commit": "3de59f10bc4b4a0f2de698597aeb1246caa0df0a",
