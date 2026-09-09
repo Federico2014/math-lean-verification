@@ -7,12 +7,46 @@ import sys
 import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from verifier.lean_backend import verify
+from verifier.lean_backend import sandbox, verify
 from verifier.environments import load_environments
-from verifier.registry import ROOT
+from verifier.registry import ROOT, RegistryError
 from verifier.source_adaptation import adapt
 
 BASE = 'theorem target (n : Nat) : n + 0 = n := '
+CACHE_GUARD_PROBE = r'''
+import hashlib, os, subprocess, sys
+from pathlib import Path
+sys.path.insert(0, '/opt/environment')
+from cache_guard import check_cached_modules
+os.environ['PATH'] = '/opt/environment/lean/bin:' + os.environ['PATH']
+project = Path('/work/cache-probe')
+project.mkdir()
+(project/'lean-toolchain').write_text(Path('/opt/environment/project/lean-toolchain').read_text())
+(project/'lakefile.toml').write_text('name = "cache_probe"\n[[lean_lib]]\nname = "CacheProbe"\n')
+source = project/'CacheProbe.lean'
+source.write_text('theorem probe : True := by trivial\n')
+def build():
+    subprocess.run(['lake', 'build', '+CacheProbe'], cwd=project, check=True)
+def reject():
+    try:
+        check_cached_modules(project, ['CacheProbe'])
+    except RuntimeError as exc:
+        assert 'source rebuild is disabled' in str(exc), str(exc)
+    else:
+        raise AssertionError('Missing/stale cache was accepted')
+build()
+check_cached_modules(project, ['CacheProbe'])
+artifact = project/'.lake/build/lib/lean/CacheProbe.olean'
+artifact.unlink()
+reject()
+assert not artifact.exists(), 'Missing artifact was silently rebuilt'
+build()
+digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+source.write_text('theorem changed_probe : True := by trivial\n')
+reject()
+assert hashlib.sha256(artifact.read_bytes()).hexdigest() == digest, 'Stale artifact was rebuilt'
+print('Cache guard accepted restored artifacts and rejected missing/stale ones')
+'''
 CASES = [
     ('valid', BASE + 'by sorry\n', BASE + 'by rfl\n', ['target'], True),
     ('irrelevant_sorry', BASE + 'by sorry\n',
@@ -47,6 +81,21 @@ def main():
     environment = load_environments(ROOT)[args.environment] if args.environment else None
     prefix = 'import Mathlib.Data.Nat.Basic\n' if environment and environment['dependency_mode'] == 'mathlib-cache' else ''
     results = []
+    if environment:
+        # Exercise the real Lake guard in the sandbox on synthetic core-only
+        # inputs. Deliberately removing/changing artifacts must never rebuild.
+        with tempfile.TemporaryDirectory(prefix='cache-guard-probe-') as folder:
+            try:
+                code, out, err = sandbox(args.image, Path(folder),
+                    ['python3', '-c', CACHE_GUARD_PROBE], timeout=120,
+                    resources=environment['resources'])
+                result = {'case': 'cache_guard', 'test_passed': code == 0,
+                          'stdout': out.decode(errors='replace'), 'stderr': err.decode(errors='replace')}
+            except (RegistryError, OSError, ValueError) as exc:
+                result = {'case': 'cache_guard', 'test_passed': False, 'error': str(exc)}
+            (args.output/'cache-guard.json').write_text(json.dumps(result, indent=2)+'\n')
+            results.append(result)
+            print(json.dumps(result), flush=True)
     cases = list(CASES)
     if prefix:
         cases.append(('mathlib_lemma', 'theorem target : Function.Injective Nat.succ := by sorry\n',

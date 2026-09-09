@@ -29,6 +29,12 @@ Select an approved environment already admitted in `policy/verification.json`. C
 5. Record the immutable workflow run and measured limitations. Only then may a separate reviewed change set `status: approved` and add the ID to the policy allowlist. Recompute the descriptor digest when status or content changes.
 6. Bind a new/reviewed problem workspace to that approved digest. Updating an in-use environment invalidates workspace binding; prefer new IDs.
 
+After cache retrieval, image preparation runs `lake --no-build build` for the
+declared module scope. This can fill missing input hash metadata while rejecting
+stale or absent build targets without compiling them. The check has a 300-second
+deadline and a 10-second forced-termination grace period. Incomplete caches and
+budget failures stop onboarding; there is no automatic full-Mathlib rebuild.
+
 ## Local diagnostic execution
 
 These commands require Docker. Candidate Lean never executes on the host.
