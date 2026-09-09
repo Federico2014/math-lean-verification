@@ -54,8 +54,12 @@ def main(mode):
         if (current['state'] != 'open' or current['head']['sha'] != head
                 or current['base']['sha'] != os.environ['EXPECTED_BASE']):
             return
-        statuses = api('commits/' + head + '/statuses?per_page=100')
-        latest = next((s for s in statuses if s['context'] == 'lean-verification'), None)
+        latest = None
+        for page in range(1, 101):
+            statuses = api(f'commits/{head}/statuses?per_page=100&page={page}')
+            latest = next((s for s in statuses if s['context'] == 'lean-verification'), None)
+            if latest or len(statuses) < 100:
+                break
         if not latest or latest.get('target_url') != run_url() or latest['state'] != 'pending':
             return
         gate, result = os.environ['PLAN_STATUS'], os.environ['EXECUTION_RESULT']

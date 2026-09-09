@@ -47,21 +47,28 @@ def build(api, registry, base):
     require(api.get('branches/main')['commit']['sha'] == base, 'Catalog checkout is stale')
     workflow = api.get('actions/workflows/' + WORKFLOW)
     require(workflow['path'] == PATH, 'Unexpected verification workflow')
-    runs = [r for r in api.pages('actions/workflows/' + WORKFLOW + '/runs?branch=main&head_sha=' + base,
-                                'workflow_runs', max_pages=10)
-            if trusted_run(r, workflow, api.repository)]
-    runs.sort(key=lambda r: (r.get('run_started_at', ''), r['run_number'], r['run_attempt']), reverse=True)
+    def read_runs():
+        runs = [r for r in api.pages('actions/workflows/' + WORKFLOW + '/runs?branch=main&head_sha=' + base,
+                                    'workflow_runs', max_pages=10)
+                if trusted_run(r, workflow, api.repository)]
+        return sorted(runs, key=lambda r: (r.get('run_started_at', ''), r['run_number'], r['run_attempt']), reverse=True)
+    runs = read_runs()
+    def newest(values, identifier):
+        return next((r for r in values if r['head_sha'] == base and r.get('display_title') in (
+            f'Revalidate {base} all', f'Revalidate {base} {identifier}')), None)
+    def identity(run):
+        return (run['id'], run['run_attempt'], run['status']) if run else None
+    selected = {}
     entries = dict(registry['submissions'], **registry.get('candidates', {}))
     cache, rows = {}, []
     for identifier, candidate in sorted(entries.items()):
-        current_runs = [r for r in runs if r['head_sha'] == base and r.get('display_title') in (
-            f'Revalidate {base} all', f'Revalidate {base} {identifier}')]
+        run = newest(runs, identifier)
+        selected[identifier] = identity(run)
         row = {'id': identifier, 'title': candidate.get('title', identifier),
                'source': candidate.get('source') or {'repository': candidate['repository'], 'commit': candidate['commit']},
                'status': 'not_run', 'formal_status': 'pending', 'verifier_sha': base,
                'evidence_url': None}
-        if current_runs:
-            run = current_runs[0]  # Never fall back to an older pass after a retry fails.
+        if run:
             key = (run['id'], run['run_attempt'])
             if key not in cache:
                 jobs = list(api.pages(f'actions/runs/{key[0]}/attempts/{key[1]}/jobs', 'jobs'))
@@ -72,6 +79,9 @@ def build(api, registry, base):
             row['evidence_url'] = f'https://github.com/{api.repository}/actions/runs/{key[0]}/attempts/{key[1]}'
         row['history_url'] = f'https://github.com/{api.repository}/actions/workflows/{WORKFLOW}?query=branch%3Amain'
         rows.append(row)
+    latest_runs = read_runs()
+    require(all(selected[i] == identity(newest(latest_runs, i)) for i in entries),
+            'Verification attempts changed while generating catalog; retry publication')
     require(api.get('branches/main')['commit']['sha'] == base, 'Main moved while generating catalog')
     return {'schema_version': 1, 'verifier_sha': base,
             'generated_at': datetime.now(timezone.utc).isoformat(), 'candidates': rows}

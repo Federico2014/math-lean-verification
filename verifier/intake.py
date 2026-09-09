@@ -8,7 +8,7 @@ from pathlib import Path
 from .environments import discover, matches, relative_path
 from .registry import (ID, RegistryError, canonical_digest, data_files, read_json,
                        require, safe_file, schema_validate)
-from .source_adaptation import adapt
+from .source_adaptation import adapt, transforms_by_path
 
 
 def read_candidates(root, reserved=()):
@@ -37,6 +37,7 @@ def mappings(root):
     for path in data_files(Path(root), 'intake-mappings'):
         value = read_json(path)
         schema_validate('intake-mapping', value)
+        transforms_by_path(value)
         require(path.parent == Path(root) / 'intake-mappings' and ID.fullmatch(path.stem), 'Invalid mapping path')
         result[path.stem] = value
     return result
@@ -266,7 +267,7 @@ def prepare_one(identifier, candidate, registry, trusted_root, source_root, outp
                         'sha256': hashlib.sha256(data).hexdigest(), 'replacements': replacements})
             if mapping and 'source_transforms' in mapping:
                 transforms = copy.deepcopy(mapping['source_transforms'])
-            by_path = {t['path']: t for t in transforms}
+            by_path = transforms_by_path({'source_transforms': transforms})
             require(set(by_path) <= set(selected), 'Mapping transforms unselected sources')
             adapted = {}
             for path, data in selected.items():

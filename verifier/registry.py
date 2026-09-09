@@ -259,11 +259,13 @@ def plan_verification(root: Path, submission_id: str) -> dict[str, Any]:
     registry = validate_registry(root)
     if submission_id in registry.get('candidates', {}):
         candidate = registry['candidates'][submission_id]
-        return {'schema_version': 1, 'submission_id': submission_id,
+        result = {'schema_version': 1, 'plan_kind': 'candidate_intake', 'submission_id': submission_id,
                 'candidate_digest': canonical_digest(candidate), 'machine_status': 'not_run',
                 'formal_status': 'pending', 'blockers': ['trusted_ci_preparation_required'],
                 'candidate_repository': candidate['source']['repository'],
                 'candidate_commit': candidate['source']['commit']}
+        schema_validate('candidate-plan', result)
+        return result
     require(submission_id in registry["submissions"], "Unknown submission ID")
     submission = registry["submissions"][submission_id]
     problem = registry["problems"][(submission["problem_id"], submission["statement_version"])]

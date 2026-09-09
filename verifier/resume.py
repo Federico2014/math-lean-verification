@@ -5,11 +5,10 @@ from pathlib import Path
 import tempfile
 
 from .merge_gate import GitHub, run
-from .registry import require
+from .registry import RegistryError, require
 from .revalidate import revision
 
 WORKFLOW = 'lean-verification.yml'
-CONTEXT = 'lean-verification'
 
 
 def marker(number, head, base):
@@ -32,8 +31,12 @@ def resume(api, base, planner=run):
         number, head = pr['number'], pr['head']['sha']
         if not current(pr, api.repository, head, base) or pr.get('draft'):
             continue
-        files = list(api.pages(f'pulls/{number}/files', max_pages=31))
-        require(len(files) < 3000, 'Candidate PR file list may be truncated')
+        try:
+            files = list(api.pages(f'pulls/{number}/files', max_pages=31))
+            require(len(files) < 3000, 'Candidate PR file list may be truncated')
+        except (RegistryError, OSError) as exc:
+            reports.append({'pr': number, 'head': head, 'base': base, 'status': 'blocked', 'error': str(exc)})
+            continue
         if not any(f['filename'].startswith(('candidates/', 'submissions/', 'proofs/')) for f in files):
             continue
         identity = marker(number, head, base)
@@ -70,15 +73,11 @@ def resume(api, base, planner=run):
         if api.get('branches/main')['commit']['sha'] != base:
             break
         report = {'pr': number, 'head': head, 'base': base, 'plan': plan}
-        if plan['status'] == 'ready':
-            api.request('actions/workflows/' + WORKFLOW + '/dispatches', {
-                'ref': 'main', 'inputs': {'pr': str(number), 'expected_head': head, 'expected_base': base}})
-            report['status'] = 'dispatched'
-        else:
-            report['status'] = 'waiting'
-            api.request('statuses/' + head, {'state': 'failure', 'context': CONTEXT,
-                'description': 'Waiting for candidate preparation; see intake diagnostics',
-                'target_url': f'https://github.com/{api.repository}/actions/runs/' + os.environ['GITHUB_RUN_ID']})
+        # A short protected plan run also publishes waiting failures through the
+        # same serialized status jobs. No Lean matrix runs while blocked.
+        api.request('actions/workflows/' + WORKFLOW + '/dispatches', {
+            'ref': 'main', 'inputs': {'pr': str(number), 'expected_head': head, 'expected_base': base}})
+        report['status'] = 'dispatched' if plan['status'] == 'ready' else 'waiting'
         reports.append(report)
     return reports
 

@@ -9,7 +9,7 @@ and original names for attribution. Registration and CI results do not decide aw
    `candidates/<candidate-id>.json` and complete its fields. Supply a fixed public
    proof commit, all target modules/declarations, problem ID or original problem
    description, author/AI attribution, assumptions and publication permission.
-2. Open a PR targeting `main`. An Issue and local Lean execution are optional;
+2. Open one PR per candidate targeting `main`. An Issue and local Lean execution are optional;
    CI computes source hashes, selects approved configuration and prepares the bridge.
 3. Inspect the trusted CI plan and proof evidence. Update your PR if materials or
    proofs need correction. When configuration is pending, keep the PR open.

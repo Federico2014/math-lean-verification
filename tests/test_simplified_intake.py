@@ -148,6 +148,32 @@ class IntakeTests(unittest.TestCase):
         self.candidate['problem'] = {'title': 'Synthetic test', 'source_url': 'https://example.org/unrelated', 'scope': 'different'}
         self.assertEqual(self.prepare()['intake_status'], 'waiting_problem')
 
+    def test_candidate_plan_uses_its_explicit_checked_schema(self):
+        from verifier.registry import plan_verification, schema_validate
+        value = plan_verification(self.root, 'example-proof')
+        self.assertEqual(value['plan_kind'], 'candidate_intake')
+        schema_validate('candidate-plan', value)
+        self.assertEqual(value['machine_status'], 'not_run')
+
+    def test_candidate_delta_rejects_other_registrations_and_code(self):
+        from verifier.merge_gate import candidate_delta
+        candidate_delta(['example-proof'], {'candidates/example-proof.json', 'proofs/example-proof/Bridge.lean'})
+        for path in ('submissions/other/proof.json', 'proofs/other/Bridge.lean', 'policy/verification.json',
+                     '.github/workflows/lean-verification.yml', 'verifier/intake.py', 'README.md'):
+            with self.subTest(path=path), self.assertRaises(RegistryError):
+                candidate_delta(['example-proof'], {'candidates/example-proof.json', path})
+        with self.assertRaises(RegistryError):
+            candidate_delta(['first', 'second'], set())
+
+    def test_mapping_rejects_different_transforms_for_same_source_path(self):
+        from verifier.intake import mappings
+        first = {'path': 'Proofs/Main.lean', 'destination': 'Proofs/Main.lean', 'sha256': 'a'*64, 'replacements': []}
+        self.fixture.write('intake-mappings/example-proof.json', {'schema_version': 1,
+            'candidate_digest': canonical_digest(self.candidate), 'problem_id': 'test-problem', 'statement_version': 'v1',
+            'source_transforms': [first, dict(first, destination='Proofs/Other.lean')]})
+        with self.assertRaisesRegex(RegistryError, 'Duplicate source transform'):
+            mappings(self.root)
+
 
 class ResumeTests(unittest.TestCase):
     def setup_api(self, runs=()):
@@ -164,7 +190,7 @@ class ResumeTests(unittest.TestCase):
         api, pr = self.setup_api()
         planner = Mock(return_value={'status': 'blocked', 'blocked': {'example': 'waiting_environment'}})
         self.assertEqual(resume(api, 'b'*40, planner)[0]['status'], 'waiting')
-        self.assertIn('statuses/', api.request.call_args.args[0])
+        self.assertIn('/dispatches', api.request.call_args.args[0])
         api.request.reset_mock()
         planner.return_value = {'status': 'ready'}
         self.assertEqual(resume(api, 'b'*40, planner)[0]['status'], 'dispatched')
@@ -221,3 +247,22 @@ class ResumeTests(unittest.TestCase):
         self.assertEqual(resume(api, 'b'*40, planner)[0]['status'], 'already_dispatched')
         planner.assert_not_called()
         api.request.assert_not_called()
+
+    def test_oversized_pr_does_not_starve_later_candidate_prs(self):
+        api, first = self.setup_api()
+        second = copy.deepcopy(first)
+        second['number'] = 2
+        second['head']['sha'] = 'c'*40
+        api.get.side_effect = lambda path: {'commit': {'sha': 'b'*40}} if path == 'branches/main' else second
+        def pages(path, *args, **kwargs):
+            if path.startswith('actions/'):
+                return iter([])
+            if path.startswith('pulls?'):
+                return iter([first, second])
+            return iter([{'filename': 'candidates/example.json'}] * (3000 if path.startswith('pulls/1/') else 1))
+        api.pages.side_effect = pages
+        planner = Mock(return_value={'status': 'ready'})
+        result = resume(api, 'b'*40, planner)
+        self.assertEqual([r['status'] for r in result], ['blocked', 'dispatched'])
+        self.assertEqual(api.request.call_args.args[1]['inputs']['pr'], '2')
+        planner.assert_called_once()

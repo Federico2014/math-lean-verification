@@ -97,25 +97,6 @@ class GitHub:
         return data
 
 
-def write_snapshot(api, tree, root):
-    for folder in ['problems', 'submissions', 'proofs', 'records', 'policy', 'environments', 'candidates']:
-        (root / folder).mkdir()
-    total = count = 0
-    for path, item in tree.items():
-        if not path.startswith(('problems/', 'submissions/', 'proofs/', 'records/', 'environments/', 'candidates/')):
-            continue
-        require(all(re.fullmatch('[A-Za-z0-9_][A-Za-z0-9_.-]*', p) and p not in ('.', '..')
-                    for p in path.split('/')), 'Unsafe registry path')
-        count += 1
-        total += item.get('size', 0)
-        require(count <= 5000 and total <= 32 * 1024 * 1024, 'Registry snapshot exceeds limit')
-        destination = root / path
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(api.blob(item))
-    # The PR cannot supply its own acceptance policy or schema.
-    shutil.copyfile(ROOT / 'policy/verification.json', root / 'policy/verification.json')
-
-
 def select_submissions(trusted, proposed):
     old = trusted['submissions']
     new = proposed['submissions']
@@ -157,10 +138,10 @@ def proposal_snapshot(api, head, number, root):
         if item.get('previous_filename'):
             paths.append(item['previous_filename'])
         for path in paths:
+            changed.add(path)
             if not path.startswith(tuple(f + '/' for f in folders)):
                 continue
             relative_path(path)
-            changed.add(path)
             # These policies are read exclusively from the protected controller.
             if path.startswith(('policy/', 'intake-mappings/')):
                 continue
@@ -278,6 +259,16 @@ def candidate_sources(submission, destination, *, problem=None, environment=None
     return source_hashes
 
 
+def candidate_delta(identifiers, changed):
+    require(len(identifiers) <= 1, 'Candidate PR may contain at most one candidate')
+    if not identifiers:
+        return
+    identifier = identifiers[0]
+    require(all(p == 'candidates/' + identifier + '.json' or
+                (p.startswith('proofs/' + identifier + '/') and p.endswith('.lean')) for p in changed),
+            'Candidate PR may change only its candidate JSON and its own Lean overlays')
+
+
 def run(repository, pr_number, head, image, output, check_only=False, submission_id=None, images=None):
     api = GitHub(repository)
     pr = api.get('pulls/' + str(pr_number))
@@ -296,9 +287,7 @@ def run(repository, pr_number, head, image, output, check_only=False, submission
         require(set(old_candidates) <= set(new_candidates), 'Removing registered candidates requires a separate maintenance process')
         simple = [i for i, c in new_candidates.items() if c != old_candidates.get(i) or
                   any(p.startswith('proofs/' + i + '/') for p in changed)]
-        if simple:
-            require(not any(p.startswith(('problems/', 'environments/', 'policy/', 'intake-mappings/')) for p in changed),
-                    'Candidate PR cannot change protected preparation inputs')
+        candidate_delta(simple, changed)
         from .intake import prepare_registry
         # Preparation is recomputed for each execution using current protected data.
         proposed = prepare_registry(proposed, ROOT, root, root, simple)

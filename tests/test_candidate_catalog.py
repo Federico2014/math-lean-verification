@@ -73,3 +73,16 @@ class CatalogTests(unittest.TestCase):
         self.api.pages.side_effect = OSError('unavailable')
         with self.assertRaises(OSError):
             self.catalog()
+
+    def test_new_attempt_during_generation_invalidates_the_snapshot(self):
+        reads = 0
+        def pages(path, *args, **kwargs):
+            nonlocal reads
+            if '/workflows/' in path:
+                reads += 1
+                newer = dict(self.run, run_attempt=2, status='queued')
+                return iter([self.run] if reads == 1 else [newer])
+            return iter([self.job])
+        self.api.pages.side_effect = pages
+        with self.assertRaisesRegex(RegistryError, 'attempts changed'):
+            self.catalog()

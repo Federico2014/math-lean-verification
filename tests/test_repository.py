@@ -46,7 +46,7 @@ class RepositoryTests(unittest.TestCase):
                 for name, job in workflow["jobs"].items():
                     self.assertEqual(job["runs-on"], "ubuntu-24.04")
                     allowed = {
-                        ('resume-candidates.yml', 'resume'): {'contents': 'read', 'pull-requests': 'read', 'actions': 'write', 'statuses': 'write'},
+                        ('resume-candidates.yml', 'resume'): {'contents': 'read', 'pull-requests': 'read', 'actions': 'write'},
                         ('candidate-catalog.yml', 'build'): {'contents': 'read', 'actions': 'read'},
                         ('candidate-catalog.yml', 'deploy'): {'pages': 'write', 'id-token': 'write'},
                     }
@@ -64,6 +64,8 @@ class RepositoryTests(unittest.TestCase):
         jobs = workflow["jobs"]
         self.assertNotIn("permissions", jobs["verify"])
         self.assertEqual(jobs["verify"]["needs"], ["resolve", "plan"])
+        self.assertEqual(jobs['resolve']['concurrency'], jobs['publish']['concurrency'])
+        self.assertEqual(jobs['resolve']['concurrency']['cancel-in-progress'], 'false')
         for name in ["resolve", "publish"]:
             self.assertEqual(jobs[name]["permissions"], {"contents": "read", "statuses": "write"})
         for name, job in jobs.items():

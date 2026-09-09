@@ -13,6 +13,10 @@ existing internal submission structure with exact hashes. The registered
 workspace selects a compatible approved environment; multiple environments never
 cause an arbitrary choice.
 
+`python -m verifier plan` emits `plan_kind: candidate_intake` for unresolved
+candidates, validated by `schemas/candidate-plan.schema.json`. Existing internal
+submission plans retain `schemas/plan.schema.json`. Both remain non-executing.
+
 A new problem description waits for a protected `intake-mappings/<id>.json`
 correspondence. Each exceptional mapping binds the entire candidate digest.
 Dynamic/custom Lake metadata also requires its exact `reviewed_metadata_sha256`.
@@ -37,11 +41,13 @@ closed/draft PRs, and replans relevant candidate changes as data. Multiple block
 remain visible in the uploaded `candidate-resume-*` report. Waiting tasks finish;
 no runner is held open while a maintainer works.
 
-Ready PRs receive an explicit `workflow_dispatch` of `lean-verification.yml` on
+Each new candidate identity receives a short protected plan run through an explicit `workflow_dispatch` of `lean-verification.yml` on
 main with PR number, expected head and expected base. The gate applies only changed
 PR registry files to current protected data. Candidate PRs cannot change their own
 approval, policy, environment or preparation mappings. Dispatches are deduplicated
-by PR/head/base. All gate entry points share PR concurrency. The resolver rejects
+by PR/head/base. All gate entry points share PR concurrency; resolver and publisher status writes
+also share a non-cancelling per-PR job lock. Blocked plans finish without a Lean
+matrix. The scheduler never writes commit statuses itself. The resolver rejects
 stale identities; the publisher ignores closed/moved PRs and superseded pending
 statuses. A failure before proof execution gets at most one automatic retry per identity.
 An executed proof failure requires correction or an explicit retry. Maintainers
@@ -78,8 +84,7 @@ itself. Their production event-chain test follows deployment to main.
 Once, select **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 Allow the `github-pages` environment to deploy only from main. The catalog build
 has `contents: read` / `actions: read`; only its deployment job has `pages: write`
-and `id-token: write`. Scheduler write permissions are limited to workflow dispatch
-and commit status publication; it executes no candidate code. No PAT or GitHub App
+and `id-token: write`. Scheduler write permissions are limited to workflow dispatch; it executes no candidate code. No PAT or GitHub App
 is needed. Keep required branch checks and protected configuration review enabled.
 
 After activation, use a synthetic candidate in a disposable test repository to

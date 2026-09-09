@@ -65,7 +65,7 @@ Replace template placeholders. An Issue is optional. You do not need a local
 Lean installation, environment ID, source hashes, generated registration or
 README edit. Use `source.project_root` for a project in a subdirectory.
 
-### 2. Open one PR against main
+### 2. Open one PR per candidate against main
 
 Opening or updating the PR automatically triggers **Trusted Lean verification**.
 CI reads the fixed source as data, matches approved environments, selects local

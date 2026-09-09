@@ -37,8 +37,9 @@ Reference: [GitHub Actions security](https://docs.github.com/en/actions/referenc
 
 ## Candidate preparation and publication
 
-The main-only recovery scheduler has Actions/status write access and handles bounded
-candidate data without executing Lean, Lake or plugins. Candidate PRs cannot alter
+The main-only recovery scheduler has Actions dispatch access and handles bounded
+candidate data without executing Lean, Lake or plugins. Status writes remain in the serialized
+resolver/publisher jobs, including non-passing preparation outcomes. Candidate PRs cannot alter
 protected mappings or approvals used for their own preparation. An exact candidate
 and metadata digest binds exceptional static adaptation. Description-only problem
 matching requires maintainer correspondence; a matching title is insufficient.

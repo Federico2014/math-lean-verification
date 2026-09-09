@@ -8,11 +8,10 @@ import os
 from pathlib import Path
 import re
 import subprocess
-import shutil
 import tempfile
 
 from .merge_gate import execute_candidates, prerequisites
-from .registry import ROOT, RegistryError, VerificationError, read_json, require, validate_registry
+from .registry import ROOT, RegistryError, VerificationError, read_json, require, safe_file, validate_registry
 
 
 def plan(registry, submission=None):
@@ -62,8 +61,14 @@ def main():
         from .intake import prepare_registry
         with tempfile.TemporaryDirectory(prefix='lean-revalidate-') as temporary:
             prepared_root = Path(temporary)
-            if (ROOT / 'proofs').exists():
-                shutil.copytree(ROOT / 'proofs', prepared_root / 'proofs')
+            if not args.plan and args.submission in registry['submissions']:
+                item = registry['submissions'][args.submission]
+                for file in item.get('execution', {}).get('proof_files', []):
+                    relative = 'proofs/' + args.submission + '/' + file['path']
+                    source = safe_file(ROOT, relative)
+                    destination = prepared_root / relative
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    destination.write_bytes(source.read_bytes())
             registry = prepare_registry(registry, ROOT, ROOT, prepared_root,
                                         [args.submission] if args.submission else None)
             return execute(args, base, registry, prepared_root)
