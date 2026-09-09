@@ -13,7 +13,14 @@ def write_result(path, identifier, proof):
         'completed_stages': proof.get('stages', []), 'failed_stage': proof.get('failed_stage'),
         'input_digest': proof.get('input_digest'), 'image_id': proof.get('image_id'),
         'error': proof.get('error')}
+    value['review_approval_kind'] = proof.get('review_approval_kind',
+        'independent_review' if proof['review_status'] == 'approved' else 'unapproved')
+    value['review_administrator'] = proof.get('review_administrator')
     schema_validate('result', value)
+    require((value['review_approval_kind'] == 'unapproved') == (value['review_status'] != 'approved'),
+            'Approval kind must match review status')
+    require((value['review_approval_kind'] == 'administrator_exception') ==
+            (value['review_administrator'] is not None), 'Administrator approval must identify its authority')
     require(value['verification_status'] != 'verified' or
             (value['machine_status'] == 'passed' and value['review_status'] == 'approved'),
             'Verification requires machine success and exact statement approval')

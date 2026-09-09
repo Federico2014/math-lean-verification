@@ -33,14 +33,17 @@ verification evidence. Registration, Lean proof verification and award decisions
 are separate states; environment regression success is not a candidate result.
 
 The DGG submission uses the approved `lean-4-32-rc1-mathlib-dgg` environment and
-the [DGG v1 problem workspace](problems/dgg-cost/v1/statement.md). Mathematical
-review remains `pending`; even a successful machine check reports
-`review_pending` until that review is approved. [Issue #12](https://github.com/Federico2014/math-lean-verification/issues/12)
-tracks the intake and review work.
+[DGG v1 workspace](problems/dgg-cost/v1/statement.md). Its approval is an explicit
+[administrator exception](docs/administrator-approvals/dgg-cost-v1.md) by
+`Federico2014`; two-person independent mathematical review remains incomplete.
+[Issue #12](https://github.com/Federico2014/math-lean-verification/issues/12)
+tracks the review work. The [earlier machine diagnostic](https://github.com/Federico2014/math-lean-verification/actions/runs/34338489851)
+passed at candidate PR commit `7f1b502`, with final state `review_pending`.
+Fresh evidence is required after the changed statement approval and policy.
 
 | Candidate / submission | Statement version / registration | Fixed proof source | Lean verification / evidence |
 | --- | --- | --- | --- |
-| DGG / Goemans cost conjecture — `dgg-cost-jyh` | [dgg-cost/v1](problems/dgg-cost/v1/statement.md) / [registration](submissions/dgg-cost/dgg-cost-jyh.json) | [jyh/dinitz-verify @ ffba352](https://github.com/jyh/dinitz-verify/tree/ffba3523f0edd14be3460d039f22a6b98c02fd9e) | `not_run` — initial registration; real CI evidence pending |
+| DGG / Goemans cost conjecture — `dgg-cost-jyh` | [dgg-cost/v1](problems/dgg-cost/v1/statement.md) / [registration](submissions/dgg-cost/dgg-cost-jyh.json) | [jyh/dinitz-verify @ ffba352](https://github.com/jyh/dinitz-verify/tree/ffba3523f0edd14be3460d039f22a6b98c02fd9e) | `not_run` — awaiting fresh evidence after administrator approval |
 
 Add the row in the candidate registration PR so it appears on `main` when merged.
 Use `not_run` until a bound machine result exists; link the exact run when reporting
@@ -110,7 +113,7 @@ Open the **Trusted Lean verification** run from the PR checks. Inspect `lean-pla
 - Missing workspace, unsupported environment or stale hash: correct the registration or complete maintainer onboarding.
 - Build, statement, axiom or replay failure: fix the proof or bridge, update the bound commit/hashes and push again.
 - `review_pending`: machine checks passed, but mathematical review still blocks the gate.
-- `verified`: machine checks and the bound statement review passed; formal acceptance and award decisions remain separate.
+- `verified`: machine checks and the bound approval policy passed. Inspect `review_approval_kind`: `independent_review` records normal review, while `administrator_exception` records an explicit statement-specific waiver. Formal acceptance and award decisions remain separate.
 
 Each update needs fresh verification. Maintainers can rerun **Trusted Lean verification** from `main` with the open PR number. After relevant changes reach `main`, **Revalidate registered Lean proofs** rechecks registered candidates. See [the contribution process](CONTRIBUTING.md) for review and evidence requirements.
 

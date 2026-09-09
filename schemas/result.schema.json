@@ -181,6 +181,26 @@
           "type": "null"
         }
       ]
+    },
+    "review_approval_kind": {
+      "enum": [
+        "unapproved",
+        "independent_review",
+        "administrator_exception"
+      ]
+    },
+    "review_administrator": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 39,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,38}$(?![\\s\\S])"
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "required": [

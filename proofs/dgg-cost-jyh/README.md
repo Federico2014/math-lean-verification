@@ -24,8 +24,11 @@ to Jason Hickey with Claude. These are source attributions pending independent
 review. The Apache-2.0 license is included verbatim in the bridge comment so
 it accompanies the original and adapted sources in CI evidence snapshots.
 
-The expected initial machine state is `not_run`. Real CI uses the approved
-DGG environment, compares the official statement and definitions, audits
-axioms, and performs Lean plus Nanoda replay. Successful machine checks still
-produce `review_pending` while mathematical review of the protected problem
-is incomplete. No source script or candidate Lake configuration is run on the host.
+Real CI uses the approved DGG environment, compares the official statement and
+definitions, audits axioms, and performs Lean plus Nanoda replay. The original
+run passed machine checks and reported `review_pending`. The protected problem
+is now approved by a documented administrator exception; fresh CI can report
+`verified` only after machine checks pass again, with
+`review_approval_kind: administrator_exception`. Independent mathematical review
+and formal acceptance remain incomplete. No source script or candidate Lake
+configuration is run on the host.
