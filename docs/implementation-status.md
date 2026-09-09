@@ -58,7 +58,7 @@ exception mappings, automatic import closure/bridging, current-main PR delta
 application, main-triggered recovery, stale-status suppression and a generated
 Pages candidate catalog. See [operations and deployment](simplified-intake.md).
 No existing approved environment, reviewer policy or candidate is changed by this
-implementation. Real backend tests now exercise the generated inferred-type bridge.
+implementation. Real backend tests now exercise the generated constant-type bridge.
 
 Production activation requires merging this implementation, enabling GitHub Pages,
 and recording actual recovery/merge/catalog event-chain evidence. Local orchestration

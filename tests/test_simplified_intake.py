@@ -58,7 +58,9 @@ class IntakeTests(unittest.TestCase):
         self.assertEqual(value['submission']['execution']['include'], ['Proofs/Helper.lean', 'Proofs/Main.lean'])
         self.assertEqual(value['submission']['targets'][0]['official_theorem'], 'target')
         bridge = self.root / 'generated/proofs/example-proof/Bridge.lean'
-        self.assertIn('theorem target : _ :=\n  upstream', bridge.read_text())
+        self.assertIn('Lean.getConstInfo `upstream', bridge.read_text())
+        self.assertIn('name := `target', bridge.read_text())
+        self.assertIn('levelParams := info.levelParams', bridge.read_text())
         self.assertEqual(value['candidate_digest'], canonical_digest(self.candidate))
         self.assertEqual(value['environment_digest'], canonical_digest(self.env))
         self.assertNotIn('Unused.lean', value['source_hashes'])

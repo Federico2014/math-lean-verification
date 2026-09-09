@@ -135,6 +135,31 @@ def _targets(candidate, problem, mapping):
     return targets
 
 
+
+def bridge_source(targets, transforms=()):
+    """Alias exact constant types and universes inside the untrusted Lean sandbox.
+
+    Lean theorem headers cannot infer `_` from their proof. Register a theorem
+    using the source constant's complete type; ordinary kernel checking and all
+    downstream comparison/axiom/replay checks still apply.
+    """
+    by_path = {t['path']: t for t in transforms}
+    modules = sorted({by_path.get(t['module'].replace('.', '/') + '.lean', {}).get('destination',
+                      t['module'].replace('.', '/') + '.lean')[:-5].replace('/', '.') for t in targets})
+    lines = ['-- Generated bridge; checked as untrusted proof code.', 'import Lean']
+    lines += ['import ' + module for module in modules]
+    for target in targets:
+        if target['official_theorem'] == target['declaration']:
+            continue
+        source = target['declaration']
+        lines += ['', 'run_elab do', '  let info ← Lean.getConstInfo `' + source,
+                  '  Lean.addDecl (.thmDecl {', '    name := `' + target['official_theorem'],
+                  '    levelParams := info.levelParams', '    type := info.type',
+                  '    value := Lean.mkConst `' + source + ' (info.levelParams.map Lean.Level.param)',
+                  '  }) (forceExpose := true)']
+    return ('\n'.join(lines) + '\n').encode()
+
+
 def prepare_one(identifier, candidate, registry, trusted_root, source_root, output_root, api_factory=None):
     """Resolve a candidate using protected approvals; output contains no success claim."""
     from .merge_gate import GitHub
@@ -256,13 +281,7 @@ def prepare_one(identifier, candidate, registry, trusted_root, source_root, outp
             if candidate.get('bridge'):
                 bridge = safe_file(Path(source_root), 'proofs/' + identifier + '/' + candidate['bridge']).read_bytes()
             else:
-                module_names = sorted({by_path.get(t['module'].replace('.', '/') + '.lean', {}).get('destination',
-                                       t['module'].replace('.', '/') + '.lean')[:-5].replace('/', '.') for t in targets})
-                lines = ['-- Generated bridge; checked as untrusted proof code.'] + ['import ' + m for m in module_names]
-                for target in targets:
-                    if target['official_theorem'] != target['declaration']:
-                        lines += ['', 'theorem ' + target['official_theorem'] + ' : _ :=', '  ' + target['declaration']]
-                bridge = ('\n'.join(lines) + '\n').encode()
+                bridge = bridge_source(targets, transforms)
             # Preserve the upstream license in the archived generated overlay.
             for name in ('LICENSE', 'LICENSE.md', 'LICENSE.txt', 'COPYING'):
                 location = prefix + name if prefix + name in tree else name

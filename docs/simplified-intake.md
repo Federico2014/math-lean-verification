@@ -22,7 +22,7 @@ and require environment onboarding. Source changes invalidate these acknowledgme
 
 Standard `Challenge.lean` collisions are renamed to `CandidateChallenge.lean`
 with hash-bound import replacements. A generated bridge exposes each official
-name using the submitted declaration. Its inferred type must pass Comparator;
+name using the submitted declaration. Its exact upstream type and universe parameters must pass Comparator;
 extra premises or altered definitions cannot pass merely by renaming a theorem.
 Ambiguous target mappings require a protected mapping or explicit checked bridge.
 The complete upstream license, when present, is preserved as comments in the
