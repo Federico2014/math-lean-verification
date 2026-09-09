@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "submission_id": "dgg-cost-jyh",
+  "verification_status": "review_pending",
+  "machine_status": "passed",
+  "review_status": "pending",
+  "formal_status": "pending",
+  "bindings": {
+    "pr_head": "7f1b5029d4cb895e2e683bd9c51ed9340aaca3a8",
+    "base_sha": "3413e29baec76e47c439eeaa2d453e744c658d8d",
+    "upstream_commit": "ffba3523f0edd14be3460d039f22a6b98c02fd9e",
+    "workspace_digest": "a8ab4bd733ffb55edf17033c57ccba0f2dc7b09ddc023f3d22f6dc9acdd74ff8",
+    "environment_digest": "98af3ee95f2fe97c8abf67c05af0a89bafc0fa72a3ee8a20a4d53f3f8309a22d",
+    "policy_digest": "52fe5336271d58532f951e146d11effdc2e89cc908e7f168937c343b71902b6c",
+    "run_id": "34338489851",
+    "run_attempt": "1"
+  },
+  "official_targets": [
+    "OfficialDGG.goemans_cost_conjecture_false"
+  ],
+  "candidate_targets": [
+    "Submission.goemans_cost_conjecture_false"
+  ],
+  "completed_stages": [
+    "sandbox_probes",
+    "challenge_clean_build_export",
+    "solution_clean_build_export",
+    "candidate_target_coverage",
+    "statement_comparison",
+    "transitive_axiom_audit",
+    "official_kernel_replay",
+    "independent_nanoda_replay"
+  ],
+  "failed_stage": null,
+  "input_digest": "fd157bfe83721e86fe1dbe6ed961fdd247adc4850ec2e1f8455a711776c1ddf6",
+  "image_id": "sha256:270c52f479998aa2dcf1adc97999b8998689c39c996d74ff834072df6e168c5c",
+  "error": null
+}

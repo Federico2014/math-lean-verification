@@ -37,3 +37,11 @@ Maintainers must verify the authenticity of identities, blind drafting, and conf
 If a candidate uses a different encoding, provide a reviewed Lean bridge proof deriving the complete official target from the candidate result. Claims of equivalence require both directions. Do not change official definitions or add unauthorized assumptions to make a submission pass.
 
 The initial version does not allow arbitrary definition holes. Corrections invalidate the old official statement and require a new version and review. Keep old evidence records and mark them invalidated.
+
+## Supplemental technical evidence
+
+- [DGG v1 correspondence assessment, 2026-09-09](reviews/dgg-cost-v1-2026-09-09/review.md):
+  candidate-informed technical analysis with exact-input machine evidence and
+  a finite arithmetic cross-check. It is not an independent blind draft or an
+  accredited reviewer approval. Prospective blind reviewers should draft from
+  the original sources before reading this report.
