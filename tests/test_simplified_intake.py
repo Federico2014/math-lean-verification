@@ -1,7 +1,6 @@
 """Synthetic intake and protected-main resumption; never compile candidate code."""
 import copy
 import os
-from pathlib import Path
 import shutil
 import unittest
 from unittest.mock import Mock, patch

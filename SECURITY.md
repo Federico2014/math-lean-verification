@@ -12,7 +12,7 @@ Approved reviewer names in JSON are not identity authentication, proof of indepe
 
 - Repository CI uses `pull_request` and `push`, GitHub-hosted ephemeral runners, and read-only repository permissions. It has no repository secrets and no deployment authority.
 - PRs can modify tests and workflows. Their green checks are developer feedback, not authoritative formal evidence. Formal decisions must use an independently protected verifier revision.
-- Preflight runs only on the default branch via `workflow_dispatch`. It never executes candidate source.
+- The local `verifier plan` command produces non-executing diagnostics. Automatic CI planning precedes isolated proof execution in the trusted gate.
 - All Actions use full commit pins. Checkout does not persist credentials. Python CI dependencies use exact versions and hashes.
 - The trusted `pull_request_target` gate checks out only protected-base controller code. PR files are bounded data; candidate execution is confined to disposable containers in the read-only job. Separate status-only jobs consume trusted job outcomes, never candidate artifacts. No privileged `workflow_run`, self-hosted runner, or candidate build cache is enabled. Reviewed environment images may contain explicitly trusted, fixed Mathlib dependency caches; candidate builds cannot write to them.
 - CODEOWNERS only protects files when repository branch protection requires its review. Check actual GitHub settings using the maintainer runbook.

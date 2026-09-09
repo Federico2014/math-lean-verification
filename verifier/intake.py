@@ -112,8 +112,7 @@ def _problem(candidate, registry, mapping):
     if not pid:
         return None  # A description requires a protected correspondence mapping.
     values = [p for (i, v), p in registry['problems'].items()
-              if (i == pid if pid else p['title'] == candidate.get('problem', {}).get('title'))
-              and (version is None or v == version)]
+              if i == pid and (version is None or v == version)]
     return values[0] if len(values) == 1 else None
 
 
@@ -134,7 +133,6 @@ def _targets(candidate, problem, mapping):
     require(len(targets) == len(required) and {t['official_theorem'] for t in targets} == set(required),
             'Candidate must cover all official targets')
     return targets
-
 
 
 def bridge_source(targets, transforms=()):

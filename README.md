@@ -10,10 +10,10 @@ The DGG candidate has passed real Lean proof verification in CI, with result
 **`verified` under an explicit administrator exception for statement review**.
 See [Registered candidates](#registered-candidates) for the fixed proof source and
 exact verification run. **Formal acceptance remains pending.** Use
-`python -m verifier list` to list registrations and their statement review records;
+`python -m verifier list` to list registered candidate IDs;
 it does not retrieve CI results.
 
-Available components include candidate intake forms, registration schemas, original-problem and statement-correspondence templates, hash and target-coverage validation, CI tests, and a maintainer preflight entry point. The CI badge reports only repository code and registration checks.
+Available components include single-file candidate intake, registration schemas, original-problem and statement-correspondence templates, hash and target-coverage validation, and automatic CI verification. The Registry CI badge reports only repository code and registration checks.
 
 The [Lean merge gate](docs/lean-merge-gate.md) uses trusted problem workspaces, reusable environment configurations, explicit source mappings and checked proof bridges. It runs isolated builds, Comparator statement/axiom checks, and Lean plus Nanoda replay. The existing core/Std environment has onboarding evidence; the additional Lean 4.28 / Mathlib profile has [real onboarding evidence](docs/workspace-onboarding.md) for its explicitly limited module scope. Durable formal archives and reviewer accreditation remain separate activation requirements.
 
@@ -25,7 +25,7 @@ python -m verifier inspect-environment /path/to/project
 
 Reuse approved configurations whenever possible. Version differences normally add configuration, not another workflow; special requirements need explicit adaptation. See [environment onboarding](docs/environment-onboarding.md).
 
-The [generic intake guide](docs/generic-intake.md) covers `draft-submission`,
+The [environment and adaptation guide](docs/generic-intake.md) covers
 `draft-environment`, hash-bound source adaptation without a fork, automatic
 environment regression matrices and protected-main revalidation. Drafts and
 environment test success never grant approval.

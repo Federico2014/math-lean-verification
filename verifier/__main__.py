@@ -20,16 +20,6 @@ def main(argv=None) -> int:
     plan.add_argument("--output", type=Path, help="New output file; existing files are never overwritten")
     inspect = commands.add_parser('inspect-environment', help='Inspect local project metadata without executing Lake')
     inspect.add_argument('project', type=Path)
-    draft = commands.add_parser('draft-submission', help='Generate an intake draft without executing Lean')
-    draft.add_argument('project', type=Path)
-    draft.add_argument('--repository', required=True)
-    draft.add_argument('--commit', required=True)
-    draft.add_argument('--submission-id', required=True)
-    draft.add_argument('--problem-id', required=True)
-    draft.add_argument('--statement-version', default='v1')
-    draft.add_argument('--target', nargs=3, action='append', required=True,
-                       metavar=('MODULE', 'DECLARATION', 'OFFICIAL_THEOREM'))
-    draft.add_argument('--output', type=Path, required=True)
     env_draft = commands.add_parser('draft-environment', help='Generate a pending environment from static metadata')
     env_draft.add_argument('project', type=Path)
     env_draft.add_argument('--environment-id', required=True)
@@ -39,14 +29,6 @@ def main(argv=None) -> int:
     env_draft.add_argument('--output', type=Path, required=True)
     args = parser.parse_args(argv)
     try:
-        if args.command == 'draft-submission':
-            from .onboarding import submission_draft, write_new
-            value = submission_draft(args.project, args.root, repository=args.repository,
-                commit=args.commit, identifier=args.submission_id, problem_id=args.problem_id,
-                statement_version=args.statement_version, targets=args.target)
-            write_new(args.output, value)
-            print('Intake draft written. No proof executed; complete its listed blockers before registration.')
-            return 0
         if args.command == 'draft-environment':
             from .onboarding import environment_draft
             environment_draft(args.project, args.output, identifier=args.environment_id,

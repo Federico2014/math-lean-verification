@@ -15,7 +15,7 @@ import zipfile
 from verifier.environments import discover, inspect_project, load_environments, matches, relative_path
 from verifier.evidence import inspect_archive, seal
 from verifier.merge_gate import candidate_sources, prerequisites
-from verifier.registry import ROOT, RegistryError, canonical_digest, validate_registry
+from verifier.registry import ROOT, RegistryError, canonical_digest
 
 
 class EnvironmentTests(unittest.TestCase):

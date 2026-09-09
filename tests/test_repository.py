@@ -1,8 +1,7 @@
-"""Regression guards for actual bootstrap workflows and published schemas."""
+"""Regression guards for repository workflows and published schemas."""
 
 import re
 import unittest
-from pathlib import Path
 
 import yaml
 from jsonschema import Draft202012Validator
@@ -92,16 +91,6 @@ class RepositoryTests(unittest.TestCase):
                         self.assertNotIn("${{", step["run"])
                         self.assertNotIn("lake build", step["run"])
                         self.assertNotIn("continue-on-error", step)
-
-    def test_preflight_cannot_succeed_by_ignoring_blockers(self):
-        workflow = yaml.load((ROOT / ".github/workflows/preflight.yml").read_text(), Loader=yaml.BaseLoader)
-        self.assertEqual(set(workflow["on"]), {"workflow_dispatch"})
-        job = workflow["jobs"]["preflight"]
-        self.assertEqual(job["if"], "github.ref == 'refs/heads/main'")
-        plan = next(s for s in job["steps"] if "python -m verifier plan" in s.get("run", ""))
-        self.assertEqual(plan["run"], 'python -m verifier plan "$SUBMISSION_ID" --output plan.json')
-        self.assertNotIn("continue-on-error", job)
-        self.assertEqual(plan["env"]["SUBMISSION_ID"], "${{ inputs.submission_id }}")
 
     def test_ci_locks_have_exact_versions_hashes_and_match_dev_versions(self):
         pinned = []

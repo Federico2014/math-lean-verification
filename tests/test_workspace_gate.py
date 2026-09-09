@@ -3,7 +3,6 @@
 These test orchestration and review binding, not Lean proof correctness.
 """
 import json
-from pathlib import Path
 import shutil
 import unittest
 from unittest.mock import patch
