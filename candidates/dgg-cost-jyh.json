@@ -5,7 +5,8 @@
   "statement_version": "v1",
   "source": {
     "repository": "https://github.com/jyh/dinitz-verify",
-    "commit": "ffba3523f0edd14be3460d039f22a6b98c02fd9e"
+    "commit": "ffba3523f0edd14be3460d039f22a6b98c02fd9e",
+    "project_root": "."
   },
   "targets": [
     {
