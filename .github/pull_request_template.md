@@ -1,18 +1,25 @@
 ## Changes
 
-Explain the problem, scope, and behavior. Link the issue for candidate registrations.
+Describe the problem, scope and resulting behavior. Link related issues when applicable.
 
-## Validation
+## Candidate materials (if applicable)
+
+- [ ] Candidate JSON contains the original problem, fixed proof commit and all targets.
+- [ ] Publication permission, authorship, AI contribution and assumptions are documented.
+- [ ] CI preparation diagnostics and proof results have been checked.
+- [ ] Required new workspace/environment approvals are handled in separate maintenance PRs.
+
+CI generates hashes, internal registration and the candidate catalog. An Issue,
+local Lean execution and README result edits are not required.
+
+## Implementation validation (if applicable)
 
 - [ ] `python -m verifier validate`
 - [ ] `python -m unittest discover -s tests -v`
-- [ ] Original problem, scope, all targets, and fixed versions are documented (candidate registrations)
-- [ ] Publication authorization, sources, and attribution are documented (candidate registrations)
-
-- [ ] Existing environment reused, or a separate environment onboarding PR linked
-- [ ] Workspace digest, permitted source paths and bridge hashes are bound (candidate registrations)
-- [ ] README candidate list includes the registration, fixed proof source, and accurate verification status/evidence (candidate registrations)
+- [ ] Relevant real backend CI evidence is linked.
 
 ## Review impact
 
-Does this change official statements, definitions, toolchains, policy, or the verifier? If so, explain which previous review or verification records must be invalidated. Passing metadata CI does not mean a mathematical proof has passed.
+Does this change official statements, definitions, toolchains, policy or the verifier?
+Explain which previous review or verification records become stale. Metadata CI
+success does not establish proof validity or formal acceptance.

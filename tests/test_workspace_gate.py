@@ -3,7 +3,6 @@
 These test orchestration and review binding, not Lean proof correctness.
 """
 import json
-from pathlib import Path
 import shutil
 import unittest
 from unittest.mock import patch
@@ -50,8 +49,10 @@ class WorkspaceGateTests(unittest.TestCase):
             return {'machine_status': 'passed', 'stages': ['unit_test_stub_only']}
         with patch('verifier.merge_gate.ROOT', root), patch('verifier.merge_gate.subprocess.check_output', return_value='d'*40), \
              patch('verifier.merge_gate.GitHub') as api, patch('verifier.merge_gate.verify', side_effect=proof_engine):
-            api.return_value.get.return_value = {'state': 'open', 'head': {'sha': 'c'*40},
+            pr_data = {'state': 'open', 'head': {'sha': 'c'*40},
                 'base': {'sha': 'd'*40, 'ref': 'main', 'repo': {'full_name': 'example/registry'}}}
+            api.return_value.get.side_effect = lambda path: ([{'filename': 'submissions/test-problem/test-submission.json'}]
+                if '/files?' in path else pr_data)
             api.return_value.tree.side_effect = lambda sha: tree if sha == 'c'*40 else {'Proofs/Main.lean': {'data': b'theorem target : True := by trivial\n'}}
             api.return_value.blob.side_effect = lambda item: item['data']
             plan = run('example/registry', 1, 'c'*40, None, root/'plan', check_only=True)

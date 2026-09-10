@@ -1,4 +1,5 @@
 name: Trusted Lean verification
+run-name: Lean PR ${{ github.event.pull_request.number || inputs.pr }} ${{ github.event.pull_request.head.sha || inputs.expected_head }} ${{ github.event.pull_request.base.sha || inputs.expected_base }}
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -8,6 +9,14 @@ on:
         description: Open PR number to verify against current main
         required: true
         type: string
+      expected_head:
+        description: Expected PR head for automatic resumption
+        required: false
+        type: string
+      expected_base:
+        description: Expected protected main revision
+        required: false
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -15,6 +24,9 @@ concurrency:
   cancel-in-progress: true
 jobs:
   resolve:
+    concurrency:
+      group: lean-status-${{ github.event.pull_request.number || inputs.pr }}
+      cancel-in-progress: false
     if: github.event_name == 'pull_request_target' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -112,6 +124,9 @@ jobs:
             ${{ runner.temp }}/evidence-archive
           retention-days: 90
   publish:
+    concurrency:
+      group: lean-status-${{ github.event.pull_request.number || inputs.pr }}
+      cancel-in-progress: false
     needs: [resolve, plan, verify]
     if: always() && needs.resolve.result == 'success'
     runs-on: ubuntu-24.04

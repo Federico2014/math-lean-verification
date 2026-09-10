@@ -1,83 +1,16 @@
-"""Generate reviewable intake drafts without fetching or executing candidate code."""
-import copy
+"""Generate pending environment drafts without fetching or executing candidate code."""
 import json
-import os
 from pathlib import Path
 import re
 
-from .environments import discover, inspect_project
-from .registry import ROOT, file_digest, read_json, require, safe_file, schema_validate
-from .source_adaptation import lean_path
+from .environments import inspect_project
+from .registry import file_digest, read_json, require, safe_file, schema_validate
 
 
 def write_new(path, value):
     with Path(path).open('x', encoding='utf-8') as stream:
         json.dump(value, stream, indent=2)
         stream.write('\n')
-
-
-def submission_draft(project, root, *, repository, commit, identifier, problem_id,
-                     statement_version, targets):
-    template = copy.deepcopy(read_json(ROOT / 'templates/submission.json'))
-    template.update({'submission_id': identifier, 'problem_id': problem_id,
-        'statement_version': statement_version, 'repository': repository, 'commit': commit,
-        'targets': [{'module': module, 'declaration': declaration, 'official_theorem': official}
-                    for module, declaration, official in targets]})
-    # Validate supplied identities before using them in paths. Placeholders remain
-    # explicitly draft metadata and can never attest authorization or authorship.
-    schema_validate('submission', template)
-    inspection = discover(project, root)
-    blockers = list(inspection['warnings'])
-    approved = [match for match in inspection['matches'] if match['status'] == 'approved']
-    if len(approved) == 1:
-        template['toolchain_id'] = approved[0]['environment_id']
-    else:
-        blockers.append('environment_selection_required')
-    modules = []
-    # Include all local Lean inputs as an explicit proposal, not just the target
-    # files. Imports are not parsed as an authoritative dependency closure.
-    project = Path(project)
-    count = 0
-    for folder, directories, files in os.walk(project, followlinks=False):
-        directories[:] = [d for d in directories if not d.startswith('.')]
-        for directory in directories:
-            require(not (Path(folder) / directory).is_symlink(), 'Symlink in project sources')
-        count += len(directories) + len(files)
-        require(count <= 10000, 'Project discovery exceeds file limit')
-        for name in files:
-            if not name.endswith('.lean') or name == 'lakefile.lean' or name.startswith('.'):
-                continue
-            relative = (Path(folder) / name).relative_to(project).as_posix()
-            lean_path(relative)
-            safe_file(project, relative)
-            modules.append(relative)
-    require(bool(modules), 'No Lean source files found')
-    for module, _, _ in targets:
-        require(module.replace('.', '/') + '.lean' in modules, 'Target module source is missing')
-    patterns = sorted({path if '/' not in path else path.split('/')[0] + '/**' for path in modules})
-    template['execution'] = {'project_root': '.', 'include': patterns, 'proof_files': []}
-    schema_validate('submission', template)
-    statement_path = root / 'problems' / problem_id / statement_version / 'problem.json'
-    if not statement_path.exists():
-        blockers.append('official_workspace_required')
-    else:
-        from .registry import validate_registry
-        registry = validate_registry(root)
-        problem = registry['problems'][(problem_id, statement_version)]
-        require({t[2] for t in targets} == set(problem['required_theorems']) and
-                len(targets) == len(problem['required_theorems']), 'Draft must map every official target exactly once')
-        if problem['toolchain_id'] != template['toolchain_id']:
-            blockers.append('workspace_environment_mismatch')
-        if problem['review']['status'] != 'approved':
-            blockers.append('statement_review_pending')
-        if set(modules) & {f['path'] for f in problem['trusted_files']}:
-            blockers.append('source_adaptation_required')
-    # This is intentionally not a valid registration until the submitter completes
-    # provenance and permission fields. Do not fabricate author or license claims.
-    template['contribution']['public_source_authorized'] = False
-    blockers += ['complete_attribution_and_publication_permission', 'review_source_scope_and_bridge']
-    return {'schema_version': 1, 'kind': 'submission_draft', 'machine_status': 'not_run',
-            'blockers': blockers, 'inspection': inspection, 'submission': template}
 
 
 def environment_draft(project, output, *, identifier, archive_sha256, exporter_commit, cache_modules):

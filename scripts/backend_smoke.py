@@ -11,6 +11,7 @@ from verifier.lean_backend import sandbox, verify
 from verifier.environments import load_environments
 from verifier.registry import ROOT, RegistryError
 from verifier.source_adaptation import adapt
+from verifier.intake import bridge_source
 
 BASE = 'theorem target (n : Nat) : n + 0 = n := '
 CACHE_GUARD_PROBE = r'''
@@ -120,7 +121,8 @@ def main():
         (root/'challenge').mkdir(); (root/'solution/Proofs').mkdir(parents=True)
         (root/'challenge/Challenge.lean').write_text(prefix + BASE + 'by sorry\n')
         (root/'solution/Proofs/Main.lean').write_text(prefix + 'theorem upstream (n : Nat) : n + 0 = n := by rfl\n')
-        (root/'solution/Bridge.lean').write_text('import Proofs.Main\n' + BASE + 'upstream n\n')
+        (root/'solution/Bridge.lean').write_bytes(bridge_source([{'module': 'Proofs.Main',
+            'declaration': 'upstream', 'official_theorem': 'target'}]))
         result = verify(args.image, root/'challenge', root/'solution', 'Bridge', ['target'], args.output/'bridge',
                         environment=environment, solution_declarations=['upstream'])
         okay = result['machine_status'] == 'passed' and 'independent_nanoda_replay' in result['stages']
@@ -139,6 +141,56 @@ def main():
             reason = ('Required candidate declaration missing from export: missing_upstream' if not extra else 'sorryAx')
             okay = (result['machine_status'] == 'failed' and 'solution_clean_build_export' in result['stages']
                     and 'candidate_target_coverage' not in result['stages'] and reason in result.get('error', ''))
+            results.append({'case': name, 'test_passed': okay, 'error': result.get('error')})
+            print(json.dumps(results[-1]), flush=True)
+    # Generated aliases preserve implicit binders/universes and cannot repair a
+    # different proposition by merely assigning its proof the official name.
+    for name, candidate_statement, expected in [
+        ('generated_universes', '{α : Sort u} (x : α) : x = x := by rfl', True),
+        ('generated_wrong_statement', '(n : Nat) : True := by trivial', False),
+    ]:
+        with tempfile.TemporaryDirectory(prefix='lean-generated-') as folder:
+            root = Path(folder)
+            (root/'challenge').mkdir(); (root/'solution').mkdir()
+            (root/'challenge/Challenge.lean').write_text(
+                'theorem target {α : Sort u} (x : α) : x = x := by sorry\n')
+            (root/'solution/Upstream.lean').write_text('theorem upstream ' + candidate_statement + '\n')
+            (root/'solution/Bridge.lean').write_bytes(bridge_source([{'module': 'Upstream',
+                'declaration': 'upstream', 'official_theorem': 'target'}]))
+            result = verify(args.image, root/'challenge', root/'solution', 'Bridge', ['target'],
+                            args.output/name, environment=environment, solution_declarations=['upstream'])
+            okay = ((result['machine_status'] == 'passed') == expected and
+                    'candidate_target_coverage' in result['stages'])
+            results.append({'case': name, 'test_passed': okay, 'error': result.get('error')})
+            print(json.dumps(results[-1]), flush=True)
+    # Generated bridges must bind each target to its selected (possibly renamed)
+    # module, not silently borrow a global declaration from another import.
+    for name, declared_module, declaration, official, expected in [
+        ('generated_module_owner', 'Proofs.Owner', 'owned', 'target', True),
+        ('generated_module_reexport', 'Proofs.Wrapper', 'owned', 'target', False),
+        ('generated_global_constant', 'Proofs.Wrapper', 'True.intro', 'target', False),
+        ('generated_same_name_reexport', 'Proofs.Wrapper', 'owned', 'owned', False),
+        ('generated_same_name_owner', 'Proofs.Owner', 'owned', 'owned', True),
+        ('generated_renamed_owner', 'Challenge', 'owned', 'target', True),
+    ]:
+        with tempfile.TemporaryDirectory(prefix='lean-origin-') as folder:
+            root = Path(folder)
+            (root/'challenge').mkdir(); (root/'solution/Proofs').mkdir(parents=True)
+            (root/'challenge/Challenge.lean').write_text('theorem ' + official + ' : True := by sorry\n')
+            transforms = []
+            if declared_module == 'Challenge':
+                (root/'solution/CandidateChallenge.lean').write_text('theorem owned : True := by trivial\n')
+                transforms = [{'path': 'Challenge.lean', 'destination': 'CandidateChallenge.lean'}]
+            else:
+                (root/'solution/Proofs/Owner.lean').write_text('theorem owned : True := by trivial\n')
+                (root/'solution/Proofs/Wrapper.lean').write_text('import Proofs.Owner\n')
+            (root/'solution/Bridge.lean').write_bytes(bridge_source([{'module': declared_module,
+                'declaration': declaration, 'official_theorem': official}], transforms))
+            result = verify(args.image, root/'challenge', root/'solution', 'Bridge', [official],
+                            args.output/name, environment=environment, solution_declarations=[declaration])
+            okay = (result['machine_status'] == 'passed' and 'independent_nanoda_replay' in result['stages']) if expected else (
+                result['machine_status'] == 'failed' and result.get('failed_stage') == 'solution_clean_build_export'
+                and 'Candidate declaration is not defined in the selected module' in result.get('error', ''))
             results.append({'case': name, 'test_passed': okay, 'error': result.get('error')})
             print(json.dumps(results[-1]), flush=True)
     # The common source adapter must support an upstream Challenge module without

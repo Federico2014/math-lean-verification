@@ -1,61 +1,57 @@
 # Adding candidates and contributing
 
-Use English for repository content, issues and PRs. Preserve mathematical notation and original proper names for attribution. Registration and CI results do not decide awards.
+Use English for repository content, issues and PRs. Preserve mathematical notation
+and original names for attribution. Registration and CI results do not decide awards.
 
-## 1. Open a candidate issue
+## Submit a candidate
 
-Provide the original problem and scope, public proof/paper links, a full upstream commit, all target modules/declarations, Lean/dependency information, known assumptions and attribution. Missing materials remain in the issue until supplied.
+1. Copy [the candidate template](templates/candidate.json) to
+   `candidates/<candidate-id>.json` and complete its fields. Supply a fixed public
+   proof commit, all target modules/declarations, problem ID or original problem
+   description, author/AI attribution, assumptions and publication permission.
+2. Open one PR per candidate targeting `main`. An Issue and local Lean execution are optional;
+   CI computes source hashes, selects approved configuration and prepares the bridge.
+3. Inspect the trusted CI plan and proof evidence. Update your PR if materials or
+   proofs need correction. When configuration is pending, keep the PR open.
 
-## 2. Reuse or prepare a trusted problem
+A new problem description uses `problem: {"title": "…", "source_url": "https://…",
+"scope": "…"}` instead of `problem_id`. A maintainer must map it to an approved
+statement. A similar title alone cannot establish mathematical correspondence.
 
-Reference an existing `problem_id` and `statement_version`, or prepare a separate problem PR using [the templates](templates/problem/). Bind all files under the problem version in `trusted_files`, fix the complete official target list and perform [statement review](docs/statement-review.md).
+For unusual layouts, set `source.project_root` or an explicit source selection.
+If automatic bridging is ambiguous, supply `bridge: "Bridge.lean"` and place the
+file at `proofs/<candidate-id>/Bridge.lean`. This is untrusted proof code subject
+to all normal checks. See [intake operations](docs/simplified-intake.md).
 
-For the workspace path, set `workspace.solution_module`, permitted `workspace.submission_paths`, and the canonical `workspace.environment_digest`. The candidate PR cannot change this trusted interface. Pending review permits diagnostics only; merge still requires the approved review.
+## Maintainer responsibilities
 
-## 3. Identify and freeze the environment; adapt only when needed
+Prepare new workspaces, review correspondence, and onboard environments in separate
+maintenance PRs. Follow [statement review](docs/statement-review.md) and
+[environment onboarding](docs/environment-onboarding.md). Required evidence and
+policy approval are mandatory; draft generation and onboarding tests do not approve
+anything automatically. Protect exceptional mappings in `intake-mappings/`.
 
-Run the non-executing inspector against a local source checkout:
+Once those changes reach main, the scheduler rechecks open PRs and dispatches ready
+ones automatically. It does not run Lean while prerequisites are missing. Resolve
+any proof failures with the author. Merge only after exact statement approval and
+all required `registry`, `tests`, `lean-verification` checks pass. Protect the
+required status against unrelated writers using repository settings.
+
+Merging registers the candidate and starts main revalidation. The generated
+[Registered candidates page](https://Federico2014.github.io/math-lean-verification/)
+updates automatically; do not maintain result rows by hand.
+
+## Repository implementation changes
+
+Read `AGENTS.md`, `README.md`, `SECURITY.md`, `docs/design.md` and
+`docs/implementation-status.md` before changing the verifier. Use Python 3.12 and run:
 
 ```bash
-python -m verifier inspect-environment /path/to/project
-```
-
-Reuse an approved environment when the full dependency/tool configuration matches. A version difference normally adds environment configuration, not a workflow. Directory and theorem-name differences normally belong in source mapping and a bridge. Special dependencies or unsupported tools require explicit adaptation.
-
-New environment configuration belongs in a separate maintenance PR. Freeze versions and file hashes, run real onboarding tests and record evidence before approving the environment and admitting its ID in policy. A suggested match or a `pending` environment cannot pass the candidate gate.
-
-## 4. Submit the candidate PR
-
-Copy [the submission template](templates/submission.json) to `submissions/<problem-id>/<submission-id>.json`. Set the full upstream commit, complete target mapping and environment ID. Add `execution.project_root`, `execution.include` and hashed `execution.proof_files` as needed. Place local Lean bridges under `proofs/<submission-id>/`.
-
-Alternatively, use `python -m verifier draft-submission --help` to generate an
-intake draft and a blocker list. Complete the draft before registration. The
-[generic intake guide](docs/generic-intake.md) also documents hash-bound source
-transforms for projects that need module renaming or import adaptation.
-
-Use [the bridge template](templates/Bridge.lean) when needed. A bridge calls the upstream theorem and proves the official statement with the required name. It is checked proof code, not trusted configuration. Selected upstream files and bridge overlays may not collide or replace trusted files. Arbitrary shell commands, upstream Lake programs and precompiled binaries are not accepted inputs. `adapter_id` remains null; use proof overlays for Lean bridges.
-
-Add one row per submission to the [README candidate list](README.md#registered-candidates)
-in the registration PR. Include the problem title, submission ID, statement version,
-registration link, fixed source commit and Lean verification status/evidence.
-Remove the empty-list notice when adding the first registration. Only report a
-machine pass with evidence bound to those inputs; pending onboarding or successful
-metadata checks do not establish a proof pass. Update the row when inputs or
-verification results change.
-
-Link the candidate issue in the PR and run:
-
-```bash
-python -m verifier validate
 python -m unittest discover -s tests -v
+python -m verifier validate
 ```
 
-PR creation and updates automatically trigger verification. Required `registry`, `tests` and `lean-verification` checks must pass. Code merge permission for your own PR does not replace the mathematical review policy.
-
-## 5. Understand failures and retain evidence
-
-Read the trusted plan first. Missing statements, unsupported environments and stale hashes may prevent proof execution. Otherwise inspect per-stage evidence: a build success alone is not a proof pass. Fix the input and push again; previous results cannot authorize the new version.
-
-Maintainers can rerun **Trusted Lean verification** from `main` using an open PR number. The `plan` CLI and **Verification preflight** remain non-executing diagnostics and cannot grant proof acceptance.
-
-Evidence artifacts contain sources, exports, checker logs and version bindings. Verify sealed archive integrity with `python -m verifier.evidence verify <archive.zip>`. Durable archival and award acceptance remain subject to the [activation checklist](docs/implementation-status.md).
+Describe changed behavior and test evidence in the PR. Link related issues when
+applicable. Never execute candidate Lean or Lake on the host. Backend CI runs real
+positive and adversarial proof cases in isolated containers; tests with a fake
+checker do not establish proof validity or production event-chain acceptance.

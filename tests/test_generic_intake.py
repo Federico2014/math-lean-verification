@@ -13,8 +13,8 @@ import yaml
 from verifier.environment_matrix import matrix
 from verifier.environments import load_environments
 from verifier.merge_gate import candidate_sources
-from verifier.onboarding import environment_draft, submission_draft, write_new
-from verifier.registry import ROOT, RegistryError, canonical_digest, schema_validate
+from verifier.onboarding import environment_draft
+from verifier.registry import ROOT, RegistryError, canonical_digest
 from verifier.results import write_result
 from verifier.revalidate import plan, revision
 from verifier.source_adaptation import adapt
@@ -89,20 +89,6 @@ class GenericIntakeTests(unittest.TestCase):
         (project / 'lakefile.toml').write_text('name = "example"\n')
         (project / 'Solution.lean').write_text('theorem proof : True := by trivial\n')
         return project
-
-    def test_draft_never_executes_or_attests_publication_permission(self):
-        project = self.stdlib_project()
-        with patch('subprocess.run', side_effect=AssertionError('No execution')):
-            draft = submission_draft(project, ROOT, repository='https://github.com/example/proof',
-                commit='a'*40, identifier='example', problem_id='example', statement_version='v1',
-                targets=[('Solution', 'proof', 'official')])
-        self.assertEqual(draft['machine_status'], 'not_run')
-        self.assertIn('official_workspace_required', draft['blockers'])
-        self.assertEqual(draft['submission']['toolchain_id'], 'lean-4-34-rc2-stdlib')
-        self.assertFalse(draft['submission']['contribution']['public_source_authorized'])
-        with self.assertRaises(RegistryError): schema_validate('submission', draft['submission'])
-        out = self.root / 'draft.json'; write_new(out, draft)
-        with self.assertRaises(FileExistsError): write_new(out, draft)
 
     def test_environment_draft_is_pending_and_matrix_discovers_it(self):
         project = self.stdlib_project()

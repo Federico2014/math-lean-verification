@@ -16,13 +16,16 @@ For the trusted status workflow, isolation boundaries, supported profiles, and m
 
 ## Routine registration
 
-1. Read the issue and confirm that materials may be public and that the original problem and result scope are clear.
-2. Establish an official statement for a new problem, or reuse the same existing version.
-3. Review registration and adapter PRs, confirming all targets, fixed sources, and attribution.
-4. After merging, select Actions → Verification preflight → Run workflow, using `main` and the registered `submission_id`.
-5. Read the failure reasons and temporary `verification-plan` artifact. A nonzero preflight exit is expected while the backend is unavailable; do not manually turn it into success.
+1. Review `candidates/<candidate-id>.json` in the candidate PR; an Issue is optional. Confirm publication permission, original problem scope, fixed proof commit, targets and attribution.
+2. Inspect the automatically triggered **Trusted Lean verification** plan and evidence. Resolve missing official workspaces, statement reviews or environments in separate maintenance PRs.
+3. Run real backend compatibility tests before approving a new environment. Merging approved preparation changes lets the scheduler resume the original candidate PR against current main.
+4. Merge the candidate only after `registry`, `tests` and `lean-verification` pass. A green environment build or static plan does not verify the candidate.
+5. Check protected-main revalidation and the generated candidate catalog after merging. Retain the exact run and revision evidence; formal acceptance remains separate.
 
-This workflow currently performs preflight only. It cannot verify Lean proofs yet; see the [implementation checklist](implementation-status.md).
+For recovery, manual retries and one-time Pages setup, see
+[single-PR operations](simplified-intake.md). For local static diagnostics, use
+`python -m verifier plan <candidate-id>`; it never executes a proof and exits `3`
+after a valid plan.
 
 ## Policy and security updates
 

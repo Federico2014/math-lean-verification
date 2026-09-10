@@ -8,18 +8,24 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import tempfile
 
 from .merge_gate import execute_candidates, prerequisites
-from .registry import ROOT, RegistryError, VerificationError, read_json, require, validate_registry
+from .registry import ROOT, RegistryError, VerificationError, read_json, require, safe_file, validate_registry
 
 
 def plan(registry, submission=None):
+    all_ids = set(registry['submissions']) | set(registry.get('candidates', {}))
     if submission is not None:
-        require(submission in registry['submissions'], 'Unknown submission')
-    identifiers = [submission] if submission is not None else sorted(registry['submissions'])
+        require(submission in all_ids, 'Unknown submission')
+    identifiers = [submission] if submission is not None else sorted(all_ids)
     require(len(identifiers) <= 256, 'Revalidation exceeds matrix limit; select a submission')
     rows, blocked = [], {}
     for identifier in identifiers:
+        intake = registry.get('intake', {}).get(identifier)
+        if identifier not in registry['submissions'] or (intake and intake['intake_status'] != 'ready'):
+            blocked[identifier] = intake or {'intake_status': 'needs_adaptation', 'blockers': ['Preparation required']}
+            continue
         try:
             item, _, _ = prerequisites(registry, registry, identifier)
             rows.append({'submission': identifier, 'environment': item['toolchain_id']})
@@ -52,29 +58,47 @@ def main():
     try:
         base = revision(args.revision)
         registry = validate_registry(ROOT)
-        selection = plan(registry, args.submission)
-        selection['verifier_sha'] = base
-        (args.output / 'selection.json').write_text(json.dumps(selection, indent=2) + '\n')
-        if args.plan:
-            if os.environ.get('GITHUB_OUTPUT'):
-                with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
-                    stream.write('has_work=' + str(bool(selection['matrix']['include'])).lower() + '\n')
-                    stream.write('unblocked=' + str(not selection['blocked']).lower() + '\n')
-                    matrix = selection['matrix'] if selection['matrix']['include'] else {'include': [{'submission': '', 'environment': ''}]}
-                    stream.write('matrix=' + json.dumps(matrix) + '\n')
-            print(json.dumps(selection))
-            # Planning can succeed with blockers so supported candidates still run.
-            # The final workflow job separately requires an empty blocker set.
-            return 0
-        require(args.submission is not None and args.images is not None,
-                'Execution requires one selected submission and immutable images')
-        result = execute_candidates(registry, registry, ROOT, [args.submission], base, None,
-                                    None, args.output, images=read_json(args.images))
-        (args.output / 'revalidation.json').write_text(json.dumps(result, indent=2) + '\n')
-        return 0 if result['status'] == 'passed' else 1
+        from .intake import prepare_registry
+        with tempfile.TemporaryDirectory(prefix='lean-revalidate-') as temporary:
+            prepared_root = Path(temporary)
+            if not args.plan and args.submission in registry['submissions']:
+                item = registry['submissions'][args.submission]
+                for file in item.get('execution', {}).get('proof_files', []):
+                    relative = 'proofs/' + args.submission + '/' + file['path']
+                    source = safe_file(ROOT, relative)
+                    destination = prepared_root / relative
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    destination.write_bytes(source.read_bytes())
+            registry = prepare_registry(registry, ROOT, ROOT, prepared_root,
+                                        [args.submission] if args.submission else None)
+            return execute(args, base, registry, prepared_root)
     except (RegistryError, OSError, ValueError, subprocess.SubprocessError) as exc:
         (args.output / 'error.json').write_text(json.dumps({'status': 'failed', 'error': str(exc)}) + '\n')
         return 1
+
+
+def execute(args, base, registry, prepared_root):
+    selection = plan(registry, args.submission)
+    selection['verifier_sha'] = base
+    (args.output / 'selection.json').write_text(json.dumps(selection, indent=2) + '\n')
+    if args.plan:
+        if os.environ.get('GITHUB_OUTPUT'):
+            with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
+                stream.write('has_work=' + str(bool(selection['matrix']['include'])).lower() + '\n')
+                stream.write('unblocked=' + str(not selection['blocked']).lower() + '\n')
+                matrix = selection['matrix'] if selection['matrix']['include'] else {'include': [{'submission': '', 'environment': ''}]}
+                stream.write('matrix=' + json.dumps(matrix) + '\n')
+        print(json.dumps(selection))
+        # Planning can succeed with blockers so supported candidates still run.
+        # The final workflow job separately requires an empty blocker set.
+        return 0
+    require(args.submission is not None and args.images is not None,
+            'Execution requires one selected submission and immutable images')
+    require(args.submission not in selection['blocked'], 'Candidate preparation is blocked')
+    result = execute_candidates(registry, registry, prepared_root, [args.submission], base, None,
+                                None, args.output, images=read_json(args.images))
+    (args.output / 'revalidation.json').write_text(json.dumps(result, indent=2) + '\n')
+    return 0 if result['status'] == 'passed' else 1
 
 
 if __name__ == '__main__':

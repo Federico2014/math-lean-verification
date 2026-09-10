@@ -1,8 +1,8 @@
-"""Regression guards for actual bootstrap workflows and published schemas."""
+"""Regression guards for repository workflows and published schemas."""
 
 import re
+from fnmatch import fnmatchcase
 import unittest
-from pathlib import Path
 
 import yaml
 from jsonschema import Draft202012Validator
@@ -43,9 +43,17 @@ class RepositoryTests(unittest.TestCase):
                 if path.name != "lean-verification.yml":
                     self.assertNotIn("pull_request_target", workflow["on"])
                 self.assertNotIn("workflow_run", workflow["on"])
-                for job in workflow["jobs"].values():
+                for name, job in workflow["jobs"].items():
                     self.assertEqual(job["runs-on"], "ubuntu-24.04")
-                    if path.name != "lean-verification.yml":
+                    allowed = {
+                        ('resume-candidates.yml', 'resume'): {'contents': 'read', 'pull-requests': 'read', 'actions': 'write'},
+                        ('candidate-catalog.yml', 'build'): {'contents': 'read', 'actions': 'read'},
+                        ('candidate-catalog.yml', 'deploy'): {'pages': 'write', 'id-token': 'write'},
+                    }
+                    if (path.name, name) in allowed:
+                        self.assertEqual(job['permissions'], allowed[path.name, name])
+                        self.assertEqual(job['if'], "github.ref == 'refs/heads/main'")
+                    elif path.name != "lean-verification.yml":
                         self.assertNotIn("permissions", job)
                     self.assertNotIn("secrets", job)
                     self.assertIn("timeout-minutes", job)
@@ -56,6 +64,8 @@ class RepositoryTests(unittest.TestCase):
         jobs = workflow["jobs"]
         self.assertNotIn("permissions", jobs["verify"])
         self.assertEqual(jobs["verify"]["needs"], ["resolve", "plan"])
+        self.assertEqual(jobs['resolve']['concurrency'], jobs['publish']['concurrency'])
+        self.assertEqual(jobs['resolve']['concurrency']['cancel-in-progress'], 'false')
         for name in ["resolve", "publish"]:
             self.assertEqual(jobs[name]["permissions"], {"contents": "read", "statuses": "write"})
         for name, job in jobs.items():
@@ -83,15 +93,50 @@ class RepositoryTests(unittest.TestCase):
                         self.assertNotIn("lake build", step["run"])
                         self.assertNotIn("continue-on-error", step)
 
-    def test_preflight_cannot_succeed_by_ignoring_blockers(self):
-        workflow = yaml.load((ROOT / ".github/workflows/preflight.yml").read_text(), Loader=yaml.BaseLoader)
-        self.assertEqual(set(workflow["on"]), {"workflow_dispatch"})
-        job = workflow["jobs"]["preflight"]
-        self.assertEqual(job["if"], "github.ref == 'refs/heads/main'")
-        plan = next(s for s in job["steps"] if "python -m verifier plan" in s.get("run", ""))
-        self.assertEqual(plan["run"], 'python -m verifier plan "$SUBMISSION_ID" --output plan.json')
-        self.assertNotIn("continue-on-error", job)
-        self.assertEqual(plan["env"]["SUBMISSION_ID"], "${{ inputs.submission_id }}")
+    def test_backend_filters_keep_execution_changes_and_skip_static_entrypoints(self):
+        workflow = yaml.load((ROOT / '.github/workflows/backend-ci.yml').read_text(), Loader=yaml.BaseLoader)
+        patterns = workflow['on']['pull_request']['paths']
+        def triggers(paths):
+            # These workflow filters use only literal filenames and directory/**.
+            for path in paths:
+                selected = False
+                for pattern in patterns:
+                    if fnmatchcase(path, pattern.removeprefix('!')):
+                        selected = not pattern.startswith('!')
+                if selected:
+                    return True
+            return False
+        for path in ('backend/export.py', 'backend/GateReplay.lean', 'verifier/lean_backend.py',
+                     'verifier/intake.py', 'verifier/merge_gate.py', 'verifier/revalidate.py',
+                     'verifier/registry.py', 'verifier/build_environment.py', 'verifier/environment_matrix.py',
+                     'verifier/environments.py', 'verifier/source_adaptation.py', 'verifier/future_executor.py',
+                     'environments/new/environment.json', 'schemas/environment.schema.json',
+                     'scripts/backend_smoke.py', 'requirements-ci.lock', '.github/workflows/backend-ci.yml'):
+            with self.subTest(path=path):
+                self.assertTrue(triggers([path]))
+        for path in ('README.md', 'docs/design.md', 'verifier/__main__.py', 'verifier/catalog.py',
+                     'verifier/onboarding.py', 'verifier/resume.py', 'candidates/example.json'):
+            with self.subTest(path=path):
+                self.assertFalse(triggers([path]))
+                self.assertTrue(triggers([path, 'verifier/lean_backend.py']))
+        self.assertIn('workflow_dispatch', workflow['on'])
+        # Filtering a required workflow can leave its required status pending.
+        for filename, event in [('ci.yml', 'pull_request'), ('lean-verification.yml', 'pull_request_target')]:
+            required = yaml.load((ROOT / '.github/workflows' / filename).read_text(), Loader=yaml.BaseLoader)
+            self.assertNotIn('paths', required['on'][event] or {})
+            self.assertNotIn('paths-ignore', required['on'][event] or {})
+
+    def test_main_revalidation_coalesces_revisions_but_separates_manual_selections(self):
+        workflow = yaml.load((ROOT / '.github/workflows/revalidate.yml').read_text(), Loader=yaml.BaseLoader)
+        concurrency = workflow['concurrency']
+        self.assertEqual(concurrency['cancel-in-progress'], 'true')
+        self.assertNotIn('github.sha', concurrency['group'])
+        self.assertIn('github.ref', concurrency['group'])
+        selection = "inputs.submission && format('selected-{0}', inputs.submission) || 'all'"
+        self.assertIn(selection, concurrency['group'])
+        self.assertIn(selection, workflow['run-name'])
+        # Current-SHA catalog provenance requires evidence even after docs commits.
+        self.assertEqual(workflow['on']['push'], {'branches': ['main']})
 
     def test_ci_locks_have_exact_versions_hashes_and_match_dev_versions(self):
         pinned = []

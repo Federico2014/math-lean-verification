@@ -1,19 +1,8 @@
 name: Revalidate registered Lean proofs
+run-name: Revalidate ${{ github.sha }} ${{ inputs.submission && format('selected-{0}', inputs.submission) || 'all' }}
 on:
   push:
     branches: [main]
-    paths:
-      - 'verifier/**'
-      - 'backend/**'
-      - 'schemas/**'
-      - 'policy/**'
-      - 'environments/**'
-      - 'problems/**'
-      - 'submissions/**'
-      - 'proofs/**'
-      - 'requirements-ci.lock'
-      - 'scripts/**'
-      - '.github/workflows/**'
   workflow_dispatch:
     inputs:
       submission:
@@ -23,8 +12,10 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: lean-revalidation-${{ github.sha }}-${{ inputs.submission || 'all' }}
-  cancel-in-progress: false
+  # Only current-main evidence can populate the catalog. Superseded runs for
+  # the same selection need not finish; individual manual selections stay separate.
+  group: lean-revalidation-${{ github.ref }}-${{ inputs.submission && format('selected-{0}', inputs.submission) || 'all' }}
+  cancel-in-progress: true
 jobs:
   plan:
     if: github.ref == 'refs/heads/main'
@@ -46,6 +37,7 @@ jobs:
           python -m pip install --only-binary=:all: --require-hashes -r requirements-ci.lock
       - id: plan
         env:
+          GH_TOKEN: ${{ github.token }}
           SELECTED_SUBMISSION: ${{ inputs.submission }}
         run: |
           args=()
@@ -58,6 +50,7 @@ jobs:
           path: ${{ runner.temp }}/revalidation-plan
           retention-days: 90
   verify:
+    name: Verify candidate ${{ matrix.submission }}
     needs: plan
     if: needs.plan.outputs.has_work == 'true'
     runs-on: ubuntu-24.04
@@ -80,7 +73,8 @@ jobs:
       - env:
           ENVIRONMENT_ID: ${{ matrix.environment }}
         run: python -m verifier.build_environment "$ENVIRONMENT_ID" --output "$RUNNER_TEMP/images.json"
-      - env:
+      - name: Verify candidate with trusted Lean backend
+        env:
           GH_TOKEN: ${{ github.token }}
           SUBMISSION_ID: ${{ matrix.submission }}
         run: python -m verifier.revalidate --revision "$GITHUB_SHA" --submission "$SUBMISSION_ID" --images "$RUNNER_TEMP/images.json" --output "$RUNNER_TEMP/revalidation"

@@ -246,14 +246,26 @@ def validate_registry(root: Path) -> dict[str, Any]:
         submissions[item["submission_id"]] = item
     # Formal acceptance and durable archive publication are not enabled.
     require(not data_files(root, "records"), "Formal records require durable archival and acceptance onboarding")
+    from .intake import read_candidates, mappings
+    candidates = read_candidates(root, submissions)
+    mappings(root)  # Validate protected mapping data without retrieving candidate sources.
     return {"policy": policy, "problems": problems, "submissions": submissions,
-            "environments": environments}
+            "environments": environments, "candidates": candidates}
 
 
 def plan_verification(root: Path, submission_id: str) -> dict[str, Any]:
     require(len(submission_id) <= 80 and bool(ID.fullmatch(submission_id)), "Invalid submission ID")
     root = root.resolve()
     registry = validate_registry(root)
+    if submission_id in registry.get('candidates', {}):
+        candidate = registry['candidates'][submission_id]
+        result = {'schema_version': 1, 'plan_kind': 'candidate_intake', 'submission_id': submission_id,
+                'candidate_digest': canonical_digest(candidate), 'machine_status': 'not_run',
+                'formal_status': 'pending', 'blockers': ['trusted_ci_preparation_required'],
+                'candidate_repository': candidate['source']['repository'],
+                'candidate_commit': candidate['source']['commit']}
+        schema_validate('candidate-plan', result)
+        return result
     require(submission_id in registry["submissions"], "Unknown submission ID")
     submission = registry["submissions"][submission_id]
     problem = registry["problems"][(submission["problem_id"], submission["statement_version"])]

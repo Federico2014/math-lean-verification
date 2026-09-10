@@ -1,31 +1,18 @@
-# Generic Lean candidate intake
+# Environment preparation and source adaptation
 
 The same PR controller verifies all registered candidates. This interface does not
 promise compatibility with arbitrary Lean versions or executable Lake projects.
 New environments remain pending until actual compatibility tests and review are
 complete. No command below approves a mathematical statement or an environment.
 
-## Generate an intake draft
-
-Inspect an inert source checkout with the repository's Python environment:
-
-```bash
-python -m verifier draft-submission /path/to/project \
-  --repository https://github.com/OWNER/REPOSITORY \
-  --commit FULL_40_HEX_COMMIT \
-  --submission-id example-proof --problem-id example-problem \
-  --target Submission upstream_theorem official_theorem \
-  --output /tmp/intake-draft.json
-```
-
-Repeat `--target MODULE DECLARATION OFFICIAL_THEOREM` for every required target.
-The output contains a proposed `submission` plus inspection warnings and blockers.
-It is a draft envelope, not a registration. It leaves publication permission false
-and attribution incomplete. Complete those fields, review the selected source
-paths, environment and bridge, then copy only the submission object into the
-registry. A dependency match is advisory and does not establish cache coverage.
-The command reads metadata and source filenames; it does not run Git hooks, Lake,
-Lean or candidate scripts. Outputs are never overwritten.
+New candidates use [one candidate JSON and one PR](../README.md#adding-a-candidate).
+CI prepares the internal submission and source hashes automatically. It generates
+a bridge when the target mapping is unambiguous, or checks the supplied optional
+`bridge` file through the same isolated verification pipeline.
+The former `draft-submission` command has been removed; use
+[templates/candidate.json](../templates/candidate.json) for new entries.
+Existing `submissions/` registrations remain supported. The tools below are for
+maintainers resolving environment or adaptation blockers.
 
 ## Prepare a new environment
 
@@ -53,7 +40,10 @@ Approval is a separate reviewed change; test success never edits policy.
 
 ## Adapt source modules without a fork
 
-`execution.source_transforms` supports exact text replacement and file renaming.
+For simplified candidates, protected `intake-mappings/<candidate-id>.json`
+provides exceptional `source_transforms` bound to the candidate digest; see
+[mapping operations](simplified-intake.md#candidate-preparation).
+Existing registrations use `execution.source_transforms`. Both support exact text replacement and file renaming.
 Every transform binds the original UTF-8 source SHA-256 and an exact occurrence
 count. It is declarative data, never a shell command or regular expression.
 

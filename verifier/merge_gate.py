@@ -49,7 +49,14 @@ class GitHub:
         self.repository = repository
 
     def get(self, path):
+        return self.request(path)
+
+    def request(self, path, data=None, method=None):
+        require(not path.startswith('/') and '..' not in path.split('/') and '://' not in path,
+                'Unsafe GitHub API path')
         request = urllib.request.Request('https://api.github.com/repos/' + self.repository + '/' + path,
+                                         data=json.dumps(data).encode() if data is not None else None,
+                                         method=method,
                                          headers={'Accept': 'application/vnd.github+json',
                                                   'User-Agent': 'math-lean-verification'})
         token = os.environ.get('GH_TOKEN')
@@ -58,7 +65,18 @@ class GitHub:
         with urllib.request.urlopen(request, timeout=60) as response:
             data = response.read(MAX_DOWNLOAD + 1)
         require(len(data) <= MAX_DOWNLOAD, 'GitHub response exceeds size limit')
-        return json.loads(data)
+        return json.loads(data) if data else None
+
+    def pages(self, path, key=None, max_pages=100):
+        separator = '&' if '?' in path else '?'
+        for page in range(1, max_pages + 1):
+            value = self.get(f'{path}{separator}per_page=100&page={page}')
+            values = value[key] if key else value
+            require(isinstance(values, list), 'Invalid paginated response')
+            yield from values
+            if len(values) < 100:
+                return
+        raise RegistryError('GitHub pagination limit reached; results are incomplete')
 
     def tree(self, commit):
         require(bool(re.fullmatch('[0-9a-f]{40}', commit)), 'Expected fixed commit')
@@ -79,25 +97,6 @@ class GitHub:
         return data
 
 
-def write_snapshot(api, tree, root):
-    for folder in ['problems', 'submissions', 'proofs', 'records', 'policy', 'environments']:
-        (root / folder).mkdir()
-    total = count = 0
-    for path, item in tree.items():
-        if not path.startswith(('problems/', 'submissions/', 'proofs/', 'records/', 'environments/')):
-            continue
-        require(all(re.fullmatch('[A-Za-z0-9_][A-Za-z0-9_.-]*', p) and p not in ('.', '..')
-                    for p in path.split('/')), 'Unsafe registry path')
-        count += 1
-        total += item.get('size', 0)
-        require(count <= 5000 and total <= 32 * 1024 * 1024, 'Registry snapshot exceeds limit')
-        destination = root / path
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(api.blob(item))
-    # The PR cannot supply its own acceptance policy or schema.
-    shutil.copyfile(ROOT / 'policy/verification.json', root / 'policy/verification.json')
-
-
 def select_submissions(trusted, proposed):
     old = trusted['submissions']
     new = proposed['submissions']
@@ -113,6 +112,51 @@ def select_submissions(trusted, proposed):
         if changed:
             affected.append(identifier)
     return sorted(affected)
+
+
+def proposal_snapshot(api, head, number, root):
+    """Apply only the PR delta to current trusted data; waiting PRs need no rebase."""
+    folders = ('problems', 'submissions', 'proofs', 'records', 'environments', 'policy', 'candidates', 'intake-mappings')
+    for folder in folders:
+        if (ROOT / folder).exists():
+            shutil.copytree(ROOT / folder, root / folder)
+        else:
+            (root / folder).mkdir()
+    files = []
+    for page in range(1, 32):
+        batch = api.get(f'pulls/{number}/files?per_page=100&page={page}')
+        require(isinstance(batch, list), 'Invalid PR file listing')
+        files.extend(batch)
+        if len(batch) < 100:
+            break
+    require(len(files) < 3000, 'PR file listing may be truncated')
+    tree = api.tree(head)
+    changed = set()
+    total = 0
+    for item in files:
+        paths = [item['filename']]
+        if item.get('previous_filename'):
+            paths.append(item['previous_filename'])
+        for path in paths:
+            changed.add(path)
+            if not path.startswith(tuple(f + '/' for f in folders)):
+                continue
+            relative_path(path)
+            # These policies are read exclusively from the protected controller.
+            if path.startswith(('policy/', 'intake-mappings/')):
+                continue
+            destination = root / path
+            if path not in tree:
+                if destination.exists():
+                    require(destination.is_file(), 'Unexpected removed directory')
+                    destination.unlink()
+                continue
+            data = api.blob(tree[path])
+            total += len(data)
+            require(total <= 32 * 1024**2, 'PR metadata exceeds limit')
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(data)
+    return changed
 
 
 def prerequisites(trusted, proposed, identifier):
@@ -215,6 +259,37 @@ def candidate_sources(submission, destination, *, problem=None, environment=None
     return source_hashes
 
 
+def candidate_changes(registry, changed, previous=None):
+    """Bind PR registration/proof paths to candidates, including metadata-only edits."""
+    owners = {}
+    for registry in (previous or {}, registry):
+        for identifier, item in registry.get('candidates', {}).items():
+            owners['candidates/' + identifier + '.json'] = identifier
+            if item.get('bridge'):
+                owners['proofs/' + identifier + '/' + item['bridge']] = identifier
+        for identifier, item in registry.get('submissions', {}).items():
+            owners['submissions/' + item['problem_id'] + '/' + identifier + '.json'] = identifier
+            for proof in item.get('execution', {}).get('proof_files', []):
+                owners['proofs/' + identifier + '/' + proof['path']] = identifier
+    affected = set()
+    for path in changed:
+        if not path.startswith(('candidates/', 'submissions/', 'proofs/')) or path.endswith('.md'):
+            continue
+        require(path in owners, 'Candidate file is not bound to a registration: ' + path)
+        affected.add(owners[path])
+    return affected
+
+
+def candidate_delta(identifiers, changed):
+    require(len(identifiers) <= 1, 'Candidate PR may contain at most one candidate')
+    if not identifiers:
+        return
+    identifier = identifiers[0]
+    require(all(p == 'candidates/' + identifier + '.json' or
+                (p.startswith('proofs/' + identifier + '/') and p.endswith('.lean')) for p in changed),
+            'Candidate PR may change only its candidate JSON and its own Lean overlays')
+
+
 def run(repository, pr_number, head, image, output, check_only=False, submission_id=None, images=None):
     api = GitHub(repository)
     pr = api.get('pulls/' + str(pr_number))
@@ -225,14 +300,36 @@ def run(repository, pr_number, head, image, output, check_only=False, submission
     trusted = validate_registry(ROOT)
     with tempfile.TemporaryDirectory(prefix='lean-pr-') as temporary:
         root = Path(temporary)
-        write_snapshot(api, api.tree(head), root)
+        changed = proposal_snapshot(api, head, pr_number, root)
         proposed = validate_registry(root)
         affected = select_submissions(trusted, proposed)
+        changed_ids = candidate_changes(proposed, changed, previous=trusted)
+        affected = sorted(set(affected) | (changed_ids & set(proposed['submissions'])))
+        old_candidates = trusted.get('candidates', {})
+        new_candidates = proposed.get('candidates', {})
+        require(set(old_candidates) <= set(new_candidates), 'Removing registered candidates requires a separate maintenance process')
+        simple = [i for i, c in new_candidates.items() if c != old_candidates.get(i) or i in changed_ids]
+        candidate_delta(simple, changed)
+        from .intake import prepare_registry
+        # Preparation is recomputed for each execution using current protected data.
+        proposed = prepare_registry(proposed, ROOT, root, root, simple)
+        affected = sorted(set(affected) | set(simple))
+        blocked = {i: proposed['intake'][i] for i in simple if proposed['intake'][i]['intake_status'] != 'ready'}
         if submission_id:
             require(submission_id in affected, 'Requested candidate is not in the trusted execution plan')
             affected = [submission_id]
-        return execute_candidates(trusted, proposed, root, affected, base, head, image,
-                                  output, check_only=check_only, images=images)
+        ready = [i for i in affected if i not in blocked]
+        result = execute_candidates(trusted, proposed, root, ready, base, head, image,
+                                    output, check_only=check_only, images=images)
+        result['intake'] = proposed['intake']
+        result['blocked'] = {i: value for i, value in blocked.items() if i in affected}
+        if result['blocked']:
+            result['status'] = 'blocked'
+        # A single fixed snapshot must cover PR files, not a mixture of updates.
+        latest = api.get('pulls/' + str(pr_number))
+        require(latest['state'] == 'open' and latest['head']['sha'] == head and latest['base']['sha'] == base,
+                'PR or base moved during verification')
+        return result
 
 
 def execute_candidates(trusted, proposed, registry_root, affected, base, head, image,
@@ -294,7 +391,12 @@ def execute_candidates(trusted, proposed, registry_root, affected, base, head, i
                 (output / identifier / 'inputs/submission.json').write_text(json.dumps(submission, indent=2))
                 (output / identifier / 'inputs/problem.json').write_text(json.dumps(problem, indent=2))
                 proof['input_digest'] = canonical_digest({'submission': submission,
-                    'problem': problem, 'environment': environment, 'sources': source_hashes, 'policy': trusted['policy'], 'verifier_sha': base})
+                    'problem': problem, 'environment': environment, 'sources': source_hashes, 'policy': trusted['policy'], 'verifier_sha': base,
+                    'intake': proposed.get('intake', {}).get(identifier)})
+                if identifier in proposed.get('intake', {}):
+                    intake = proposed['intake'][identifier]
+                    (output / identifier / 'inputs/intake.json').write_text(json.dumps(intake, indent=2) + '\n')
+                    (output / identifier / 'inputs/candidate.json').write_text(json.dumps(proposed['candidates'][identifier], indent=2) + '\n')
                 proof['candidate_commit'] = submission['commit']
                 result['submissions'][identifier] = proof
                 if proof['verification_status'] != 'verified':
