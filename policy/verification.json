@@ -11,7 +11,8 @@
   "backend": "comparator-export-v1",
   "toolchains": [
     "lean-4-34-rc2-stdlib",
-    "lean-4-28-mathlib"
+    "lean-4-28-mathlib",
+    "lean-4-32-rc1-mathlib"
   ],
   "formal_acceptance_enabled": false,
   "administrator_exceptions": []
