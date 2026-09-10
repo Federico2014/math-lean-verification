@@ -7,9 +7,7 @@ Infrastructure for verifying Lean formalizations of mathematical results, initia
 ## Current status
 
 See [Registered candidates](#registered-candidates) for current registrations and
-machine verification results. DGG's historical CI pass used an explicit
-administrator exception for statement review; its archived result does not
-establish the status of a new registration. **Formal acceptance remains pending.** Use
+machine verification results. Formal acceptance is a separate process. Use
 `python -m verifier list` to list registered candidate IDs;
 it does not retrieve CI results.
 
@@ -39,13 +37,6 @@ revision and generation time. Publication runs after main pushes and on a
 15-minute schedule; GitHub may delay scheduled jobs. Contributors do not edit a
 README table. Deployment needs the one-time [Pages setup](docs/simplified-intake.md#deployment).
 
-DGG has historical [successful PR verification](https://github.com/Federico2014/math-lean-verification/actions/runs/34342252724)
-at head `806d9b0ac4cb6fcc031b42f7aadb8bc02ec90d01` and protected base
-`dec0d00a2e7e2cdedff418f6f25e0aa932b37854`, under its explicit
-[administrator exception](docs/administrator-approvals/dgg-cost-v1.md).
-That evidence does not describe subsequent source or verifier revisions.
-Formal acceptance remains pending.
-
 ## Adding a candidate
 
 ### 1. Fill in one candidate file
@@ -65,9 +56,10 @@ Replace template placeholders. An Issue is optional. You do not need a local
 Lean installation, environment ID, source hashes, generated registration or
 README edit. Use `source.project_root` for a project in a subdirectory.
 
-### 2. Open one PR per candidate against main
+### 2. Open one PR per candidate against develop
 
-Opening or updating the PR automatically triggers **Trusted Lean verification**.
+Opening, updating or retargeting the PR automatically triggers **Trusted Lean verification**.
+Both `develop` and `main` are supported protected targets; new work goes to `develop`.
 CI reads the fixed source as data, matches approved environments, selects local
 imports, prepares internal registration and generates a proof bridge when the
 mapping is unambiguous. It then runs the real isolated Lean, statement comparison,
@@ -87,10 +79,12 @@ belong in this PR.
 | `verified` | All machine checks and exact statement approval passed; the maintainer can merge after required repository checks. |
 
 The plan artifact lists all preparation blockers. Maintainers merge preparation
-and approval changes in separate PRs. The main scheduler automatically resumes
-waiting candidate PRs against the new main while preserving their submitted head;
+and approval changes in separate PRs against the same target branch. Each target-branch
+push automatically resumes waiting candidate PRs against its new revision while preserving their submitted head;
 no empty commit or rebase is needed merely to pick up approved configuration.
-Conflicting candidate edits still require normal conflict resolution.
+Conflicting candidate edits still require normal conflict resolution. Manual recovery
+is available on either branch; the periodic schedule runs on the default branch.
+The published candidate catalog continues to describe `main`, not unmerged development work.
 
 Read `lean-plan-*` / scheduler diagnostics for prerequisites, and
 `lean-evidence-*` for `report.md`, `verification-result.json` and stage logs.

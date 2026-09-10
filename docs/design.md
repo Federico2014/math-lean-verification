@@ -123,7 +123,7 @@ Preserve licenses and provenance for redistributed source snapshots. Retain hist
 
 Keep the existing gate while testing the new backend. The test suite includes source-path/overlay attacks, mutable dependencies, environment tampering, evidence tampering, and workflow permission checks. Actual Docker tests exercise correct proofs, `sorry`, indirect placeholders, extra axioms, wrong statements, extra premises, changed definitions, missing targets, forged output, unchecked declarations, protected writes and multi-file bridges.
 
-Use synthetic fixtures for environment onboarding, not fabricated candidate approvals. Real candidate pilots remain separate intake work: Erdős 650 (single file), DGG (another Lean environment) and Erdős 90 (multi-file project). No candidate is added by this infrastructure change. Measure resource needs before increasing environment budgets or approving broader module coverage.
+Use synthetic fixtures for environment onboarding, not fabricated candidate approvals. Real candidate pilots remain separate intake work covering single-file, alternate-toolchain and multi-file projects. No candidate is added by this infrastructure change. Measure resource needs before increasing environment budgets or approving broader module coverage.
 
 ## Single-PR preparation and automatic recovery
 

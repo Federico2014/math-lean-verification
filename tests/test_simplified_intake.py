@@ -122,20 +122,22 @@ class IntakeTests(unittest.TestCase):
         self.fixture.write('problems/test-problem/v1/problem.json', pending)
         pr = {'state': 'open', 'head': {'sha': 'c'*40},
               'base': {'sha': 'd'*40, 'ref': 'main', 'repo': {'full_name': 'example/registry'}}}
+        live_base = 'd'*40
         registry_api = Mock()
         registry_api.get.side_effect = lambda path: ([{'filename': 'candidates/example-proof.json'}]
-                                                    if '/files?' in path else pr)
+            if '/files?' in path else {'protected': True, 'commit': {'sha': live_base}}
+            if path.startswith('branches/') else pr)
         # The old PR tree deliberately has no current workspace or approvals.
         registry_api.tree.return_value = {'candidates/example-proof.json': {'data': candidate_bytes}}
         registry_api.blob.side_effect = lambda item: item['data']
         with patch('verifier.merge_gate.ROOT', self.root), \
-             patch('verifier.merge_gate.subprocess.check_output', side_effect=lambda *args, **kwargs: pr['base']['sha']), \
+             patch('verifier.merge_gate.subprocess.check_output', side_effect=lambda *args, **kwargs: live_base), \
              patch('verifier.merge_gate.GitHub', side_effect=lambda repo: registry_api if repo == 'example/registry' else self.api):
             result = run('example/registry', 1, 'c'*40, None, self.root/'plan', check_only=True)
             self.assertEqual(result['status'], 'blocked')
             self.assertEqual(result['blocked']['example-proof']['intake_status'], 'waiting_review')
             self.fixture.write('problems/test-problem/v1/problem.json', self.fixture.problem)
-            pr['base']['sha'] = 'e'*40
+            live_base = 'e'*40  # PR base metadata intentionally remains stale.
             result = run('example/registry', 1, 'c'*40, None, self.root/'plan', check_only=True)
             self.assertEqual(result['status'], 'ready', result)
             self.assertEqual(result['head_sha'], 'c'*40)
@@ -152,7 +154,7 @@ class IntakeTests(unittest.TestCase):
         pr = {'state': 'open', 'head': {'sha': 'c'*40},
               'base': {'sha': 'd'*40, 'ref': 'main', 'repo': {'full_name': 'example/registry'}}}
         api = Mock()
-        api.get.return_value = pr
+        api.get.side_effect = lambda path: {'protected': True, 'commit': {'sha': 'd'*40}} if path.startswith('branches/') else pr
         with patch('verifier.merge_gate.ROOT', self.root), \
              patch('verifier.merge_gate.subprocess.check_output', return_value='d'*40), \
              patch('verifier.merge_gate.GitHub', return_value=api), \
@@ -210,14 +212,55 @@ class IntakeTests(unittest.TestCase):
 
 
 class ResumeTests(unittest.TestCase):
-    def setup_api(self, runs=()):
+    def setup_api(self, runs=(), branch='main'):
         api = Mock(repository='example/registry')
         pr = {'number': 1, 'state': 'open', 'head': {'sha': 'a'*40, 'repo': {'full_name': api.repository}},
-              'base': {'sha': 'b'*40, 'ref': 'main', 'repo': {'full_name': api.repository}}}
-        api.get.side_effect = lambda path: {'commit': {'sha': 'b'*40}} if path == 'branches/main' else pr
+              'base': {'sha': 'b'*40, 'ref': branch, 'repo': {'full_name': api.repository}}}
+        api.get.side_effect = lambda path: {'protected': True, 'commit': {'sha': 'b'*40}} if path == 'branches/' + branch else pr
         api.pages.side_effect = lambda path, *args, **kwargs: iter(
             runs if path.startswith('actions/') else [pr] if path.startswith('pulls?') else [{'filename': 'candidates/example.json'}])
         return api, pr
+
+    def test_scheduler_entrypoint_uses_develop_checkout_without_main_revalidation(self):
+        from verifier.resume import main
+        env = {'GITHUB_ACTIONS': 'true', 'GITHUB_REF_NAME': 'develop',
+               'GITHUB_REF': 'refs/heads/develop', 'GITHUB_SHA': 'b'*40,
+               'GITHUB_REPOSITORY': 'example/registry'}
+        with patch.dict(os.environ, env, clear=True), \
+             patch('verifier.resume.subprocess.check_output', return_value='b'*40) as git, \
+             patch('verifier.resume.GitHub') as api, \
+             patch('verifier.resume.resume', return_value=[]) as scheduler, \
+             patch('verifier.resume.Path.write_text'):
+            main()
+            scheduler.assert_called_once_with(api.return_value, 'b'*40, branch='develop')
+            scheduler.reset_mock()
+            git.return_value = 'c'*40
+            with self.assertRaisesRegex(RegistryError, 'checkout differs'):
+                main()
+            scheduler.assert_not_called()
+
+    def test_develop_resume_uses_its_own_branch_and_identity(self):
+        previous = {'event': 'workflow_dispatch', 'display_title': marker(1, 'a'*40, 'b'*40, 'main'),
+                    'head_sha': 'b'*40, 'head_repository': {'full_name': 'example/registry'}}
+        api, pr = self.setup_api([previous], branch='develop')
+        pr['base']['sha'] = 'e'*40  # Cached PR metadata must not prevent live-base recovery.
+        self.assertEqual(resume(api, 'b'*40, Mock(return_value={'status': 'ready'}), branch='develop')[0]['status'], 'dispatched')
+        self.assertEqual(api.request.call_args.args[1]['ref'], 'develop')
+        api.pages.assert_any_call('pulls?state=open&base=develop')
+        self.assertNotEqual(marker(1, 'a'*40, 'b'*40, 'main'), marker(1, 'a'*40, 'b'*40, 'develop'))
+
+    def test_unprotected_scheduler_and_retargeted_pr_cannot_dispatch(self):
+        api, pr = self.setup_api(branch='develop')
+        api.get.side_effect = lambda path: {'protected': False, 'commit': {'sha': 'b'*40}} if path.startswith('branches/') else pr
+        with self.assertRaisesRegex(RegistryError, 'must be protected'):
+            resume(api, 'b'*40, Mock(), branch='develop')
+        api.request.assert_not_called()
+        api, pr = self.setup_api(branch='develop')
+        def plan(*args, **kwargs):
+            pr['base']['ref'] = 'main'
+            return {'status': 'ready'}
+        self.assertEqual(resume(api, 'b'*40, plan, branch='develop'), [])
+        api.request.assert_not_called()
 
     @patch.dict(os.environ, {'GITHUB_RUN_ID': '456'})
     def test_blocked_pr_resumes_same_head_when_main_preparation_becomes_ready(self):
@@ -258,7 +301,7 @@ class ResumeTests(unittest.TestCase):
         first['head']['repo'] = None
         original = api.pages.side_effect
         api.pages.side_effect = lambda path, *args, **kwargs: iter([first, second]) if path.startswith('pulls?') else original(path, *args, **kwargs)
-        api.get.side_effect = lambda path: {'commit': {'sha': 'b'*40}} if path == 'branches/main' else second
+        api.get.side_effect = lambda path: {'protected': True, 'commit': {'sha': 'b'*40}} if path == 'branches/main' else second
         planner = Mock(return_value={'status': 'ready'})
         result = resume(api, 'b'*40, planner)
         self.assertEqual([r['status'] for r in result], ['blocked', 'dispatched'])
@@ -310,7 +353,7 @@ class ResumeTests(unittest.TestCase):
         second = copy.deepcopy(first)
         second['number'] = 2
         second['head']['sha'] = 'c'*40
-        api.get.side_effect = lambda path: {'commit': {'sha': 'b'*40}} if path == 'branches/main' else second
+        api.get.side_effect = lambda path: {'protected': True, 'commit': {'sha': 'b'*40}} if path == 'branches/main' else second
         def pages(path, *args, **kwargs):
             if path.startswith('actions/'):
                 return iter([])

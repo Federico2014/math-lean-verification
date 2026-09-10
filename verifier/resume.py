@@ -1,35 +1,40 @@
-"""Resume open candidate PRs from protected main without running candidate code."""
+"""Resume open candidate PRs from a protected target branch without running candidate code."""
 import json
 import os
 from pathlib import Path
 import tempfile
+import re
+import subprocess
 
 from .merge_gate import GitHub, run
-from .registry import RegistryError, require
-from .revalidate import revision
+from .registry import ROOT, RegistryError, require
 
 WORKFLOW = 'lean-verification.yml'
 
 
-def marker(number, head, base):
-    return f'Lean PR {number} {head} {base}'
+def marker(number, head, base, branch='main'):
+    return f'Lean PR {number} {head} {base} {branch}'
 
 
-def current(pr, repository, head, base):
-    return (pr['state'] == 'open' and pr['base']['ref'] == 'main'
+def current(pr, repository, head, branch='main'):
+    return (pr['state'] == 'open' and pr['base']['ref'] == branch
             and pr['base']['repo']['full_name'] == repository
-            and pr['head']['sha'] == head and pr['base']['sha'] == base)
+            and pr['head']['sha'] == head)
 
 
-def resume(api, base, planner=run):
+def resume(api, base, planner=run, *, branch='main'):
     """Dispatch once per exact identity; explicit manual dispatch remains a retry."""
-    require(api.get('branches/main')['commit']['sha'] == base, 'Scheduler checkout is stale')
+    require(branch in ('main', 'develop'), 'Unexpected scheduler branch')
+    # PR base.sha can lag after a target push; bind to the live branch ref.
+    info = api.get('branches/' + branch)
+    require(info['protected'], 'Scheduler branch must be protected')
+    require(info['commit']['sha'] == base, 'Scheduler checkout is stale')
     runs = list(api.pages('actions/workflows/' + WORKFLOW + '/runs?head_sha=' + base,
                           'workflow_runs', max_pages=10))
     reports = []
-    for pr in api.pages('pulls?state=open&base=main'):
+    for pr in api.pages('pulls?state=open&base=' + branch):
         number, head = pr['number'], pr['head']['sha']
-        if not current(pr, api.repository, head, base) or pr.get('draft'):
+        if not current(pr, api.repository, head, branch) or pr.get('draft'):
             continue
         try:
             files = list(api.pages(f'pulls/{number}/files', max_pages=31))
@@ -39,8 +44,8 @@ def resume(api, base, planner=run):
             continue
         if not any(f['filename'].startswith(('candidates/', 'submissions/', 'proofs/')) for f in files):
             continue
-        identity = marker(number, head, base)
-        # GitHub reports PR head_sha for pull_request_target runs, but main
+        identity = marker(number, head, base, branch)
+        # GitHub reports PR head_sha for pull_request_target runs, but the target branch
         # head_sha for dispatches. Query both identities to avoid cancelling an
         # already-running initial PR verification with a duplicate dispatch.
         initial = [r for r in api.pages('actions/workflows/' + WORKFLOW + '/runs?head_sha=' + head,
@@ -72,9 +77,10 @@ def resume(api, base, planner=run):
                 plan = planner(api.repository, number, head, None, Path(folder), check_only=True)
             except Exception as exc:
                 plan = {'status': 'blocked', 'error': str(exc)}
-        if not current(api.get(f'pulls/{number}'), api.repository, head, base):
+        if not current(api.get(f'pulls/{number}'), api.repository, head, branch):
             continue
-        if api.get('branches/main')['commit']['sha'] != base:
+        info = api.get('branches/' + branch)
+        if not info['protected'] or info['commit']['sha'] != base:
             break
         report = {'pr': number, 'head': head, 'base': base, 'plan': plan}
         if plan.get('status') not in ('ready', 'blocked'):
@@ -84,15 +90,20 @@ def resume(api, base, planner=run):
         # A short protected plan run also publishes waiting failures through the
         # same serialized status jobs. No Lean matrix runs while blocked.
         api.request('actions/workflows/' + WORKFLOW + '/dispatches', {
-            'ref': 'main', 'inputs': {'pr': str(number), 'expected_head': head, 'expected_base': base}})
+            'ref': branch, 'inputs': {'pr': str(number), 'expected_head': head, 'expected_base': base}})
         report['status'] = 'dispatched' if plan['status'] == 'ready' else 'waiting'
         reports.append(report)
     return reports
 
 
 def main():
-    base = revision(os.environ['GITHUB_SHA'])
-    result = resume(GitHub(os.environ['GITHUB_REPOSITORY']), base)
+    branch, base = os.environ['GITHUB_REF_NAME'], os.environ['GITHUB_SHA']
+    require(branch in ('main', 'develop'), 'Unexpected scheduler branch')
+    require(os.environ['GITHUB_REF'] == 'refs/heads/' + branch, 'Scheduler event branch mismatch')
+    require(bool(re.fullmatch('[0-9a-f]{40}', base)), 'Expected a fixed scheduler revision')
+    actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    require(actual == base, 'Scheduler checkout differs from event revision')
+    result = resume(GitHub(os.environ['GITHUB_REPOSITORY']), base, branch=branch)
     Path('resume-report.json').write_text(json.dumps(result, indent=2) + '\n')
 
 

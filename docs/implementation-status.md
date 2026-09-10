@@ -1,8 +1,9 @@
 # Implementation status
 
 The repository implements the trusted-workspace and reusable-environment architecture.
-DGG has [historical successful verification](../README.md#registered-candidates);
-each later input or verifier revision requires fresh evidence.
+Current registrations and machine results are listed in the
+[generated candidate catalog](../README.md#registered-candidates). Changed inputs
+or verifier revisions require fresh evidence.
 
 ## Implemented
 
@@ -22,7 +23,7 @@ each later input or verifier revision requires fresh evidence.
 - Real proof/sandbox regression workflow including multi-file bridges and a separate Mathlib onboarding configuration.
 - Automatic candidate preparation and static environment draft generation with explicit unresolved fields and no automatic approvals.
 - Hash-bound source renaming and exact replacements, with original/adapted source evidence and protected-path checks.
-- Automatically discovered environment regression matrices, including pending descriptors and offline cache import probes.
+- Environment regression matrices select affected profiles for environment-only PRs, all profiles for shared changes, and an optional exact ID for manual dispatch; pending descriptors and offline cache import probes remain included.
 - Protected-main revalidation of registered candidates after trusted input changes, separate from PR status publication.
 - A versioned verification-result summary and explicit failed-stage diagnostics.
 
@@ -30,7 +31,7 @@ each later input or verifier revision requires fresh evidence.
 
 - The existing core/Std environment retains its [prior onboarding evidence](backend-onboarding.md).
 - `lean-4-28-mathlib` is admitted with [real onboarding evidence](workspace-onboarding.md). Its initial cache scope is deliberately limited to `Mathlib.Data.Nat.Basic`; it is not a claim of support for every Mathlib module or any particular candidate.
-- `lean-4-32-rc1-mathlib-dgg` is admitted with [21 passing real onboarding cases](dgg-environment-onboarding.md), including full `Mathlib` import and cache rejection probes. The DGG v1 workspace is approved by an explicit [administrator exception](administrator-approvals/dgg-cost-v1.md); independent mathematical review remains incomplete. The README links PR #14's exact successful verification revision and run.
+- `lean-4-32-rc1-mathlib` is admitted using [backend run 34452461091](https://github.com/Federico2014/math-lean-verification/actions/runs/34452461091) at verifier revision `397559f4257cb9f891df6ff17413f52415d12ef7`: all 29 real regressions passed, including positive/negative proofs, independent replay, sandbox protection and both declared cache import probes. Approval preserves the tested compiler, exporter, fixed dependencies, cache scope and resource limits (6 GiB RAM, 2 CPUs, 2 GiB work storage, 3600-second timeout). This is environment compatibility evidence. The registered DGG statement is approved under the [exact administrator exception](administrator-approvals/dgg-cost-v1-2026-09-10.md); independent mathematical review remains incomplete. Candidate proof status must come from fresh CI evidence for the current inputs.
 - Project compiler, exporter and shared checker compatibility must pass actual tests for each new combination. Adding JSON is not approval.
 - Mathematical reviewer accreditation remains empty. Existing two-reviewer, provenance and content-binding requirements are unchanged.
 - Persistent evidence storage, backup/readback operations and formal acceptance publication remain unconfigured. `formal_acceptance_enabled` remains false.

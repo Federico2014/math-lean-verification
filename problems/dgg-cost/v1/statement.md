@@ -2,7 +2,12 @@
 
 ## Source and requested result
 
-This pending problem registration follows [Issue #12](https://github.com/Federico2014/math-lean-verification/issues/12).
+This registration on `develop` uses [Issue #12](https://github.com/Federico2014/math-lean-verification/issues/12)
+as historical intake context and supplies the official workspace for
+[candidate PR #20](https://github.com/Federico2014/math-lean-verification/pull/20).
+The issue's old environment and workflow details are superseded by this registration.
+Review is pending under the current environment and statement digest; historical
+approvals and proof runs are not evidence for this new binding.
 The reference is Vera Traub, Laura Vargas Koch and Rico Zenklusen,
 [Single-Source Unsplittable Flows in Planar Graphs, arXiv:2308.02651v1](https://arxiv.org/html/2308.02651v1),
 Definition 1.1, the preceding flow-conservation equations and Conjecture 1.3.

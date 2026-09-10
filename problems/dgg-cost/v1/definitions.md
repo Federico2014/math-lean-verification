@@ -40,9 +40,11 @@ Apache-2.0 terms for the adapted Lean source. No candidate proof is copied.
 
 ## Environment and candidate interface
 
-The workspace binds `lean-4-32-rc1-mathlib-dgg`, approved in
-[PR #11](https://github.com/Federico2014/math-lean-verification/pull/11), with digest
-`98af3ee95f2fe97c8abf67c05af0a89bafc0fa72a3ee8a20a4d53f3f8309a22d`.
+The workspace binds `lean-4-32-rc1-mathlib`, approved in
+[commit 3cc6661](https://github.com/Federico2014/math-lean-verification/commit/3cc6661ade37b553dd69a5d389973066321b1c97), with digest
+`2549518f7e642162f4a05d3c1b0eedd6c3fc0a4431f5b40b4bbc7da9abfd1396`.
+Its [backend onboarding run](https://github.com/Federico2014/math-lean-verification/actions/runs/34452461091)
+passed 29 real regression cases; these do not verify the DGG candidate proof.
 It pins Lean `v4.32.0-rc1`, Mathlib
 `360da6fa66c1273b76b6b2d8c5666fd5ac2e3b56`, all locked dependencies and the
 exporter/checker combination. `import Mathlib` uses its approved cache scope.
@@ -50,7 +52,8 @@ exporter/checker combination. `import Mathlib` uses its approved cache scope.
 The solution module is `Bridge`. Allowed candidate paths are
 `CandidateChallenge.lean`, `Submission.lean`, `Submission/**` and `Bridge.lean`.
 These reserve room for source adaptation; they are not registered submissions.
-For the source proposed in Issue #12, a later candidate PR must:
+For the source submitted in PR #20, CI will prepare the following after statement
+approval:
 
 1. Select and hash-bind the original Challenge and Submission files, rename
    the former to `CandidateChallenge.lean`, and update the latter's import.

@@ -52,7 +52,7 @@ class RepositoryTests(unittest.TestCase):
                     }
                     if (path.name, name) in allowed:
                         self.assertEqual(job['permissions'], allowed[path.name, name])
-                        self.assertEqual(job['if'], "github.ref == 'refs/heads/main'")
+                        self.assertEqual(job['if'], "github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'" if path.name == 'resume-candidates.yml' else "github.ref == 'refs/heads/main'")
                     elif path.name != "lean-verification.yml":
                         self.assertNotIn("permissions", job)
                     self.assertNotIn("secrets", job)
@@ -61,6 +61,10 @@ class RepositoryTests(unittest.TestCase):
     def test_trusted_gate_never_checks_out_pr_code_or_grants_execution_write_access(self):
         workflow = yaml.load((ROOT / ".github/workflows/lean-verification.yml").read_text(), Loader=yaml.BaseLoader)
         self.assertEqual(set(workflow["on"]), {"pull_request_target", "workflow_dispatch"})
+        self.assertEqual(workflow['on']['pull_request_target']['branches'], ['main', 'develop'])
+        self.assertIn('edited', workflow['on']['pull_request_target']['types'])
+        self.assertIn('github.ref_name', workflow['run-name'])
+        self.assertIn('github.sha', workflow['run-name'])
         jobs = workflow["jobs"]
         self.assertNotIn("permissions", jobs["verify"])
         self.assertEqual(jobs["verify"]["needs"], ["resolve", "plan"])
@@ -72,7 +76,7 @@ class RepositoryTests(unittest.TestCase):
             checkouts = [s for s in job["steps"] if s.get("uses", "").startswith("actions/checkout@")]
             self.assertEqual(len(checkouts), 1)
             ref = checkouts[0]["with"]["ref"]
-            expected = "${{ github.event.pull_request.base.sha || github.sha }}" if name == "resolve" else "${{ needs.resolve.outputs.base }}"
+            expected = "${{ github.sha }}" if name == "resolve" else "${{ needs.resolve.outputs.base }}"
             self.assertEqual(ref, expected)
             self.assertNotIn("head", ref)
         self.assertEqual(jobs["publish"]["needs"], ["resolve", "plan", "verify"])
@@ -110,16 +114,20 @@ class RepositoryTests(unittest.TestCase):
                      'verifier/intake.py', 'verifier/merge_gate.py', 'verifier/revalidate.py',
                      'verifier/registry.py', 'verifier/build_environment.py', 'verifier/environment_matrix.py',
                      'verifier/environments.py', 'verifier/source_adaptation.py', 'verifier/future_executor.py',
-                     'environments/new/environment.json', 'schemas/environment.schema.json',
+                     'environments/new/environment.json', 'schemas/environment.schema.json', 'policy/verification.json',
                      'scripts/backend_smoke.py', 'requirements-ci.lock', '.github/workflows/backend-ci.yml'):
             with self.subTest(path=path):
                 self.assertTrue(triggers([path]))
-        for path in ('README.md', 'docs/design.md', 'verifier/__main__.py', 'verifier/catalog.py',
+        for path in ('README.md', 'docs/design.md', 'backend/README.md', 'environments/README.md', 'verifier/__main__.py', 'verifier/catalog.py',
                      'verifier/onboarding.py', 'verifier/resume.py', 'candidates/example.json'):
             with self.subTest(path=path):
                 self.assertFalse(triggers([path]))
                 self.assertTrue(triggers([path, 'verifier/lean_backend.py']))
-        self.assertIn('workflow_dispatch', workflow['on'])
+        self.assertEqual(workflow['on']['workflow_dispatch']['inputs']['environment']['default'], '')
+        self.assertEqual(workflow['jobs']['backend-tests']['if'], "needs.environments.outputs.has_work == 'true'")
+        self.assertIn("format('selected-{0}', inputs.environment)", workflow['concurrency']['group'])
+        checkout = workflow['jobs']['environments']['steps'][0]['with']
+        self.assertEqual(checkout['fetch-depth'], '0')
         # Filtering a required workflow can leave its required status pending.
         for filename, event in [('ci.yml', 'pull_request'), ('lean-verification.yml', 'pull_request_target')]:
             required = yaml.load((ROOT / '.github/workflows' / filename).read_text(), Loader=yaml.BaseLoader)

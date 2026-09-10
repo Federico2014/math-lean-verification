@@ -13,7 +13,7 @@ from verifier.environments import load_environments
 
 
 class WorkspaceGateTests(unittest.TestCase):
-    def exercise(self, review, *, backend_failure=None, source_failure=False, revalidate=False):
+    def exercise(self, review, *, backend_failure=None, source_failure=False, revalidate=False, branch='main', retarget=False, cached_base=False):
         from test_registry import RegistryTests
         fixture = RegistryTests(); fixture.setUp()
         self.addCleanup(fixture.temp.cleanup)
@@ -50,9 +50,19 @@ class WorkspaceGateTests(unittest.TestCase):
         with patch('verifier.merge_gate.ROOT', root), patch('verifier.merge_gate.subprocess.check_output', return_value='d'*40), \
              patch('verifier.merge_gate.GitHub') as api, patch('verifier.merge_gate.verify', side_effect=proof_engine):
             pr_data = {'state': 'open', 'head': {'sha': 'c'*40},
-                'base': {'sha': 'd'*40, 'ref': 'main', 'repo': {'full_name': 'example/registry'}}}
-            api.return_value.get.side_effect = lambda path: ([{'filename': 'submissions/test-problem/test-submission.json'}]
-                if '/files?' in path else pr_data)
+                'base': {'sha': ('e' if cached_base else 'd')*40, 'ref': branch, 'repo': {'full_name': 'example/registry'}}}
+            calls = 0
+            def get(path):
+                nonlocal calls
+                if path.startswith('branches/'):
+                    return {'protected': True, 'commit': {'sha': 'd'*40}}
+                if '/files?' in path:
+                    return [{'filename': 'submissions/test-problem/test-submission.json'}]
+                calls += 1
+                if retarget and calls > 1:
+                    pr_data['base']['ref'] = 'main'
+                return pr_data
+            api.return_value.get.side_effect = get
             api.return_value.tree.side_effect = lambda sha: tree if sha == 'c'*40 else {'Proofs/Main.lean': {'data': b'theorem target : True := by trivial\n'}}
             api.return_value.blob.side_effect = lambda item: item['data']
             plan = run('example/registry', 1, 'c'*40, None, root/'plan', check_only=True)
@@ -80,6 +90,14 @@ class WorkspaceGateTests(unittest.TestCase):
             self.assertEqual(normalized['bindings']['pr_head'], None if revalidate else 'c'*40)
             self.assertIn(result['submissions']['test-submission']['verification_status'], (report/'report.md').read_text())
             return result
+
+    def test_develop_gate_verifies_and_rejects_retargeting_at_same_sha(self):
+        self.assertEqual(self.exercise('approved', branch='develop', cached_base=True)['status'], 'passed')
+        from verifier.registry import RegistryError
+        with self.assertRaisesRegex(RegistryError, 'PR or base moved'):
+            self.exercise('approved', branch='develop', retarget=True)
+        with self.assertRaisesRegex(RegistryError, 'Unexpected PR base'):
+            self.exercise('approved', branch='untrusted')
 
     def test_infrastructure_failures_preserve_identity_and_evidence(self):
         for source_failure in [False, True]:

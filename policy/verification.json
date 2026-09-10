@@ -12,17 +12,17 @@
   "toolchains": [
     "lean-4-34-rc2-stdlib",
     "lean-4-28-mathlib",
-    "lean-4-32-rc1-mathlib-dgg"
+    "lean-4-32-rc1-mathlib"
   ],
   "formal_acceptance_enabled": false,
   "administrator_exceptions": [
     {
       "problem_id": "dgg-cost",
       "statement_version": "v1",
-      "statement_digest": "f96a8ca533fc6ee26353c4fa09b92004b42b88fb797a2b4b1b98058e635a2376",
+      "statement_digest": "9b5389b33e8c8644b9246798597f60a152d87385885875226b700fe4b8ec138b",
       "administrator": "Federico2014",
-      "evidence_url": "https://github.com/Federico2014/math-lean-verification/blob/e91fa98639ee8f7eb955477818850728acff272a/docs/administrator-approvals/dgg-cost-v1.md",
-      "reason": "Repository administrator Federico2014 explicitly authorized DGG approval after disclosure that two independent mathematical reviews are absent. This exact-statement exception waives that review prerequisite only; source hashes, approved environment, actual machine verification and pending formal acceptance remain required."
+      "evidence_url": "https://github.com/Federico2014/math-lean-verification/blob/f609043b3c6c049e88d9c6c01c4b662877df6083/docs/administrator-approvals/dgg-cost-v1-2026-09-10.md",
+      "reason": "Explicit administrator authorization on 2026-09-10 to approve this exact candidate-informed DGG statement for the machine-verification gate as an exception to two-person independent review. Independent mathematical review remains incomplete; fresh proof verification is mandatory and formal acceptance remains disabled."
     }
   ]
 }

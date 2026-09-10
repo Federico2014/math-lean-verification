@@ -37,13 +37,14 @@ Follow [the repository statement-review process](../../../docs/statement-review.
 2. Freeze both drafts before comparison, then document discrepancies and
    resolutions against this candidate-informed encoding.
 3. Preserve an identifiable source snapshot and its SHA-256. The versioned
-   source link and retrieved HTML hash are recorded in `problem.json`;
+   source link and HTML hash, rechecked on 2026-09-10, are recorded in
+   `problem.json`;
    durable source archival remains outstanding for formal acceptance.
 4. Confirm the approved reviewer roster and bind the final statement digest
    only after the evidence is complete. Changed meaning requires a new
    statement version and invalidation of affected verification evidence.
 
-Independent mathematical review remains pending. A separately authorized
-administrator exception, if activated, changes the merge-gate approval basis
-without completing these independent-review obligations. See
-[the authorization record](../../../docs/administrator-approvals/dgg-cost-v1.md).
+Independent mathematical review remains pending. No administrator exception is
+active for this registration. Any future exception must follow the documented
+statement-specific authorization and activation process and bind the new exact
+statement digest; it does not complete the independent-review obligations.

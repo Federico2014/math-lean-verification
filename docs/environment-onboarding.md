@@ -35,6 +35,38 @@ stale or absent build targets without compiling them. The check has a 300-second
 deadline and a 10-second forced-termination grace period. Incomplete caches and
 budget failures stop onboarding; there is no automatic full-Mathlib rebuild.
 
+## Select the CI scope
+
+For a PR, **Lean backend tests** compares the complete PR with its merge base:
+changes under `environments/<id>/` select only those existing environment IDs.
+Renaming selects the new ID; a fully deleted environment is not built. Changes to
+shared backend/verifier code, schemas, verification policy, the smoke driver,
+pinned CI dependencies or this workflow select all environments. Documentation
+and the static entrypoints listed in the workflow need no backend run. Missing
+history, invalid metadata and unknown manual IDs fail rather than silently skip.
+
+Manual dispatch tests all environments when `environment` is omitted or empty.
+To test one environment on `develop`:
+
+```bash
+gh workflow run backend-ci.yml \
+  --repo Federico2014/math-lean-verification \
+  --ref develop \
+  -f environment=lean-4-32-rc1-mathlib
+```
+
+Use the exact ID, not a directory path; `all` is not a reserved keyword. To run
+all environments, omit `-f environment=...`. Direct pushes do not trigger this
+backend workflow; use manual dispatch after direct maintenance commits.
+
+The selection job summary lists the tested scope. An empty selection skips the
+backend job and supplies no verification evidence. A successful single-environment
+run establishes evidence only for that environment and revision. Each selected
+job still runs its complete proof, negative, import and sandbox regression suite.
+No selection or successful run grants environment approval. Different manual
+selections have separate concurrency groups; repeated runs of the same selection
+may supersede one another.
+
 ## Local diagnostic execution
 
 These commands require Docker. Candidate Lean never executes on the host.
