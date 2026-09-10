@@ -3,10 +3,11 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import re
+import subprocess
 
 from .merge_gate import GitHub, run
-from .registry import RegistryError, require
-from .revalidate import revision
+from .registry import ROOT, RegistryError, require
 
 WORKFLOW = 'lean-verification.yml'
 
@@ -95,8 +96,13 @@ def resume(api, base, planner=run, *, branch='main'):
 
 
 def main():
-    base = revision(os.environ['GITHUB_SHA'])
-    result = resume(GitHub(os.environ['GITHUB_REPOSITORY']), base, branch=os.environ['GITHUB_REF_NAME'])
+    branch, base = os.environ['GITHUB_REF_NAME'], os.environ['GITHUB_SHA']
+    require(branch in ('main', 'develop'), 'Unexpected scheduler branch')
+    require(os.environ['GITHUB_REF'] == 'refs/heads/' + branch, 'Scheduler event branch mismatch')
+    require(bool(re.fullmatch('[0-9a-f]{40}', base)), 'Expected a fixed scheduler revision')
+    actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    require(actual == base, 'Scheduler checkout differs from event revision')
+    result = resume(GitHub(os.environ['GITHUB_REPOSITORY']), base, branch=branch)
     Path('resume-report.json').write_text(json.dumps(result, indent=2) + '\n')
 
 

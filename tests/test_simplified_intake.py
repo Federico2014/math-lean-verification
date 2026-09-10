@@ -219,6 +219,24 @@ class ResumeTests(unittest.TestCase):
             runs if path.startswith('actions/') else [pr] if path.startswith('pulls?') else [{'filename': 'candidates/example.json'}])
         return api, pr
 
+    def test_scheduler_entrypoint_uses_develop_checkout_without_main_revalidation(self):
+        from verifier.resume import main
+        env = {'GITHUB_ACTIONS': 'true', 'GITHUB_REF_NAME': 'develop',
+               'GITHUB_REF': 'refs/heads/develop', 'GITHUB_SHA': 'b'*40,
+               'GITHUB_REPOSITORY': 'example/registry'}
+        with patch.dict(os.environ, env, clear=True), \
+             patch('verifier.resume.subprocess.check_output', return_value='b'*40) as git, \
+             patch('verifier.resume.GitHub') as api, \
+             patch('verifier.resume.resume', return_value=[]) as scheduler, \
+             patch('verifier.resume.Path.write_text'):
+            main()
+            scheduler.assert_called_once_with(api.return_value, 'b'*40, branch='develop')
+            scheduler.reset_mock()
+            git.return_value = 'c'*40
+            with self.assertRaisesRegex(RegistryError, 'checkout differs'):
+                main()
+            scheduler.assert_not_called()
+
     def test_develop_resume_uses_its_own_branch_and_identity(self):
         previous = {'event': 'workflow_dispatch', 'display_title': marker(1, 'a'*40, 'b'*40, 'main'),
                     'head_sha': 'b'*40, 'head_repository': {'full_name': 'example/registry'}}
