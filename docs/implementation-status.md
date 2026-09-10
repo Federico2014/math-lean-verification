@@ -11,7 +11,7 @@ or verifier revisions require fresh evidence.
 - Static environment discovery: read toolchain/configuration/lock files without executing Lake.
 - Reusable environment descriptors, pinned dependency workspaces, onboarding status and configurable resource budgets.
 - Explicit upstream subdirectory/source mapping and hash-bound local Lean proof bridges.
-- Trusted-base planning, bounded two-job candidate matrix, separate status publication and current-head/base checks.
+- Trusted-base planning, bounded two-job candidate matrix, separate status publication and current-head/base checks. Automatic PR entry distinguishes GitHub default-branch event context from the checked-out protected target; legacy default-branch publishers bind the original event target.
 - Existing Comparator export comparison and Lean/Nanoda replay, adapted for environment-selected compilers/exporters.
 - Offline non-root execution, read-only trusted inputs and dependency images, seccomp, resource limits and runtime probes.
 - Diagnostic machine execution while a registered workspace review is pending; final merge remains blocked.

@@ -1,5 +1,5 @@
 name: Trusted Lean verification
-run-name: Lean PR ${{ github.event.pull_request.number || inputs.pr }} ${{ github.event.pull_request.head.sha || inputs.expected_head }} ${{ github.sha }} ${{ github.ref_name }}
+run-name: Lean PR ${{ github.event.pull_request.number || inputs.pr }} ${{ github.event.pull_request.head.sha || inputs.expected_head }} ${{ github.event.pull_request.base.sha || github.sha }} ${{ github.event.pull_request.base.ref || github.ref_name }}
 on:
   pull_request_target:
     branches: [main, develop]
@@ -28,7 +28,11 @@ jobs:
     concurrency:
       group: lean-status-${{ github.event.pull_request.number || inputs.pr }}
       cancel-in-progress: false
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    if: >-
+      (github.event_name == 'pull_request_target' &&
+       (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop')) ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -40,10 +44,11 @@ jobs:
       base_ref: ${{ steps.resolve.outputs.base_ref }}
       pr: ${{ steps.resolve.outputs.pr }}
     steps:
-      # Only protected base code is checked out. PR files are fetched as bounded data.
+      # PR-target event refs point to the default branch, not necessarily the base.
+      # The resolver checks this exact checkout against the live protected branch.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
           persist-credentials: false
       - id: resolve
         env:

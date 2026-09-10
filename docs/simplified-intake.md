@@ -140,3 +140,27 @@ still needs its own evidence, including documentation commits. Recovery and
 catalog schedules remain necessary for retries and for publishing results after
 asynchronous proof jobs finish. See GitHub's
 [workflow filtering and concurrency rules](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax).
+
+## Automatic PR entrypoint and GitHub branch context
+
+GitHub's `pull_request_target` uses the repository's default branch for the
+workflow source and `GITHUB_REF` / `GITHUB_SHA`, including PRs targeting `develop`.
+See the [GitHub event change](https://github.blog/changelog/2025-11-07-actions-pull_request_target-and-environment-branch-protections-changes/).
+The resolver checkout explicitly selects the event's base commit, limited to
+`main` or `develop`. Before posting a pending status, it checks the actual Git
+checkout against the live protected target SHA and matches the event's PR head,
+repository and target branch against the API. Default-branch SHA equality is not
+a target-branch check. Stale checkouts, changed heads, retargeted events and
+unprotected targets fail closed. A protected target push still invokes recovery
+with the fresh base; an old event is never allowed to authorize a stale checkout.
+
+Manual dispatch retains exact `GITHUB_REF` / `GITHUB_SHA` checks for its selected
+protected branch. The publisher rechecks checkout, live branch/head/protection,
+and status ownership. For the earlier default-branch workflow that already
+checks out `pull_request.base.sha` but does not forward `EXPECTED_BASE_REF`, an
+automatic publisher derives that binding from the original immutable event.
+This allows the resolver/publisher fix on `develop` to serve the existing
+`main` entrypoint without changing `main` or manually dispatching candidate runs.
+The updated workflow also labels automatic runs with their target branch/base.
+Workflow trigger additions (such as `edited`) take effect only when that workflow
+file is deployed to the default branch.
