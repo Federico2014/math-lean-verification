@@ -52,7 +52,7 @@ class RepositoryTests(unittest.TestCase):
                     }
                     if (path.name, name) in allowed:
                         self.assertEqual(job['permissions'], allowed[path.name, name])
-                        self.assertEqual(job['if'], "github.ref == 'refs/heads/main'")
+                        self.assertEqual(job['if'], "github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'" if path.name == 'resume-candidates.yml' else "github.ref == 'refs/heads/main'")
                     elif path.name != "lean-verification.yml":
                         self.assertNotIn("permissions", job)
                     self.assertNotIn("secrets", job)
@@ -61,6 +61,9 @@ class RepositoryTests(unittest.TestCase):
     def test_trusted_gate_never_checks_out_pr_code_or_grants_execution_write_access(self):
         workflow = yaml.load((ROOT / ".github/workflows/lean-verification.yml").read_text(), Loader=yaml.BaseLoader)
         self.assertEqual(set(workflow["on"]), {"pull_request_target", "workflow_dispatch"})
+        self.assertEqual(workflow['on']['pull_request_target']['branches'], ['main', 'develop'])
+        self.assertIn('edited', workflow['on']['pull_request_target']['types'])
+        self.assertIn('github.event.pull_request.base.ref', workflow['run-name'])
         jobs = workflow["jobs"]
         self.assertNotIn("permissions", jobs["verify"])
         self.assertEqual(jobs["verify"]["needs"], ["resolve", "plan"])

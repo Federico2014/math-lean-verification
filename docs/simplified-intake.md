@@ -40,17 +40,18 @@ and preparation digests accompany normal proof evidence.
 
 ## Automatic recovery
 
-`resume-candidates.yml` runs on main pushes, every 15 minutes and manual dispatch.
-It uses protected code and current main configuration, paginates open PRs, skips
+`resume-candidates.yml` runs on `main` and `develop` pushes and manual dispatch;
+the 15-minute schedule runs on the default branch only. Each invocation uses its
+own protected target branch and current configuration, paginates open PRs, skips
 closed/draft PRs, and replans relevant candidate changes as data. Multiple blockers
 remain visible in the uploaded `candidate-resume-*` report. Waiting tasks finish;
 no runner is held open while a maintainer works.
 
 Each new candidate identity receives a short protected plan run through an explicit `workflow_dispatch` of `lean-verification.yml` on
-main with PR number, expected head and expected base. The gate applies only changed
+the PR target branch with PR number, expected head and expected base. The gate applies only changed
 PR registry files to current protected data. Candidate PRs cannot change their own
 approval, policy, environment or preparation mappings. Dispatches are deduplicated
-by PR/head/base. All gate entry points share PR concurrency; resolver and publisher status writes
+by PR/head/base/target branch. All gate entry points share PR concurrency; resolver and publisher status writes
 also share a non-cancelling per-PR job lock. Blocked plans finish without a Lean
 matrix. The scheduler never writes commit statuses itself. The resolver rejects
 stale identities; the publisher ignores closed/moved PRs and superseded pending
@@ -61,8 +62,15 @@ proof paths must belong to a registration; orphan files cannot receive a
 maintenance-only pass. Markdown-only maintenance remains non-verifying.
 An executed proof failure requires correction or an explicit retry. Maintainers
 can manually dispatch the trusted workflow with the PR number for infrastructure
-retries, without changing candidate materials. A new main revision creates a new
+retries, without changing candidate materials. A new target-branch revision creates a new
 verification identity and an automatic recovery opportunity.
+
+Protect `develop` with the same required checks and configuration review controls
+as `main` before using it as a trusted target. The resolver checks the workflow
+checkout revision, target branch and live protection; the publisher repeats the
+branch/revision checks. Retargeting a PR invalidates its previous verdict even
+when both branches point at the same commit. Unsupported targets cannot authorize
+execution. A green historical check is not evidence for the new target.
 
 ## Result publication
 
@@ -91,7 +99,9 @@ archive. Actions proof artifacts have 90-day retention.
 
 Merge the reviewed implementation after unit/registry and real backend CI pass.
 Protected workflows intentionally cannot use this PR's controller to authorize
-itself. Their production event-chain test follows deployment to main.
+itself. Their production event-chain test follows deployment to the protected target.
+Development PRs target `develop`; main-only catalog publication and post-merge
+revalidation begin when changes reach `main`.
 
 Once, select **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 Allow the `github-pages` environment to deploy only from main. The catalog build

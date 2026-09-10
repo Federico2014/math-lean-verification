@@ -1,12 +1,13 @@
 name: Trusted Lean verification
-run-name: Lean PR ${{ github.event.pull_request.number || inputs.pr }} ${{ github.event.pull_request.head.sha || inputs.expected_head }} ${{ github.event.pull_request.base.sha || inputs.expected_base }}
+run-name: Lean PR ${{ github.event.pull_request.number || inputs.pr }} ${{ github.event.pull_request.head.sha || inputs.expected_head }} ${{ github.event.pull_request.base.sha || inputs.expected_base }} ${{ github.event.pull_request.base.ref || github.ref_name }}
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
   workflow_dispatch:
     inputs:
       pr:
-        description: Open PR number to verify against current main
+        description: Open PR number to verify against its current protected target branch
         required: true
         type: string
       expected_head:
@@ -14,7 +15,7 @@ on:
         required: false
         type: string
       expected_base:
-        description: Expected protected main revision
+        description: Expected protected target revision
         required: false
         type: string
 permissions:
@@ -27,7 +28,7 @@ jobs:
     concurrency:
       group: lean-status-${{ github.event.pull_request.number || inputs.pr }}
       cancel-in-progress: false
-    if: github.event_name == 'pull_request_target' || github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -36,6 +37,7 @@ jobs:
     outputs:
       head: ${{ steps.resolve.outputs.head }}
       base: ${{ steps.resolve.outputs.base }}
+      base_ref: ${{ steps.resolve.outputs.base_ref }}
       pr: ${{ steps.resolve.outputs.pr }}
     steps:
       # Only protected base code is checked out. PR files are fetched as bounded data.
@@ -145,6 +147,7 @@ jobs:
           PR_HEAD: ${{ needs.resolve.outputs.head }}
           PR_NUMBER: ${{ needs.resolve.outputs.pr }}
           EXPECTED_BASE: ${{ needs.resolve.outputs.base }}
+          EXPECTED_BASE_REF: ${{ needs.resolve.outputs.base_ref }}
           EXECUTION_RESULT: ${{ needs.verify.result }}
           PLAN_RESULT: ${{ needs.plan.result }}
           PLAN_STATUS: ${{ needs.plan.outputs.status }}

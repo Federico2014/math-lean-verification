@@ -294,9 +294,10 @@ def run(repository, pr_number, head, image, output, check_only=False, submission
     api = GitHub(repository)
     pr = api.get('pulls/' + str(pr_number))
     require(pr['state'] == 'open' and pr['head']['sha'] == head, 'Stale or closed PR')
-    require(pr['base']['repo']['full_name'] == repository and pr['base']['ref'] == 'main', 'Unexpected PR base')
+    require(pr['base']['repo']['full_name'] == repository and pr['base']['ref'] in ('main', 'develop'), 'Unexpected PR base')
+    branch = pr['base']['ref']
     base = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
-    require(pr['base']['sha'] == base, 'Base moved; rerun verification on current main')
+    require(pr['base']['sha'] == base, 'Base moved; rerun verification on the current target branch')
     trusted = validate_registry(ROOT)
     with tempfile.TemporaryDirectory(prefix='lean-pr-') as temporary:
         root = Path(temporary)
@@ -327,7 +328,9 @@ def run(repository, pr_number, head, image, output, check_only=False, submission
             result['status'] = 'blocked'
         # A single fixed snapshot must cover PR files, not a mixture of updates.
         latest = api.get('pulls/' + str(pr_number))
-        require(latest['state'] == 'open' and latest['head']['sha'] == head and latest['base']['sha'] == base,
+        require(latest['state'] == 'open' and latest['head']['sha'] == head and latest['base']['sha'] == base
+                and latest['base']['ref'] == branch
+                and latest['base']['repo']['full_name'] == repository,
                 'PR or base moved during verification')
         return result
 

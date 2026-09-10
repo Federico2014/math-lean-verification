@@ -56,9 +56,10 @@ Replace template placeholders. An Issue is optional. You do not need a local
 Lean installation, environment ID, source hashes, generated registration or
 README edit. Use `source.project_root` for a project in a subdirectory.
 
-### 2. Open one PR per candidate against main
+### 2. Open one PR per candidate against develop
 
-Opening or updating the PR automatically triggers **Trusted Lean verification**.
+Opening, updating or retargeting the PR automatically triggers **Trusted Lean verification**.
+Both `develop` and `main` are supported protected targets; new work goes to `develop`.
 CI reads the fixed source as data, matches approved environments, selects local
 imports, prepares internal registration and generates a proof bridge when the
 mapping is unambiguous. It then runs the real isolated Lean, statement comparison,
@@ -78,10 +79,12 @@ belong in this PR.
 | `verified` | All machine checks and exact statement approval passed; the maintainer can merge after required repository checks. |
 
 The plan artifact lists all preparation blockers. Maintainers merge preparation
-and approval changes in separate PRs. The main scheduler automatically resumes
-waiting candidate PRs against the new main while preserving their submitted head;
+and approval changes in separate PRs against the same target branch. Each target-branch
+push automatically resumes waiting candidate PRs against its new revision while preserving their submitted head;
 no empty commit or rebase is needed merely to pick up approved configuration.
-Conflicting candidate edits still require normal conflict resolution.
+Conflicting candidate edits still require normal conflict resolution. Manual recovery
+is available on either branch; the periodic schedule runs on the default branch.
+The published candidate catalog continues to describe `main`, not unmerged development work.
 
 Read `lean-plan-*` / scheduler diagnostics for prerequisites, and
 `lean-evidence-*` for `report.md`, `verification-result.json` and stage logs.

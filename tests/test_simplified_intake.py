@@ -210,14 +210,36 @@ class IntakeTests(unittest.TestCase):
 
 
 class ResumeTests(unittest.TestCase):
-    def setup_api(self, runs=()):
+    def setup_api(self, runs=(), branch='main'):
         api = Mock(repository='example/registry')
         pr = {'number': 1, 'state': 'open', 'head': {'sha': 'a'*40, 'repo': {'full_name': api.repository}},
-              'base': {'sha': 'b'*40, 'ref': 'main', 'repo': {'full_name': api.repository}}}
-        api.get.side_effect = lambda path: {'commit': {'sha': 'b'*40}} if path == 'branches/main' else pr
+              'base': {'sha': 'b'*40, 'ref': branch, 'repo': {'full_name': api.repository}}}
+        api.get.side_effect = lambda path: {'protected': True, 'commit': {'sha': 'b'*40}} if path == 'branches/' + branch else pr
         api.pages.side_effect = lambda path, *args, **kwargs: iter(
             runs if path.startswith('actions/') else [pr] if path.startswith('pulls?') else [{'filename': 'candidates/example.json'}])
         return api, pr
+
+    def test_develop_resume_uses_its_own_branch_and_identity(self):
+        previous = {'event': 'workflow_dispatch', 'display_title': marker(1, 'a'*40, 'b'*40, 'main'),
+                    'head_sha': 'b'*40, 'head_repository': {'full_name': 'example/registry'}}
+        api, _ = self.setup_api([previous], branch='develop')
+        self.assertEqual(resume(api, 'b'*40, Mock(return_value={'status': 'ready'}), branch='develop')[0]['status'], 'dispatched')
+        self.assertEqual(api.request.call_args.args[1]['ref'], 'develop')
+        api.pages.assert_any_call('pulls?state=open&base=develop')
+        self.assertNotEqual(marker(1, 'a'*40, 'b'*40, 'main'), marker(1, 'a'*40, 'b'*40, 'develop'))
+
+    def test_unprotected_scheduler_and_retargeted_pr_cannot_dispatch(self):
+        api, pr = self.setup_api(branch='develop')
+        api.get.side_effect = lambda path: {'protected': False, 'commit': {'sha': 'b'*40}} if path.startswith('branches/') else pr
+        with self.assertRaisesRegex(RegistryError, 'must be protected'):
+            resume(api, 'b'*40, Mock(), branch='develop')
+        api.request.assert_not_called()
+        api, pr = self.setup_api(branch='develop')
+        def plan(*args, **kwargs):
+            pr['base']['ref'] = 'main'
+            return {'status': 'ready'}
+        self.assertEqual(resume(api, 'b'*40, plan, branch='develop'), [])
+        api.request.assert_not_called()
 
     @patch.dict(os.environ, {'GITHUB_RUN_ID': '456'})
     def test_blocked_pr_resumes_same_head_when_main_preparation_becomes_ready(self):
@@ -258,7 +280,7 @@ class ResumeTests(unittest.TestCase):
         first['head']['repo'] = None
         original = api.pages.side_effect
         api.pages.side_effect = lambda path, *args, **kwargs: iter([first, second]) if path.startswith('pulls?') else original(path, *args, **kwargs)
-        api.get.side_effect = lambda path: {'commit': {'sha': 'b'*40}} if path == 'branches/main' else second
+        api.get.side_effect = lambda path: {'protected': True, 'commit': {'sha': 'b'*40}} if path == 'branches/main' else second
         planner = Mock(return_value={'status': 'ready'})
         result = resume(api, 'b'*40, planner)
         self.assertEqual([r['status'] for r in result], ['blocked', 'dispatched'])
@@ -310,7 +332,7 @@ class ResumeTests(unittest.TestCase):
         second = copy.deepcopy(first)
         second['number'] = 2
         second['head']['sha'] = 'c'*40
-        api.get.side_effect = lambda path: {'commit': {'sha': 'b'*40}} if path == 'branches/main' else second
+        api.get.side_effect = lambda path: {'protected': True, 'commit': {'sha': 'b'*40}} if path == 'branches/main' else second
         def pages(path, *args, **kwargs):
             if path.startswith('actions/'):
                 return iter([])

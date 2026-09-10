@@ -1,18 +1,18 @@
 name: Resume waiting Lean candidates
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   schedule:
     - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: lean-candidate-resume
+  group: lean-candidate-resume-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   resume:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
