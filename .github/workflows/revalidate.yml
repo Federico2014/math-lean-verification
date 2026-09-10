@@ -1,5 +1,5 @@
 name: Revalidate registered Lean proofs
-run-name: Revalidate ${{ github.sha }} ${{ inputs.submission || 'all' }}
+run-name: Revalidate ${{ github.sha }} ${{ inputs.submission && format('selected-{0}', inputs.submission) || 'all' }}
 on:
   push:
     branches: [main]
@@ -14,7 +14,7 @@ permissions:
 concurrency:
   # Only current-main evidence can populate the catalog. Superseded runs for
   # the same selection need not finish; individual manual selections stay separate.
-  group: lean-revalidation-${{ github.ref }}-${{ inputs.submission || 'all' }}
+  group: lean-revalidation-${{ github.ref }}-${{ inputs.submission && format('selected-{0}', inputs.submission) || 'all' }}
   cancel-in-progress: true
 jobs:
   plan:

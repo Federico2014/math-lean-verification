@@ -55,7 +55,7 @@ def build(api, registry, base):
     runs = read_runs()
     def newest(values, identifier):
         return next((r for r in values if r['head_sha'] == base and r.get('display_title') in (
-            f'Revalidate {base} all', f'Revalidate {base} {identifier}')), None)
+            f'Revalidate {base} all', f'Revalidate {base} selected-{identifier}')), None)
     def identity(run):
         return (run['id'], run['run_attempt'], run['status']) if run else None
     def read_jobs(key):

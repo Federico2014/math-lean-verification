@@ -51,6 +51,18 @@ class CatalogTests(unittest.TestCase):
                 self.run[field] = invalid
                 self.assertEqual(self.catalog()['candidates'][0]['status'], 'not_run')
 
+    def test_candidate_named_all_is_distinct_from_an_all_candidate_run(self):
+        self.registry['candidates']['all'] = copy.deepcopy(self.registry['candidates']['example'])
+        self.job['name'] = 'Verify candidate all'
+        self.run['display_title'] = f'Revalidate {self.base} selected-all'
+        rows = {r['id']: r for r in self.catalog()['candidates']}
+        self.assertEqual(rows['all']['status'], 'verified')
+        self.assertEqual(rows['example']['status'], 'not_run')
+        self.assertIsNone(rows['example']['evidence_url'])
+        self.run['display_title'] = f'Revalidate {self.base} all'
+        rows = {r['id']: r for r in self.catalog()['candidates']}
+        self.assertIsNotNone(rows['example']['evidence_url'])
+
     def test_retry_failure_and_running_never_fall_back_to_older_green(self):
         old = copy.deepcopy(self.run)
         old['id'] = 11

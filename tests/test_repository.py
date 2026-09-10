@@ -132,7 +132,9 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(concurrency['cancel-in-progress'], 'true')
         self.assertNotIn('github.sha', concurrency['group'])
         self.assertIn('github.ref', concurrency['group'])
-        self.assertIn("inputs.submission || 'all'", concurrency['group'])
+        selection = "inputs.submission && format('selected-{0}', inputs.submission) || 'all'"
+        self.assertIn(selection, concurrency['group'])
+        self.assertIn(selection, workflow['run-name'])
         # Current-SHA catalog provenance requires evidence even after docs commits.
         self.assertEqual(workflow['on']['push'], {'branches': ['main']})
 

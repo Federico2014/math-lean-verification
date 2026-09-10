@@ -120,7 +120,8 @@ The standalone preflight workflow has been removed; `verifier plan` remains a
 local diagnostic command.
 
 Main revalidation cancels superseded runs for the same selection; manually
-selected candidates have separate concurrency groups. Every new main revision
+selected candidates use `selected-<id>` in concurrency groups and run titles,
+distinct from the `all` scope even for a candidate whose ID is `all`. Every new main revision
 still needs its own evidence, including documentation commits. Recovery and
 catalog schedules remain necessary for retries and for publishing results after
 asynchronous proof jobs finish. See GitHub's
