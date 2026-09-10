@@ -122,20 +122,22 @@ class IntakeTests(unittest.TestCase):
         self.fixture.write('problems/test-problem/v1/problem.json', pending)
         pr = {'state': 'open', 'head': {'sha': 'c'*40},
               'base': {'sha': 'd'*40, 'ref': 'main', 'repo': {'full_name': 'example/registry'}}}
+        live_base = 'd'*40
         registry_api = Mock()
         registry_api.get.side_effect = lambda path: ([{'filename': 'candidates/example-proof.json'}]
-                                                    if '/files?' in path else pr)
+            if '/files?' in path else {'protected': True, 'commit': {'sha': live_base}}
+            if path.startswith('branches/') else pr)
         # The old PR tree deliberately has no current workspace or approvals.
         registry_api.tree.return_value = {'candidates/example-proof.json': {'data': candidate_bytes}}
         registry_api.blob.side_effect = lambda item: item['data']
         with patch('verifier.merge_gate.ROOT', self.root), \
-             patch('verifier.merge_gate.subprocess.check_output', side_effect=lambda *args, **kwargs: pr['base']['sha']), \
+             patch('verifier.merge_gate.subprocess.check_output', side_effect=lambda *args, **kwargs: live_base), \
              patch('verifier.merge_gate.GitHub', side_effect=lambda repo: registry_api if repo == 'example/registry' else self.api):
             result = run('example/registry', 1, 'c'*40, None, self.root/'plan', check_only=True)
             self.assertEqual(result['status'], 'blocked')
             self.assertEqual(result['blocked']['example-proof']['intake_status'], 'waiting_review')
             self.fixture.write('problems/test-problem/v1/problem.json', self.fixture.problem)
-            pr['base']['sha'] = 'e'*40
+            live_base = 'e'*40  # PR base metadata intentionally remains stale.
             result = run('example/registry', 1, 'c'*40, None, self.root/'plan', check_only=True)
             self.assertEqual(result['status'], 'ready', result)
             self.assertEqual(result['head_sha'], 'c'*40)
@@ -152,7 +154,7 @@ class IntakeTests(unittest.TestCase):
         pr = {'state': 'open', 'head': {'sha': 'c'*40},
               'base': {'sha': 'd'*40, 'ref': 'main', 'repo': {'full_name': 'example/registry'}}}
         api = Mock()
-        api.get.return_value = pr
+        api.get.side_effect = lambda path: {'protected': True, 'commit': {'sha': 'd'*40}} if path.startswith('branches/') else pr
         with patch('verifier.merge_gate.ROOT', self.root), \
              patch('verifier.merge_gate.subprocess.check_output', return_value='d'*40), \
              patch('verifier.merge_gate.GitHub', return_value=api), \
