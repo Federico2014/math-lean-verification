@@ -6,7 +6,9 @@ New environments remain pending until actual compatibility tests and review are
 complete. No command below approves a mathematical statement or an environment.
 
 New candidates use [one candidate JSON and one PR](../README.md#adding-a-candidate).
-CI prepares the internal submission, source hashes and bridge automatically.
+CI prepares the internal submission and source hashes automatically. It generates
+a bridge when the target mapping is unambiguous, or checks the supplied optional
+`bridge` file through the same isolated verification pipeline.
 The former `draft-submission` command has been removed; use
 [templates/candidate.json](../templates/candidate.json) for new entries.
 Existing `submissions/` registrations remain supported. The tools below are for

@@ -259,6 +259,27 @@ def candidate_sources(submission, destination, *, problem=None, environment=None
     return source_hashes
 
 
+def candidate_changes(registry, changed, previous=None):
+    """Bind PR registration/proof paths to candidates, including metadata-only edits."""
+    owners = {}
+    for registry in (previous or {}, registry):
+        for identifier, item in registry.get('candidates', {}).items():
+            owners['candidates/' + identifier + '.json'] = identifier
+            if item.get('bridge'):
+                owners['proofs/' + identifier + '/' + item['bridge']] = identifier
+        for identifier, item in registry.get('submissions', {}).items():
+            owners['submissions/' + item['problem_id'] + '/' + identifier + '.json'] = identifier
+            for proof in item.get('execution', {}).get('proof_files', []):
+                owners['proofs/' + identifier + '/' + proof['path']] = identifier
+    affected = set()
+    for path in changed:
+        if not path.startswith(('candidates/', 'submissions/', 'proofs/')) or path.endswith('.md'):
+            continue
+        require(path in owners, 'Candidate file is not bound to a registration: ' + path)
+        affected.add(owners[path])
+    return affected
+
+
 def candidate_delta(identifiers, changed):
     require(len(identifiers) <= 1, 'Candidate PR may contain at most one candidate')
     if not identifiers:
@@ -282,11 +303,12 @@ def run(repository, pr_number, head, image, output, check_only=False, submission
         changed = proposal_snapshot(api, head, pr_number, root)
         proposed = validate_registry(root)
         affected = select_submissions(trusted, proposed)
+        changed_ids = candidate_changes(proposed, changed, previous=trusted)
+        affected = sorted(set(affected) | (changed_ids & set(proposed['submissions'])))
         old_candidates = trusted.get('candidates', {})
         new_candidates = proposed.get('candidates', {})
         require(set(old_candidates) <= set(new_candidates), 'Removing registered candidates requires a separate maintenance process')
-        simple = [i for i, c in new_candidates.items() if c != old_candidates.get(i) or
-                  any(p.startswith('proofs/' + i + '/') for p in changed)]
+        simple = [i for i, c in new_candidates.items() if c != old_candidates.get(i) or i in changed_ids]
         candidate_delta(simple, changed)
         from .intake import prepare_registry
         # Preparation is recomputed for each execution using current protected data.

@@ -46,10 +46,14 @@ def resume(api, base, planner=run):
         initial = [r for r in api.pages('actions/workflows/' + WORKFLOW + '/runs?head_sha=' + head,
                                        'workflow_runs', max_pages=10)
                    if r.get('event') == 'pull_request_target']
-        source_repository = pr['head'].get('repo', {}).get('full_name', api.repository)
+        source_repository = (pr['head'].get('repo') or {}).get('full_name')
+        if not source_repository:
+            reports.append({'pr': number, 'head': head, 'base': base, 'status': 'blocked',
+                            'error': 'Candidate head repository is unavailable'})
+            continue
         previous = [r for r in runs + initial if r.get('display_title') == identity
                     and r.get('head_sha') == (head if r.get('event') == 'pull_request_target' else base)
-                    and r.get('head_repository', {}).get('full_name') == (
+                    and (r.get('head_repository') or {}).get('full_name') == (
                         source_repository if r.get('event') == 'pull_request_target' else api.repository)
                     and r.get('event') in ('pull_request_target', 'workflow_dispatch')]
         retry = False
@@ -73,6 +77,10 @@ def resume(api, base, planner=run):
         if api.get('branches/main')['commit']['sha'] != base:
             break
         report = {'pr': number, 'head': head, 'base': base, 'plan': plan}
+        if plan.get('status') not in ('ready', 'blocked'):
+            report['status'] = 'not_applicable' if plan.get('status') == 'not_applicable' else 'blocked'
+            reports.append(report)
+            continue
         # A short protected plan run also publishes waiting failures through the
         # same serialized status jobs. No Lean matrix runs while blocked.
         api.request('actions/workflows/' + WORKFLOW + '/dispatches', {

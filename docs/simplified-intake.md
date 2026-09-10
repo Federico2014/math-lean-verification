@@ -28,6 +28,11 @@ Standard `Challenge.lean` collisions are renamed to `CandidateChallenge.lean`
 with hash-bound import replacements. A generated bridge exposes each official
 name using the submitted declaration. Its exact upstream type and universe parameters must pass Comparator;
 extra premises or altered definitions cannot pass merely by renaming a theorem.
+Generated bridges check the declaration's defining module against the selected
+module after source renaming, including when the official and upstream names
+already agree. A wrapper that merely imports another module's theorem must name
+the defining module in its target, or supply an explicit checked bridge. This
+module check is an integration guard, not proof of authorship or originality.
 Ambiguous target mappings require a protected mapping or explicit checked bridge.
 The complete upstream license, when present, is preserved as comments in the
 archived overlay. Original/adapted files, candidate materials, resolved registration
@@ -50,6 +55,10 @@ also share a non-cancelling per-PR job lock. Blocked plans finish without a Lean
 matrix. The scheduler never writes commit statuses itself. The resolver rejects
 stale identities; the publisher ignores closed/moved PRs and superseded pending
 statuses. A failure before proof execution gets at most one automatic retry per identity.
+Deleted head repositories are reported per PR without stopping other candidates.
+Only ready or blocked plans can trigger recovery dispatches. Candidate data and
+proof paths must belong to a registration; orphan files cannot receive a
+maintenance-only pass. Markdown-only maintenance remains non-verifying.
 An executed proof failure requires correction or an explicit retry. Maintainers
 can manually dispatch the trusted workflow with the PR number for infrastructure
 retries, without changing candidate materials. A new main revision creates a new
@@ -72,6 +81,9 @@ blocked preparation shows `not_run` with the CI plan link. Historical run links
 are separate and describe their own revision. API failure stops publication rather
 than inventing results; the existing page retains its displayed revision/timestamp.
 A candidate pass can be displayed independently of another candidate's failure.
+Before publication, the controller refetches verification jobs as well as runs
+and checks job identities, statuses, conclusions and step outcomes. A job changing
+inside the same running attempt invalidates the snapshot and requires a retry.
 The catalog is a presentation of machine checks, not formal acceptance or a durable
 archive. Actions proof artifacts have 90-day retention.
 

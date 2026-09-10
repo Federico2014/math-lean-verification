@@ -163,6 +163,36 @@ def main():
                     'candidate_target_coverage' in result['stages'])
             results.append({'case': name, 'test_passed': okay, 'error': result.get('error')})
             print(json.dumps(results[-1]), flush=True)
+    # Generated bridges must bind each target to its selected (possibly renamed)
+    # module, not silently borrow a global declaration from another import.
+    for name, declared_module, declaration, official, expected in [
+        ('generated_module_owner', 'Proofs.Owner', 'owned', 'target', True),
+        ('generated_module_reexport', 'Proofs.Wrapper', 'owned', 'target', False),
+        ('generated_global_constant', 'Proofs.Wrapper', 'True.intro', 'target', False),
+        ('generated_same_name_reexport', 'Proofs.Wrapper', 'owned', 'owned', False),
+        ('generated_same_name_owner', 'Proofs.Owner', 'owned', 'owned', True),
+        ('generated_renamed_owner', 'Challenge', 'owned', 'target', True),
+    ]:
+        with tempfile.TemporaryDirectory(prefix='lean-origin-') as folder:
+            root = Path(folder)
+            (root/'challenge').mkdir(); (root/'solution/Proofs').mkdir(parents=True)
+            (root/'challenge/Challenge.lean').write_text('theorem ' + official + ' : True := by sorry\n')
+            transforms = []
+            if declared_module == 'Challenge':
+                (root/'solution/CandidateChallenge.lean').write_text('theorem owned : True := by trivial\n')
+                transforms = [{'path': 'Challenge.lean', 'destination': 'CandidateChallenge.lean'}]
+            else:
+                (root/'solution/Proofs/Owner.lean').write_text('theorem owned : True := by trivial\n')
+                (root/'solution/Proofs/Wrapper.lean').write_text('import Proofs.Owner\n')
+            (root/'solution/Bridge.lean').write_bytes(bridge_source([{'module': declared_module,
+                'declaration': declaration, 'official_theorem': official}], transforms))
+            result = verify(args.image, root/'challenge', root/'solution', 'Bridge', [official],
+                            args.output/name, environment=environment, solution_declarations=[declaration])
+            okay = (result['machine_status'] == 'passed' and 'independent_nanoda_replay' in result['stages']) if expected else (
+                result['machine_status'] == 'failed' and result.get('failed_stage') == 'solution_clean_build_export'
+                and 'Candidate declaration is not defined in the selected module' in result.get('error', ''))
+            results.append({'case': name, 'test_passed': okay, 'error': result.get('error')})
+            print(json.dumps(results[-1]), flush=True)
     # The common source adapter must support an upstream Challenge module without
     # allowing the candidate to replace the official Challenge input.
     for borrows_placeholder in (False, True):

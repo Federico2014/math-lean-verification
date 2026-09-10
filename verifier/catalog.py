@@ -24,8 +24,8 @@ def trusted_run(run, workflow, repository):
     return (run.get('workflow_id') == workflow['id'] and run.get('path') == PATH
             and run.get('event') in ('push', 'workflow_dispatch')
             and run.get('head_branch') == 'main'
-            and run.get('repository', {}).get('full_name') == repository
-            and run.get('head_repository', {}).get('full_name') == repository
+            and (run.get('repository') or {}).get('full_name') == repository
+            and (run.get('head_repository') or {}).get('full_name') == repository
             and re.fullmatch('[0-9a-f]{40}', run.get('head_sha', '')) is not None)
 
 
@@ -58,6 +58,15 @@ def build(api, registry, base):
             f'Revalidate {base} all', f'Revalidate {base} {identifier}')), None)
     def identity(run):
         return (run['id'], run['run_attempt'], run['status']) if run else None
+    def read_jobs(key):
+        jobs = list(api.pages(f'actions/runs/{key[0]}/attempts/{key[1]}/jobs', 'jobs'))
+        require(all(j['run_id'] == key[0] and j['run_attempt'] == key[1]
+                    and j['head_sha'] == base for j in jobs), 'Job identity mismatch')
+        return jobs
+    def job_snapshot(jobs):
+        return sorted((j['name'], j.get('id'), j['status'], j['conclusion'],
+                       tuple((s['name'], s['status'], s['conclusion']) for s in j.get('steps', [])))
+                      for j in jobs if j['name'].startswith('Verify candidate '))
     selected = {}
     entries = dict(registry['submissions'], **registry.get('candidates', {}))
     cache, rows = {}, []
@@ -71,14 +80,14 @@ def build(api, registry, base):
         if run:
             key = (run['id'], run['run_attempt'])
             if key not in cache:
-                jobs = list(api.pages(f'actions/runs/{key[0]}/attempts/{key[1]}/jobs', 'jobs'))
-                require(all(j['run_id'] == key[0] and j['run_attempt'] == key[1]
-                            and j['head_sha'] == base for j in jobs), 'Job identity mismatch')
-                cache[key] = jobs
+                cache[key] = read_jobs(key)
             row['status'] = outcome(run, cache[key], identifier)
             row['evidence_url'] = f'https://github.com/{api.repository}/actions/runs/{key[0]}/attempts/{key[1]}'
         row['history_url'] = f'https://github.com/{api.repository}/actions/workflows/{WORKFLOW}?query=branch%3Amain'
         rows.append(row)
+    for key, jobs in cache.items():
+        require(job_snapshot(jobs) == job_snapshot(read_jobs(key)),
+                'Verification jobs changed while generating catalog; retry publication')
     latest_runs = read_runs()
     require(all(selected[i] == identity(newest(latest_runs, i)) for i in entries),
             'Verification attempts changed while generating catalog; retry publication')

@@ -147,6 +147,41 @@ class IntakeTests(unittest.TestCase):
         self.candidate['problem'] = {'title': 'Synthetic test', 'source_url': 'https://example.org/unrelated', 'scope': 'different'}
         self.assertEqual(self.prepare()['intake_status'], 'waiting_problem')
 
+    def test_orphan_candidate_paths_cannot_receive_not_applicable(self):
+        from verifier.merge_gate import run
+        pr = {'state': 'open', 'head': {'sha': 'c'*40},
+              'base': {'sha': 'd'*40, 'ref': 'main', 'repo': {'full_name': 'example/registry'}}}
+        api = Mock()
+        api.get.return_value = pr
+        with patch('verifier.merge_gate.ROOT', self.root), \
+             patch('verifier.merge_gate.subprocess.check_output', return_value='d'*40), \
+             patch('verifier.merge_gate.GitHub', return_value=api), \
+             patch('verifier.merge_gate.proposal_snapshot') as snapshot, \
+             patch('verifier.merge_gate.validate_registry', return_value=self.registry):
+            for path in ('proofs/orphan/Bridge.lean', 'proofs/example-proof/Unused.lean',
+                         'candidates/missing.json', 'submissions/missing.json', 'candidates/proof.txt'):
+                snapshot.return_value = {path}
+                with self.subTest(path=path), self.assertRaisesRegex(RegistryError, 'not bound'):
+                    run('example/registry', 1, 'c'*40, None, self.root/'plan', check_only=True)
+            snapshot.return_value = {'candidates/README.md'}
+            self.assertEqual(run('example/registry', 1, 'c'*40, None, self.root/'plan', check_only=True)['status'],
+                             'not_applicable')
+
+    def test_candidate_metadata_only_edit_still_selects_verification(self):
+        from verifier.merge_gate import candidate_changes
+        self.assertEqual(candidate_changes(self.registry, {'candidates/example-proof.json'}), {'example-proof'})
+        registry = copy.deepcopy(self.registry)
+        registry['candidates']['example-proof']['bridge'] = 'Bridge.lean'
+        self.assertEqual(candidate_changes(registry, {'proofs/example-proof/Bridge.lean'}), {'example-proof'})
+        renamed = copy.deepcopy(registry)
+        renamed['candidates']['example-proof']['bridge'] = 'Renamed.lean'
+        self.assertEqual(candidate_changes(renamed, {'proofs/example-proof/Bridge.lean',
+            'proofs/example-proof/Renamed.lean', 'candidates/example-proof.json'}, previous=registry), {'example-proof'})
+        registry['submissions']['legacy'] = {'problem_id': 'test-problem',
+            'execution': {'proof_files': [{'path': 'Bridge.lean'}]}}
+        self.assertEqual(candidate_changes(registry, {'submissions/test-problem/legacy.json',
+                                                     'proofs/legacy/Bridge.lean'}), {'legacy'})
+
     def test_candidate_plan_uses_its_explicit_checked_schema(self):
         from verifier.registry import plan_verification, schema_validate
         value = plan_verification(self.root, 'example-proof')
@@ -177,7 +212,7 @@ class IntakeTests(unittest.TestCase):
 class ResumeTests(unittest.TestCase):
     def setup_api(self, runs=()):
         api = Mock(repository='example/registry')
-        pr = {'number': 1, 'state': 'open', 'head': {'sha': 'a'*40},
+        pr = {'number': 1, 'state': 'open', 'head': {'sha': 'a'*40, 'repo': {'full_name': api.repository}},
               'base': {'sha': 'b'*40, 'ref': 'main', 'repo': {'full_name': api.repository}}}
         api.get.side_effect = lambda path: {'commit': {'sha': 'b'*40}} if path == 'branches/main' else pr
         api.pages.side_effect = lambda path, *args, **kwargs: iter(
@@ -206,6 +241,29 @@ class ResumeTests(unittest.TestCase):
         pr['state'] = 'closed'
         self.assertEqual(resume(api, 'b'*40, planner), [])
         api.request.assert_not_called()
+
+    def test_non_candidate_and_failed_plans_never_dispatch(self):
+        for status in ('not_applicable', 'failed', 'passed', 'unknown'):
+            api, _ = self.setup_api()
+            with self.subTest(status=status):
+                result = resume(api, 'b'*40, Mock(return_value={'status': status}))
+                self.assertIn(result[0]['status'], ('not_applicable', 'blocked'))
+                api.request.assert_not_called()
+
+    def test_deleted_head_repository_does_not_starve_later_prs(self):
+        api, first = self.setup_api()
+        second = copy.deepcopy(first)
+        second['number'] = 2
+        second['head']['sha'] = 'c'*40
+        first['head']['repo'] = None
+        original = api.pages.side_effect
+        api.pages.side_effect = lambda path, *args, **kwargs: iter([first, second]) if path.startswith('pulls?') else original(path, *args, **kwargs)
+        api.get.side_effect = lambda path: {'commit': {'sha': 'b'*40}} if path == 'branches/main' else second
+        planner = Mock(return_value={'status': 'ready'})
+        result = resume(api, 'b'*40, planner)
+        self.assertEqual([r['status'] for r in result], ['blocked', 'dispatched'])
+        planner.assert_called_once()
+        self.assertEqual(api.request.call_args.args[1]['inputs']['pr'], '2')
 
     def test_head_change_during_preparation_cannot_dispatch(self):
         api, pr = self.setup_api()

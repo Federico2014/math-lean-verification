@@ -44,6 +44,7 @@ class CatalogTests(unittest.TestCase):
         for field, invalid in [('path', '.github/workflows/ci.yml'), ('event', 'pull_request'),
                                ('head_branch', 'feature'), ('head_sha', 'c'*40), ('workflow_id', 8),
                                ('head_repository', {'full_name': 'attacker/registry'}),
+                               ('head_repository', None), ('repository', None),
                                ('repository', {'full_name': 'attacker/registry'})]:
             with self.subTest(field=field):
                 self.run.update(original)
@@ -86,3 +87,33 @@ class CatalogTests(unittest.TestCase):
         self.api.pages.side_effect = pages
         with self.assertRaisesRegex(RegistryError, 'attempts changed'):
             self.catalog()
+
+    def test_job_changes_within_running_attempt_invalidate_publication(self):
+        self.run['status'] = 'in_progress'
+        for change in ('completed', 'conclusion', 'step', 'missing', 'identity'):
+            reads = 0
+            initial = copy.deepcopy(self.job)
+            if change == 'completed':
+                initial['status'] = 'queued'
+                initial['conclusion'] = None
+            def pages(path, *args, **kwargs):
+                nonlocal reads
+                if '/workflows/' in path:
+                    return iter(self.runs)
+                reads += 1
+                job = copy.deepcopy(initial)
+                if reads > 1:
+                    if change == 'completed':
+                        job = copy.deepcopy(self.job)
+                    elif change == 'conclusion':
+                        job['conclusion'] = 'failure'
+                    elif change == 'step':
+                        job['steps'][0]['conclusion'] = 'failure'
+                    elif change == 'missing':
+                        return iter([])
+                    else:
+                        job['head_sha'] = 'c'*40
+                return iter([job])
+            self.api.pages.side_effect = pages
+            with self.subTest(change=change), self.assertRaisesRegex(RegistryError, 'jobs changed|identity mismatch'):
+                self.catalog()

@@ -143,15 +143,22 @@ def bridge_source(targets, transforms=()):
     downstream comparison/axiom/replay checks still apply.
     """
     by_path = {t['path']: t for t in transforms}
-    modules = sorted({by_path.get(t['module'].replace('.', '/') + '.lean', {}).get('destination',
-                      t['module'].replace('.', '/') + '.lean')[:-5].replace('/', '.') for t in targets})
+    def source_module(target):
+        path = target['module'].replace('.', '/') + '.lean'
+        return by_path.get(path, {}).get('destination', path)[:-5].replace('/', '.')
+    modules = sorted({source_module(t) for t in targets})
     lines = ['-- Generated bridge; checked as untrusted proof code.', 'import Lean']
     lines += ['import ' + module for module in modules]
     for target in targets:
-        if target['official_theorem'] == target['declaration']:
-            continue
         source = target['declaration']
-        lines += ['', 'run_elab do', '  let info ← Lean.getConstInfo `' + source,
+        lines += ['', 'run_elab do', '  let env ← Lean.getEnv',
+                  '  let some idx := env.getModuleIdxFor? `' + source,
+                  '    | Lean.throwError "Candidate declaration has no defining module"',
+                  '  unless env.header.moduleNames[idx]! == `' + source_module(target) + ' do',
+                  '    Lean.throwError "Candidate declaration is not defined in the selected module"']
+        if target['official_theorem'] == source:
+            continue
+        lines += ['  let info ← Lean.getConstInfo `' + source,
                   '  Lean.addDecl (.thmDecl {', '    name := `' + target['official_theorem'],
                   '    levelParams := info.levelParams', '    type := info.type',
                   '    value := Lean.mkConst `' + source + ' (info.levelParams.map Lean.Level.param)',
