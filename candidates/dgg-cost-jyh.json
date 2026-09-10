@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "title": "DGG / Goemans cost conjecture: rational counterexample",
+  "problem_id": "dgg-cost",
+  "statement_version": "v1",
+  "source": {
+    "repository": "https://github.com/jyh/dinitz-verify",
+    "commit": "ffba3523f0edd14be3460d039f22a6b98c02fd9e"
+  },
+  "targets": [
+    {
+      "module": "Submission",
+      "declaration": "Submission.goemans_cost_conjecture_false"
+    }
+  ],
+  "attribution": {
+    "proof_authors": [
+      "Dmitry Rybin"
+    ],
+    "formalization_authors": [
+      "Jason Hickey"
+    ],
+    "proof_route": "The fixed upstream source formalizes a finite rational counterexample with seven vertices and nine arcs. It verifies a feasible fractional flow of cost 58 and rules out a routing simultaneously meeting the additive maximum-demand load bound and that cost bound. Discovery and authorship are attributed as reported by the upstream README; they are not independent priority findings. The bridge derives the complete registered rational refutation from the upstream theorem.",
+    "ai_role": "The fixed upstream README attributes discovery to a GPT-5.6 Pro session run by Dmitry Rybin and formal verification to Jason Hickey with Claude. These upstream contribution claims remain subject to review. Codex prepared this single-file re-registration; CI prepares source adaptation and the proof bridge; no discovery contribution is claimed for this integration.",
+    "known_assumptions": [],
+    "prior_results": "The source targets the Goemans cost strengthening in Traub-Vargas Koch-Zenklusen, arXiv:2308.02651v1, Conjecture 1.3, not the separate Dinitz-Garg-Goemans congestion theorem. Upstream reports no axioms beyond propext, Classical.choice and Quot.sound; this registration claims no additional assumptions, and actual closure auditing is delegated to CI. Statement correspondence uses the recorded administrator exception for dgg-cost/v1; independent mathematical review, discovery date and priority remain unapproved. Related formalization DiscreteAlias/unsplittable-flow uses its own statement catalogue and is not the selected source. The pinned source is distributed under Apache-2.0; its full license accompanies the bridge in verification source snapshots."
+  },
+  "paper_urls": [
+    "https://arxiv.org/abs/2308.02651v1",
+    "https://github.com/jyh/dinitz-verify/blob/ffba3523f0edd14be3460d039f22a6b98c02fd9e/README.md"
+  ],
+  "public_source_authorized": true
+}
