@@ -122,10 +122,14 @@ these GitHub events. Schedule times are targets, not guaranteed delivery times.
 The trusted gate starts expensive candidate jobs only for a ready plan; blocked
 or maintenance-only PRs finish without building Lean images.
 
-**Lean backend tests** runs on backend, execution-controller, environment, schema,
-test-driver or pinned-dependency changes. Changes confined to catalog generation,
+**Lean backend tests** selects changed environments for environment-only PRs.
+Shared backend, execution-controller, schema, verification-policy, test-driver,
+pinned-dependency or workflow changes select all configured environments. Renames
+select the new environment ID; fully deleted profiles do not create jobs. Changes confined to catalog generation,
 the recovery scheduler, the static environment-draft command or the general CLI
-use Registry CI's unit tests instead. Manual backend dispatch remains available.
+use Registry CI's unit tests instead. Manual dispatch accepts an optional exact
+`environment` ID; omit it to test all environments. Empty selections skip backend
+execution and are not verification evidence. See [selection rules and commands](environment-onboarding.md#select-the-ci-scope).
 The standalone preflight workflow has been removed; `verifier plan` remains a
 local diagnostic command.
 

@@ -114,16 +114,20 @@ class RepositoryTests(unittest.TestCase):
                      'verifier/intake.py', 'verifier/merge_gate.py', 'verifier/revalidate.py',
                      'verifier/registry.py', 'verifier/build_environment.py', 'verifier/environment_matrix.py',
                      'verifier/environments.py', 'verifier/source_adaptation.py', 'verifier/future_executor.py',
-                     'environments/new/environment.json', 'schemas/environment.schema.json',
+                     'environments/new/environment.json', 'schemas/environment.schema.json', 'policy/verification.json',
                      'scripts/backend_smoke.py', 'requirements-ci.lock', '.github/workflows/backend-ci.yml'):
             with self.subTest(path=path):
                 self.assertTrue(triggers([path]))
-        for path in ('README.md', 'docs/design.md', 'verifier/__main__.py', 'verifier/catalog.py',
+        for path in ('README.md', 'docs/design.md', 'backend/README.md', 'environments/README.md', 'verifier/__main__.py', 'verifier/catalog.py',
                      'verifier/onboarding.py', 'verifier/resume.py', 'candidates/example.json'):
             with self.subTest(path=path):
                 self.assertFalse(triggers([path]))
                 self.assertTrue(triggers([path, 'verifier/lean_backend.py']))
-        self.assertIn('workflow_dispatch', workflow['on'])
+        self.assertEqual(workflow['on']['workflow_dispatch']['inputs']['environment']['default'], '')
+        self.assertEqual(workflow['jobs']['backend-tests']['if'], "needs.environments.outputs.has_work == 'true'")
+        self.assertIn("format('selected-{0}', inputs.environment)", workflow['concurrency']['group'])
+        checkout = workflow['jobs']['environments']['steps'][0]['with']
+        self.assertEqual(checkout['fetch-depth'], '0')
         # Filtering a required workflow can leave its required status pending.
         for filename, event in [('ci.yml', 'pull_request'), ('lean-verification.yml', 'pull_request_target')]:
             required = yaml.load((ROOT / '.github/workflows' / filename).read_text(), Loader=yaml.BaseLoader)

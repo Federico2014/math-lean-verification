@@ -31,8 +31,10 @@ minimal static workspace and fixed dependency lock. Executable Lake files, custo
 build options and ambiguous dependencies require manual adaptation first.
 
 After review, place the directory under `environments/`. **Lean backend tests**
-automatically discovers every descriptor, including pending ones, with at most
-two jobs running concurrently. It tests valid/invalid proofs, source adaptation,
+automatically discovers descriptors, including pending ones. Environment-only PRs
+test the affected profiles; shared execution changes test all profiles, with at most
+two jobs running concurrently. Manual dispatch can select one exact environment ID
+or all environments; see [CI scope](environment-onboarding.md#select-the-ci-scope). It tests valid/invalid proofs, source adaptation,
 sandbox restrictions and offline imports for the declared cache scope. Module
 import probes demonstrate availability, not correctness of every possible proof
 using those modules. Each new tool combination still needs real proof evidence.

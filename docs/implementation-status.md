@@ -23,7 +23,7 @@ or verifier revisions require fresh evidence.
 - Real proof/sandbox regression workflow including multi-file bridges and a separate Mathlib onboarding configuration.
 - Automatic candidate preparation and static environment draft generation with explicit unresolved fields and no automatic approvals.
 - Hash-bound source renaming and exact replacements, with original/adapted source evidence and protected-path checks.
-- Automatically discovered environment regression matrices, including pending descriptors and offline cache import probes.
+- Environment regression matrices select affected profiles for environment-only PRs, all profiles for shared changes, and an optional exact ID for manual dispatch; pending descriptors and offline cache import probes remain included.
 - Protected-main revalidation of registered candidates after trusted input changes, separate from PR status publication.
 - A versioned verification-result summary and explicit failed-stage diagnostics.
 

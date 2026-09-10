@@ -1,4 +1,5 @@
 name: Lean backend tests
+run-name: Lean backend tests ${{ github.ref_name }} ${{ inputs.environment && format('selected-{0}', inputs.environment) || github.event_name == 'pull_request' && 'changed' || 'all' }}
 on:
   pull_request:
     paths:
@@ -12,14 +13,22 @@ on:
       - '!verifier/resume.py'
       - 'environments/**'
       - 'schemas/**'
+      - 'policy/**'
       - 'scripts/backend_smoke.py'
       - 'requirements-ci.lock'
       - '.github/workflows/backend-ci.yml'
+      - '!**/*.md'
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Exact environment ID (leave empty to test all)
+        required: false
+        default: ''
+        type: string
 permissions:
   contents: read
 concurrency:
-  group: backend-tests-${{ github.ref }}
+  group: backend-tests-${{ github.ref }}-${{ inputs.environment && format('selected-{0}', inputs.environment) || 'all' }}
   cancel-in-progress: true
 jobs:
   environments:
@@ -27,10 +36,12 @@ jobs:
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.discover.outputs.matrix }}
+      has_work: ${{ steps.discover.outputs.has_work }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
@@ -40,6 +51,7 @@ jobs:
         run: python -m verifier.environment_matrix
   backend-tests:
     needs: environments
+    if: needs.environments.outputs.has_work == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     strategy:
