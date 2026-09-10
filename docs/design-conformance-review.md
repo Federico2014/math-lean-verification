@@ -35,7 +35,7 @@ revalidation of existing candidates when trusted inputs change.
 | Uniform failure categories and readable reports | Controller and backend result handling | Improved in this patch; conditional assumptions and per-theorem axiom inventories remain incomplete |
 | Trusted changes invalidate and rerun affected candidates | Candidate selector and current-base check | Partial; global policy/controller changes do not automatically revalidate merged candidates |
 | Durable archive and recovery | `evidence.py`, temporary Actions artifacts | Integrity/readback implemented; durable storage, retention and recovery operations remain unconfigured |
-| Real Erdős 650, DGG and Erdős 90 pilots | Empty problem/submission registry | Not completed |
+| Real single-file, alternate-toolchain and multi-file pilots | Empty problem/submission registry | Not completed |
 | Peak memory, disk and export-size telemetry | Resource limits, stage duration, export files | Partial; resource limits are not actual peak measurements |
 
 ## Corrected defects and redundancy

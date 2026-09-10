@@ -7,9 +7,7 @@ Infrastructure for verifying Lean formalizations of mathematical results, initia
 ## Current status
 
 See [Registered candidates](#registered-candidates) for current registrations and
-machine verification results. DGG's historical CI pass used an explicit
-administrator exception for statement review; its archived result does not
-establish the status of a new registration. **Formal acceptance remains pending.** Use
+machine verification results. Formal acceptance is a separate process. Use
 `python -m verifier list` to list registered candidate IDs;
 it does not retrieve CI results.
 
@@ -38,13 +36,6 @@ current status, fixed proof commit and evidence link. The page displays its main
 revision and generation time. Publication runs after main pushes and on a
 15-minute schedule; GitHub may delay scheduled jobs. Contributors do not edit a
 README table. Deployment needs the one-time [Pages setup](docs/simplified-intake.md#deployment).
-
-DGG has historical [successful PR verification](https://github.com/Federico2014/math-lean-verification/actions/runs/34342252724)
-at head `806d9b0ac4cb6fcc031b42f7aadb8bc02ec90d01` and protected base
-`dec0d00a2e7e2cdedff418f6f25e0aa932b37854`, under its explicit
-[administrator exception](docs/administrator-approvals/dgg-cost-v1.md).
-That evidence does not describe subsequent source or verifier revisions.
-Formal acceptance remains pending.
 
 ## Adding a candidate
 

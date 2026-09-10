@@ -1,8 +1,9 @@
 # Implementation status
 
 The repository implements the trusted-workspace and reusable-environment architecture.
-DGG has [historical successful verification](../README.md#registered-candidates);
-each later input or verifier revision requires fresh evidence.
+Current registrations and machine results are listed in the
+[generated candidate catalog](../README.md#registered-candidates). Changed inputs
+or verifier revisions require fresh evidence.
 
 ## Implemented
 
@@ -30,7 +31,6 @@ each later input or verifier revision requires fresh evidence.
 
 - The existing core/Std environment retains its [prior onboarding evidence](backend-onboarding.md).
 - `lean-4-28-mathlib` is admitted with [real onboarding evidence](workspace-onboarding.md). Its initial cache scope is deliberately limited to `Mathlib.Data.Nat.Basic`; it is not a claim of support for every Mathlib module or any particular candidate.
-- `lean-4-32-rc1-mathlib-dgg` is admitted with [21 passing real onboarding cases](dgg-environment-onboarding.md), including full `Mathlib` import and cache rejection probes. The DGG v1 workspace is approved by an explicit [administrator exception](administrator-approvals/dgg-cost-v1.md); independent mathematical review remains incomplete. The README links PR #14's exact successful verification revision and run.
 - Project compiler, exporter and shared checker compatibility must pass actual tests for each new combination. Adding JSON is not approval.
 - Mathematical reviewer accreditation remains empty. Existing two-reviewer, provenance and content-binding requirements are unchanged.
 - Persistent evidence storage, backup/readback operations and formal acceptance publication remain unconfigured. `formal_acceptance_enabled` remains false.

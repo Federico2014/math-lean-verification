@@ -11,18 +11,8 @@
   "backend": "comparator-export-v1",
   "toolchains": [
     "lean-4-34-rc2-stdlib",
-    "lean-4-28-mathlib",
-    "lean-4-32-rc1-mathlib-dgg"
+    "lean-4-28-mathlib"
   ],
   "formal_acceptance_enabled": false,
-  "administrator_exceptions": [
-    {
-      "problem_id": "dgg-cost",
-      "statement_version": "v1",
-      "statement_digest": "f96a8ca533fc6ee26353c4fa09b92004b42b88fb797a2b4b1b98058e635a2376",
-      "administrator": "Federico2014",
-      "evidence_url": "https://github.com/Federico2014/math-lean-verification/blob/e91fa98639ee8f7eb955477818850728acff272a/docs/administrator-approvals/dgg-cost-v1.md",
-      "reason": "Repository administrator Federico2014 explicitly authorized DGG approval after disclosure that two independent mathematical reviews are absent. This exact-statement exception waives that review prerequisite only; source hashes, approved environment, actual machine verification and pending formal acceptance remain required."
-    }
-  ]
+  "administrator_exceptions": []
 }
