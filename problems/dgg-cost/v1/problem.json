@@ -39,10 +39,12 @@
     }
   ],
   "review": {
-    "status": "pending",
-    "statement_digest": null,
+    "status": "approved",
+    "statement_digest": "9b5389b33e8c8644b9246798597f60a152d87385885875226b700fe4b8ec138b",
     "reviewers": [],
-    "evidence_url": null
+    "evidence_url": "https://github.com/Federico2014/math-lean-verification/blob/f609043b3c6c049e88d9c6c01c4b662877df6083/docs/administrator-approvals/dgg-cost-v1-2026-09-10.md",
+    "approval_kind": "administrator_exception",
+    "administrator": "Federico2014"
   },
   "workspace": {
     "environment_digest": "2549518f7e642162f4a05d3c1b0eedd6c3fc0a4431f5b40b4bbc7da9abfd1396",
