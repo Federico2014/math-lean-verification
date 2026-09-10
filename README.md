@@ -6,10 +6,10 @@ Infrastructure for verifying Lean formalizations of mathematical results, initia
 
 ## Current status
 
-The DGG candidate has passed real Lean proof verification in CI, with result
-**`verified` under an explicit administrator exception for statement review**.
-See [Registered candidates](#registered-candidates) for the fixed proof source and
-exact verification run. **Formal acceptance remains pending.** Use
+See [Registered candidates](#registered-candidates) for current registrations and
+machine verification results. DGG's historical CI pass used an explicit
+administrator exception for statement review; its archived result does not
+establish the status of a new registration. **Formal acceptance remains pending.** Use
 `python -m verifier list` to list registered candidate IDs;
 it does not retrieve CI results.
 
