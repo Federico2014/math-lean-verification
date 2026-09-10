@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "environment_id": "lean-4-32-rc1-mathlib-dgg",
+  "environment_id": "lean-4-32-rc1-mathlib",
   "description": "Pending Lean 4.32.0-rc1 environment matching jyh/dinitz-verify at ffba3523f0edd14be3460d039f22a6b98c02fd9e, with fixed Mathlib 360da6fa66c1273b76b6b2d8c5666fd5ac2e3b56. The upstream Challenge imports Mathlib, so the full Mathlib cache scope is requested. Fresh compatibility, resource and sandbox CI evidence is required before approval; no candidate proof has been verified by this draft.",
   "status": "pending",
   "evidence_url": null,
