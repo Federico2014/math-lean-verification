@@ -240,7 +240,8 @@ class ResumeTests(unittest.TestCase):
     def test_develop_resume_uses_its_own_branch_and_identity(self):
         previous = {'event': 'workflow_dispatch', 'display_title': marker(1, 'a'*40, 'b'*40, 'main'),
                     'head_sha': 'b'*40, 'head_repository': {'full_name': 'example/registry'}}
-        api, _ = self.setup_api([previous], branch='develop')
+        api, pr = self.setup_api([previous], branch='develop')
+        pr['base']['sha'] = 'e'*40  # Cached PR metadata must not prevent live-base recovery.
         self.assertEqual(resume(api, 'b'*40, Mock(return_value={'status': 'ready'}), branch='develop')[0]['status'], 'dispatched')
         self.assertEqual(api.request.call_args.args[1]['ref'], 'develop')
         api.pages.assert_any_call('pulls?state=open&base=develop')

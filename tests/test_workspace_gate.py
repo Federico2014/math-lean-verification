@@ -13,7 +13,7 @@ from verifier.environments import load_environments
 
 
 class WorkspaceGateTests(unittest.TestCase):
-    def exercise(self, review, *, backend_failure=None, source_failure=False, revalidate=False, branch='main', retarget=False):
+    def exercise(self, review, *, backend_failure=None, source_failure=False, revalidate=False, branch='main', retarget=False, cached_base=False):
         from test_registry import RegistryTests
         fixture = RegistryTests(); fixture.setUp()
         self.addCleanup(fixture.temp.cleanup)
@@ -50,10 +50,12 @@ class WorkspaceGateTests(unittest.TestCase):
         with patch('verifier.merge_gate.ROOT', root), patch('verifier.merge_gate.subprocess.check_output', return_value='d'*40), \
              patch('verifier.merge_gate.GitHub') as api, patch('verifier.merge_gate.verify', side_effect=proof_engine):
             pr_data = {'state': 'open', 'head': {'sha': 'c'*40},
-                'base': {'sha': 'd'*40, 'ref': branch, 'repo': {'full_name': 'example/registry'}}}
+                'base': {'sha': ('e' if cached_base else 'd')*40, 'ref': branch, 'repo': {'full_name': 'example/registry'}}}
             calls = 0
             def get(path):
                 nonlocal calls
+                if path.startswith('branches/'):
+                    return {'protected': True, 'commit': {'sha': 'd'*40}}
                 if '/files?' in path:
                     return [{'filename': 'submissions/test-problem/test-submission.json'}]
                 calls += 1
@@ -90,7 +92,7 @@ class WorkspaceGateTests(unittest.TestCase):
             return result
 
     def test_develop_gate_verifies_and_rejects_retargeting_at_same_sha(self):
-        self.assertEqual(self.exercise('approved', branch='develop')['status'], 'passed')
+        self.assertEqual(self.exercise('approved', branch='develop', cached_base=True)['status'], 'passed')
         from verifier.registry import RegistryError
         with self.assertRaisesRegex(RegistryError, 'PR or base moved'):
             self.exercise('approved', branch='develop', retarget=True)

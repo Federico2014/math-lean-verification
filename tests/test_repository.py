@@ -63,7 +63,8 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(set(workflow["on"]), {"pull_request_target", "workflow_dispatch"})
         self.assertEqual(workflow['on']['pull_request_target']['branches'], ['main', 'develop'])
         self.assertIn('edited', workflow['on']['pull_request_target']['types'])
-        self.assertIn('github.event.pull_request.base.ref', workflow['run-name'])
+        self.assertIn('github.ref_name', workflow['run-name'])
+        self.assertIn('github.sha', workflow['run-name'])
         jobs = workflow["jobs"]
         self.assertNotIn("permissions", jobs["verify"])
         self.assertEqual(jobs["verify"]["needs"], ["resolve", "plan"])
@@ -75,7 +76,7 @@ class RepositoryTests(unittest.TestCase):
             checkouts = [s for s in job["steps"] if s.get("uses", "").startswith("actions/checkout@")]
             self.assertEqual(len(checkouts), 1)
             ref = checkouts[0]["with"]["ref"]
-            expected = "${{ github.event.pull_request.base.sha || github.sha }}" if name == "resolve" else "${{ needs.resolve.outputs.base }}"
+            expected = "${{ github.sha }}" if name == "resolve" else "${{ needs.resolve.outputs.base }}"
             self.assertEqual(ref, expected)
             self.assertNotIn("head", ref)
         self.assertEqual(jobs["publish"]["needs"], ["resolve", "plan", "verify"])

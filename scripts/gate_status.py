@@ -42,14 +42,14 @@ def main(mode):
         branch = pr['base']['ref']
         assert branch in ('main', 'develop')
         assert pr['base']['repo']['full_name'] == os.environ['GITHUB_REPOSITORY']
-        head, base = pr['head']['sha'], pr['base']['sha']
+        branch_info = api('branches/' + branch)
+        head, base = pr['head']['sha'], branch_info['commit']['sha']
         assert re.fullmatch('[0-9a-f]{40}', head) and re.fullmatch('[0-9a-f]{40}', base)
         assert not inputs.get('expected_head') or inputs['expected_head'] == head
         assert not inputs.get('expected_base') or inputs['expected_base'] == base
         assert os.environ['GITHUB_REF'] == 'refs/heads/' + branch
         assert os.environ['GITHUB_SHA'] == base
-        branch_info = api('branches/' + branch)
-        assert branch_info['protected'] and branch_info['commit']['sha'] == base
+        assert branch_info['protected']
         status(head, 'pending', 'Lean proof verification is pending')
         with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
             stream.write(f'head={head}\npr={number}\nbase={base}\nbase_ref={branch}\n')
@@ -57,7 +57,6 @@ def main(mode):
         head = os.environ['PR_HEAD']
         current = api('pulls/' + str(int(os.environ['PR_NUMBER'])))
         if (current['state'] != 'open' or current['head']['sha'] != head
-                or current['base']['sha'] != os.environ['EXPECTED_BASE']
                 or current['base']['ref'] != os.environ['EXPECTED_BASE_REF']
                 or current['base']['repo']['full_name'] != os.environ['GITHUB_REPOSITORY']):
             return

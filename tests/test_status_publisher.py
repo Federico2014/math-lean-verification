@@ -12,14 +12,14 @@ from verifier.registry import ROOT
 
 
 class PublisherTests(unittest.TestCase):
-    def publish(self, plan, execution, *, plan_result='success', moved=False, closed=False, superseded=False, unrelated_pages=0, branch='main', retargeted=False, branch_moved=False, protected=True):
+    def publish(self, plan, execution, *, plan_result='success', moved=False, closed=False, superseded=False, unrelated_pages=0, branch='main', retargeted=False, branch_moved=False, protected=True, cached_base=False):
         sent = []
         def response(request, timeout):
             if request.data:
                 sent.append(json.loads(request.data))
                 return io.BytesIO(b'{}')
             if '/branches/' in request.full_url:
-                return io.BytesIO(json.dumps({'protected': protected, 'commit': {'sha': ('d' if branch_moved else 'b')*40}}).encode())
+                return io.BytesIO(json.dumps({'protected': protected, 'commit': {'sha': ('d' if branch_moved or moved else 'b')*40}}).encode())
             if '/statuses?' in request.full_url:
                 page = int(request.full_url.rsplit('page=', 1)[1])
                 if page <= unrelated_pages:
@@ -27,7 +27,7 @@ class PublisherTests(unittest.TestCase):
                 return io.BytesIO(json.dumps([{'context': 'lean-verification', 'state': 'pending',
                     'target_url': 'https://github.com/example/registry/actions/runs/' + ('124' if superseded else '123')}]).encode())
             return io.BytesIO(json.dumps({'state': 'closed' if closed else 'open', 'head': {'sha': 'a'*40},
-                'base': {'sha': ('c' if moved else 'b')*40, 'ref': 'other' if retargeted else branch, 'repo': {'full_name': 'example/registry'}}}).encode())
+                'base': {'sha': ('c' if cached_base else 'b')*40, 'ref': 'other' if retargeted else branch, 'repo': {'full_name': 'example/registry'}}}).encode())
         env = {'GITHUB_REPOSITORY': 'example/registry', 'GH_TOKEN': 'test-token', 'GITHUB_RUN_ID': '123',
                'PR_HEAD': 'a'*40, 'EXPECTED_BASE_REF': branch, 'EXPECTED_BASE': 'b'*40, 'PR_NUMBER': '1',
                'EXECUTION_RESULT': execution, 'PLAN_RESULT': plan_result, 'PLAN_STATUS': plan}
@@ -37,7 +37,7 @@ class PublisherTests(unittest.TestCase):
         return sent[0] if sent else None
 
     def test_develop_publication_is_bound_to_protected_branch_identity(self):
-        self.assertEqual(self.publish('ready', 'success', branch='develop')['state'], 'success')
+        self.assertEqual(self.publish('ready', 'success', branch='develop', cached_base=True)['state'], 'success')
         for kwargs in ({'retargeted': True}, {'branch_moved': True}, {'protected': False}):
             with self.subTest(**kwargs):
                 self.assertIsNone(self.publish('ready', 'success', branch='develop', **kwargs))
@@ -62,7 +62,7 @@ class PublisherTests(unittest.TestCase):
                         value = {'protected': protected, 'commit': {'sha': 'b'*40}}
                     else:
                         value = {'state': 'open', 'head': {'sha': 'a'*40},
-                                 'base': {'sha': 'b'*40, 'ref': branch, 'repo': {'full_name': 'example/registry'}}}
+                                 'base': {'sha': 'e'*40, 'ref': branch, 'repo': {'full_name': 'example/registry'}}}
                     return io.BytesIO(json.dumps(value).encode())
                 env = {'GITHUB_REPOSITORY': 'example/registry', 'GH_TOKEN': 'test-token', 'GITHUB_RUN_ID': '123',
                        'GITHUB_EVENT_PATH': str(event), 'GITHUB_OUTPUT': str(output),

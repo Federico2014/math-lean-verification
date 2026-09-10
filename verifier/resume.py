@@ -16,15 +16,16 @@ def marker(number, head, base, branch='main'):
     return f'Lean PR {number} {head} {base} {branch}'
 
 
-def current(pr, repository, head, base, branch='main'):
+def current(pr, repository, head, branch='main'):
     return (pr['state'] == 'open' and pr['base']['ref'] == branch
             and pr['base']['repo']['full_name'] == repository
-            and pr['head']['sha'] == head and pr['base']['sha'] == base)
+            and pr['head']['sha'] == head)
 
 
 def resume(api, base, planner=run, *, branch='main'):
     """Dispatch once per exact identity; explicit manual dispatch remains a retry."""
     require(branch in ('main', 'develop'), 'Unexpected scheduler branch')
+    # PR base.sha can lag after a target push; bind to the live branch ref.
     info = api.get('branches/' + branch)
     require(info['protected'], 'Scheduler branch must be protected')
     require(info['commit']['sha'] == base, 'Scheduler checkout is stale')
@@ -33,7 +34,7 @@ def resume(api, base, planner=run, *, branch='main'):
     reports = []
     for pr in api.pages('pulls?state=open&base=' + branch):
         number, head = pr['number'], pr['head']['sha']
-        if not current(pr, api.repository, head, base, branch) or pr.get('draft'):
+        if not current(pr, api.repository, head, branch) or pr.get('draft'):
             continue
         try:
             files = list(api.pages(f'pulls/{number}/files', max_pages=31))
@@ -76,7 +77,7 @@ def resume(api, base, planner=run, *, branch='main'):
                 plan = planner(api.repository, number, head, None, Path(folder), check_only=True)
             except Exception as exc:
                 plan = {'status': 'blocked', 'error': str(exc)}
-        if not current(api.get(f'pulls/{number}'), api.repository, head, base, branch):
+        if not current(api.get(f'pulls/{number}'), api.repository, head, branch):
             continue
         info = api.get('branches/' + branch)
         if not info['protected'] or info['commit']['sha'] != base:
