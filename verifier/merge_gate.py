@@ -54,7 +54,7 @@ class GitHub:
     def request(self, path, data=None, method=None):
         require(not path.startswith('/') and '..' not in path.split('/') and '://' not in path,
                 'Unsafe GitHub API path')
-        request = urllib.request.Request('https://api.github.com/repos/' + self.repository + '/' + path,
+        request = urllib.request.Request('https://api.github.com/repos/' + self.repository + ('/' + path if path else ''),
                                          data=json.dumps(data).encode() if data is not None else None,
                                          method=method,
                                          headers={'Accept': 'application/vnd.github+json',

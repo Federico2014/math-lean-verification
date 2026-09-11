@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "publications": [
+    {
+      "candidate_id": "dgg-cost-jyh",
+      "problem_id": "dgg-cost",
+      "statement_version": "v1",
+      "accepted_on": "2026-09-11",
+      "administrator": "Federico2014",
+      "source_commit": "ffba3523f0edd14be3460d039f22a6b98c02fd9e",
+      "verifier_sha": "8c6a0b0e21fdc63536351fb934e1f66e9fc3b877",
+      "release_id": 386761682,
+      "release_tag": "acceptance-dgg-cost-v1-20260911",
+      "archive_commit": "793d2592abdafc7c8491f2ea1fa54706d3691a17",
+      "record_sha256": "85bc1f15c8a3ff10dcc445d5a8e03051c6c84ec1ec8725711bace7c1be4f3e3a"
+    }
+  ]
+}

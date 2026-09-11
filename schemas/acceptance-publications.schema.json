@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Protected references to historical administrator acceptance publications",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "publications": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "properties": {
+          "candidate_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])",
+            "maxLength": 100
+          },
+          "problem_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])",
+            "maxLength": 100
+          },
+          "release_tag": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])",
+            "maxLength": 100
+          },
+          "statement_version": {
+            "type": "string",
+            "pattern": "^v[1-9][0-9]*$(?![\\s\\S])",
+            "maxLength": 20
+          },
+          "accepted_on": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$(?![\\s\\S])"
+          },
+          "administrator": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,38}$(?![\\s\\S])"
+          },
+          "release_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "archive_commit": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$(?![\\s\\S])"
+          },
+          "source_commit": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$(?![\\s\\S])"
+          },
+          "verifier_sha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$(?![\\s\\S])"
+          },
+          "record_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+          }
+        },
+        "required": [
+          "candidate_id",
+          "problem_id",
+          "release_tag",
+          "statement_version",
+          "accepted_on",
+          "administrator",
+          "release_id",
+          "archive_commit",
+          "source_commit",
+          "verifier_sha",
+          "record_sha256"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "publications"
+  ],
+  "additionalProperties": false
+}

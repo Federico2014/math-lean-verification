@@ -16,7 +16,7 @@ from verifier.merge_gate import candidate_sources
 from verifier.onboarding import environment_draft
 from verifier.registry import ROOT, RegistryError, canonical_digest
 from verifier.results import write_result
-from verifier.revalidate import plan, revision
+from verifier.revalidate import plan, protected_default_branch, revision
 from verifier.source_adaptation import adapt
 
 
@@ -150,11 +150,29 @@ class GenericIntakeTests(unittest.TestCase):
         self.assertEqual(plan(registry, 'ready')['blocked'], {})
         with self.assertRaises(RegistryError): plan(registry, 'unknown')
 
-    def test_revalidation_refuses_non_main_and_wrong_revision(self):
+    def test_revalidation_refuses_unsupported_branch_and_wrong_revision(self):
         with patch('verifier.revalidate.subprocess.check_output', return_value='a'*40+'\n'):
             with self.assertRaises(RegistryError): revision('b'*40)
             with patch.dict(os.environ, {'GITHUB_ACTIONS': 'true', 'GITHUB_REF': 'refs/heads/feature', 'GITHUB_SHA': 'a'*40}):
                 with self.assertRaisesRegex(RegistryError, 'protected main'): revision('a'*40)
+            with patch.dict(os.environ, {'GITHUB_ACTIONS': 'true', 'GITHUB_REF': 'refs/heads/develop', 'GITHUB_SHA': 'a'*40}):
+                self.assertEqual(revision('a'*40), 'a'*40)
+
+    def test_revalidation_requires_live_protected_default_branch_and_revision(self):
+        from unittest.mock import Mock
+        api = Mock()
+        info = {'protected': True, 'commit': {'sha': 'a'*40}}
+        api.get.side_effect = lambda path: {'default_branch': 'develop'} if path == '' else info
+        with patch.dict(os.environ, {'GITHUB_ACTIONS': 'true', 'GITHUB_REF': 'refs/heads/develop'}):
+            self.assertEqual(protected_default_branch(api, 'a'*40), 'develop')
+            with self.assertRaisesRegex(RegistryError, 'moved'):
+                protected_default_branch(api, 'b'*40)
+            info['protected'] = False
+            with self.assertRaisesRegex(RegistryError, 'must be protected'):
+                protected_default_branch(api, 'a'*40)
+        with patch.dict(os.environ, {'GITHUB_ACTIONS': 'true', 'GITHUB_REF': 'refs/heads/main'}):
+            with self.assertRaisesRegex(RegistryError, 'current default branch'):
+                protected_default_branch(api, 'a'*40)
 
     def test_summary_cannot_hide_skipped_or_blocked_candidates(self):
         workflow = yaml.load((ROOT/'.github/workflows/revalidate.yml').read_text(), Loader=yaml.BaseLoader)

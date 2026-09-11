@@ -52,7 +52,10 @@ class RepositoryTests(unittest.TestCase):
                     }
                     if (path.name, name) in allowed:
                         self.assertEqual(job['permissions'], allowed[path.name, name])
-                        self.assertEqual(job['if'], "github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'" if path.name == 'resume-candidates.yml' else "github.ref == 'refs/heads/main'")
+                        supported = "github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'"
+                        expected = supported if path.name == 'resume-candidates.yml' else (
+                            "github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && (" + supported + ")")
+                        self.assertEqual(job['if'], expected)
                     elif path.name != "lean-verification.yml":
                         self.assertNotIn("permissions", job)
                     self.assertNotIn("secrets", job)
@@ -148,7 +151,8 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn(selection, concurrency['group'])
         self.assertIn(selection, workflow['run-name'])
         # Current-SHA catalog provenance requires evidence even after docs commits.
-        self.assertEqual(workflow['on']['push'], {'branches': ['main']})
+        self.assertEqual(workflow['on']['push'], {'branches': ['main', 'develop']})
+        self.assertIn('github.event.repository.default_branch', workflow['jobs']['plan']['if'])
 
     def test_ci_locks_have_exact_versions_hashes_and_match_dev_versions(self):
         pinned = []
