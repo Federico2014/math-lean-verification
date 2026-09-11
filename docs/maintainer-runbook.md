@@ -4,23 +4,28 @@
 
 Maintainers should verify these settings on GitHub:
 
-- Default branch: `main`; disallow force pushes and deletion of protected branches.
+- Default branch: `develop` (as of 2026-09-11); disallow force pushes and deletion of protected branches.
 - Require `registry`, `tests`, and the GitHub Actions `lean-verification` status to pass before merging, including for administrators. Required approvals are currently 0 and CODEOWNERS review is optional; authors with merge permission may merge their own PRs after required CI passes.
 - Apply repository approval rules to workflows from external contributors; do not provide secrets or write tokens to forks.
 - Give Actions read-only tokens by default; do not allow Actions to create or approve PRs automatically.
 - Enable private vulnerability reporting. Do not store payment keys or internal materials in this repository.
 
-CODEOWNERS initially assigns `@Federico2014` code maintenance responsibility, not mathematical review qualifications. Approve the mathematical reviewer roster separately. GitHub does not allow authors to Approve their own PRs; removing mandatory code approval allows self-merging. Formal acceptance still requires independent mathematical review, which self-merging cannot replace.
+CODEOWNERS initially assigns `@Federico2014` code maintenance responsibility, not mathematical review qualifications. Approve the mathematical reviewer roster separately. GitHub does not allow authors to Approve their own PRs; removing mandatory code approval allows self-merging. Self-merging does not complete independent mathematical review or authorize formal
+acceptance. Explicit administrator exceptions and published administrator decisions
+retain their separate, limited scope; see the [candidate lifecycle](candidate-lifecycle.md).
 
 For the trusted status workflow, isolation boundaries, supported profiles, and manual reruns, see the [Lean merge gate](lean-merge-gate.md).
 
 ## Routine registration
 
+Follow the [complete candidate lifecycle](candidate-lifecycle.md) for roles, waiting
+states, README publication and scoped administrator acceptance.
+
 1. Review `candidates/<candidate-id>.json` in the candidate PR; an Issue is optional. Confirm publication permission, original problem scope, fixed proof commit, targets and attribution.
 2. Inspect the automatically triggered **Trusted Lean verification** plan and evidence. Resolve missing official workspaces, statement reviews or environments in separate maintenance PRs.
-3. Run real backend compatibility tests before approving a new environment. Merging approved preparation changes lets the scheduler resume the original candidate PR against current main.
+3. Run real backend compatibility tests before approving a new environment. Merging approved preparation changes lets the scheduler resume the original candidate PR against its current protected target branch.
 4. Merge the candidate only after `registry`, `tests` and `lean-verification` pass. A green environment build or static plan does not verify the candidate.
-5. Check protected-main revalidation and the generated candidate catalog after merging. Retain the exact run and revision evidence; formal acceptance remains separate.
+5. Check protected-default-branch revalidation and the generated candidate catalog after merging. Retain the exact run and revision evidence; formal acceptance remains separate.
 
 For recovery, manual retries and one-time Pages setup, see
 [single-PR operations](simplified-intake.md). For local static diagnostics, use
@@ -33,6 +38,8 @@ Update Actions, Python dependencies, and future checkers through PRs with fixed 
 
 GitHub usernames in review records serve only as references. Before approval, verify actual PR reviews, signed materials, conflicts of interest, and independence. Field validation cannot replace that process.
 
-## Future formal publishing requirements
+## Formal publishing requirements
 
-Formal publishing is not implemented. Do not add a privileged `workflow_run` that consumes untrusted artifacts and executes scripts. Publishing must validate the trusted run origin and input digest and verify archive readback before displaying acceptance status. Actions artifacts are temporary storage and do not meet formal archival requirements.
+Automatic formal acceptance remains disabled. Scoped administrator decisions may
+be published as immutable archives and linked by the protected publication index,
+as described in the [candidate lifecycle](candidate-lifecycle.md#6-publish-formal-acceptance-separately). Do not add a privileged `workflow_run` that consumes untrusted artifacts and executes scripts. Publishing must validate the trusted run origin and input digest and verify archive readback before displaying acceptance status. Actions artifacts are temporary storage and do not meet formal archival requirements.

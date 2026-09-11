@@ -5,11 +5,14 @@ and original names for attribution. Registration and CI results do not decide aw
 
 ## Submit a candidate
 
+See the [complete candidate lifecycle](docs/candidate-lifecycle.md) for the full
+submission, review, verification, registration and acceptance process.
+
 1. Copy [the candidate template](templates/candidate.json) to
    `candidates/<candidate-id>.json` and complete its fields. Supply a fixed public
    proof commit, all target modules/declarations, problem ID or original problem
    description, author/AI attribution, assumptions and publication permission.
-2. Open one PR per candidate targeting `main`. An Issue and local Lean execution are optional;
+2. Open one PR per candidate targeting `develop`. An Issue and local Lean execution are optional;
    CI computes source hashes, selects approved configuration and prepares the bridge.
 3. Inspect the trusted CI plan and proof evidence. Update your PR if materials or
    proofs need correction. When configuration is pending, keep the PR open.
@@ -31,15 +34,17 @@ maintenance PRs. Follow [statement review](docs/statement-review.md) and
 policy approval are mandatory; draft generation and onboarding tests do not approve
 anything automatically. Protect exceptional mappings in `intake-mappings/`.
 
-Once those changes reach main, the scheduler rechecks open PRs and dispatches ready
+Once those changes reach the candidate PR's protected target branch, the scheduler rechecks open PRs and dispatches ready
 ones automatically. It does not run Lean while prerequisites are missing. Resolve
 any proof failures with the author. Merge only after exact statement approval and
 all required `registry`, `tests`, `lean-verification` checks pass. Protect the
 required status against unrelated writers using repository settings.
 
-Merging registers the candidate and starts main revalidation. The generated
+Merging registers the candidate on the target branch. Each protected default-branch
+push starts revalidation. The generated
 [Registered candidates page](https://Federico2014.github.io/math-lean-verification/)
-updates automatically; do not maintain result rows by hand.
+updates automatically. Maintainers separately update the README summary with links
+to fixed verification and acceptance records; the catalog supplies current status.
 
 ## Repository implementation changes
 
