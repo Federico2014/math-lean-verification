@@ -4,6 +4,8 @@ RUN apt-get -o Acquire::Retries=5 -o APT::Update::Error-Mode=any update && apt-g
 RUN git clone https://github.com/ammkrn/nanoda_lib /build/nanoda && cd /build/nanoda && git checkout 05055695879dfebb6628a67da88ceca6cd6b0421 && cargo build --release --locked
 
 FROM ubuntu:24.04@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517
+# Bootstrap snapshot HTTPS; the locked Ubuntu ca-certificates package replaces this bundle.
+COPY --from=nanoda /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY ubuntu.sources /etc/apt/sources.list.d/ubuntu.sources
 COPY ubuntu-packages.lock /tmp/ubuntu-packages.lock
 RUN apt-get -o Acquire::Retries=5 -o APT::Update::Error-Mode=any update && xargs -r apt-get -o Acquire::Retries=5 install -y --no-install-recommends < /tmp/ubuntu-packages.lock && dpkg-query -W -f='${binary:Package}=${Version}\n' | LC_ALL=C sort > /tmp/installed-packages.lock && diff -u /tmp/ubuntu-packages.lock /tmp/installed-packages.lock && rm -rf /var/lib/apt/lists/*

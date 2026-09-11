@@ -59,3 +59,8 @@ archive signatures with the image's Ubuntu keyring. This restores historical
 package availability without upgrading the approved dependency set. Backend CI
 must build and exercise every existing environment before this repair is deployed;
 new image/verifier revisions require fresh candidate evidence.
+
+The minimal Ubuntu base has no HTTPS CA bundle. Copy only the bundle from the
+existing pinned Debian build stage to bootstrap snapshot HTTPS; installing the
+locked Ubuntu `ca-certificates` package regenerates it. Certificate and repository
+signature verification stay enabled throughout the build.
