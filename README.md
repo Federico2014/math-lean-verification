@@ -30,14 +30,25 @@ environment test success never grant approval.
 
 ## Registered candidates
 
-[Open the automatically generated candidate list](https://Federico2014.github.io/math-lean-verification/).
-After a candidate PR merges, protected-default-branch CI revalidates it and publishes the
-current status, fixed proof commit and evidence link. The page displays its default-branch
-revision and generation time. Publication runs after default-branch pushes and on a
-15-minute schedule; GitHub may delay scheduled jobs. Contributors do not edit a
-README table. Deployment needs the one-time [Pages setup](docs/simplified-intake.md#deployment).
+| Candidate | Fixed proof source | Machine verification | Formal acceptance |
+| --- | --- | --- | --- |
+| [DGG / Goemans cost conjecture: rational counterexample](candidates/dgg-cost-jyh.json) (`dgg-cost-jyh`, statement `v1`) | [jyh/dinitz-verify @ ffba3523f0ed](https://github.com/jyh/dinitz-verify/tree/ffba3523f0edd14be3460d039f22a6b98c02fd9e) | [Verified — 2026-09-11](https://github.com/Federico2014/math-lean-verification/actions/runs/34560237399/attempts/1), verifier `ab95172eade9` | [Accepted by administrator Federico2014 — 2026-09-11](https://github.com/Federico2014/math-lean-verification/releases/tag/acceptance-dgg-cost-v1-20260911) |
+
+This summary records the linked verification run and immutable acceptance decision.
+The administrator acceptance applies to the revisions in its record; it does not
+assert two independent reviewers or an award decision.
+
+[Open the live candidate catalog](https://Federico2014.github.io/math-lean-verification/)
+for the current protected default-branch status, full proof and verifier revisions,
+and evidence links. After a candidate PR merges, CI revalidates it and publishes
+updated status. Publication also runs on a 15-minute schedule; GitHub may delay
+scheduled jobs. Maintainers update this README summary from recorded evidence.
+Deployment needs the one-time [Pages setup](docs/simplified-intake.md#deployment).
 
 ## Adding a candidate
+
+See the [complete candidate lifecycle](docs/candidate-lifecycle.md) for responsibilities,
+waiting states, registration publication and separate formal acceptance.
 
 ### 1. Fill in one candidate file
 
