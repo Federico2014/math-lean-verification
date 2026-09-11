@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "record_kind": "administrator_formal_acceptance",
+  "acceptance_id": "dgg-cost-v1-20260911",
+  "formal_status": "accepted",
+  "accepted_on": "2026-09-11",
+  "candidate_id": "dgg-cost-jyh",
+  "problem_id": "dgg-cost",
+  "statement_version": "v1",
+  "statement_digest": "9b5389b33e8c8644b9246798597f60a152d87385885875226b700fe4b8ec138b",
+  "official_targets": [
+    "OfficialDGG.goemans_cost_conjecture_false"
+  ],
+  "candidate_targets": [
+    "Submission.goemans_cost_conjecture_false"
+  ],
+  "source": {
+    "repository": "https://github.com/jyh/dinitz-verify",
+    "commit": "ffba3523f0edd14be3460d039f22a6b98c02fd9e",
+    "project_root": "."
+  },
+  "bindings": {
+    "pr_head": "ea41d0d948f0493b6772138833c208a94383566e",
+    "base_sha": "8c6a0b0e21fdc63536351fb934e1f66e9fc3b877",
+    "upstream_commit": "ffba3523f0edd14be3460d039f22a6b98c02fd9e",
+    "workspace_digest": "38980c8a307755339b8ccbea0ebc8645070a5c56bd6223e7d758d7f879deb2eb",
+    "environment_digest": "2549518f7e642162f4a05d3c1b0eedd6c3fc0a4431f5b40b4bbc7da9abfd1396",
+    "policy_digest": "d32d5cc061496e704e3ada6a0e24b78d97b0b6eac3dc4f43e3c8b53b0a0074ed",
+    "run_id": "34466489912",
+    "run_attempt": "1"
+  },
+  "input_digest": "85fa910992cd45e8def490000be7d93f2669b04e4b2c0447faf0f6bcfd29acdd",
+  "image_id": "sha256:381b7c8525d523bb4ada6ee475aa123cccbcd7ccbfef63b5614bfcdd29a8e4c7",
+  "review": {
+    "status": "approved",
+    "authority": "Federico2014",
+    "approval_kind": "administrator_attestation",
+    "evidence": "On 2026-09-11 the administrator stated in the maintainer session that review had passed and explicitly instructed publication of formal acceptance.",
+    "independent_review_records_supplied": false
+  },
+  "decision_scope": "A specific administrator acceptance decision for these exact historical inputs. This is not an assertion that the two-independent-reviewer policy has been fulfilled and does not enable automatic acceptance for other inputs.",
+  "machine_evidence": {
+    "run_url": "https://github.com/Federico2014/math-lean-verification/actions/runs/34466489912",
+    "run_id": 34466489912,
+    "run_attempt": 1,
+    "artifact_id": 10147923589,
+    "artifact_digest": "sha256:17c291aea969ca5c1d8111051dca4e5848a4b28b8ecbbeaf8adb46139cc384cf",
+    "archive": "f55f1f64fff9051c104f53a98821d217586d01f17d8c1d52c7ee1958d8f57ddc.zip",
+    "archive_sha256": "f55f1f64fff9051c104f53a98821d217586d01f17d8c1d52c7ee1958d8f57ddc",
+    "verification_result": "verification-result.json",
+    "completed_stages": [
+      "sandbox_probes",
+      "challenge_clean_build_export",
+      "solution_clean_build_export",
+      "candidate_target_coverage",
+      "statement_comparison",
+      "transitive_axiom_audit",
+      "official_kernel_replay",
+      "independent_nanoda_replay"
+    ]
+  },
+  "archival_policy": {
+    "primary": "GitHub immutable release assets under acceptance-dgg-cost-v1-20260911",
+    "backup": "Identical files in the Git tree pinned by the release tag and retained on acceptance/dgg-cost-v1-20260911",
+    "retention": "Retain indefinitely for the lifetime of this repository; do not replace or delete historical acceptance assets or tags. Publish a new record for corrections or revocation.",
+    "custodian": "Federico2014",
+    "recovery": "Download either the release assets or the tagged Git archive; verify SHA256SUMS and every evidence MANIFEST.json entry before relying on the record. Repeat after storage migration and at least annually.",
+    "failure_domain": "Release assets and Git backup share GitHub as their hosting provider; no independent-provider backup is asserted."
+  },
+  "historical_reports": "Original machine reports retain formal_status=pending as of their execution. This later administrator decision is recorded separately without modifying their bytes.",
+  "scope_exclusions": [
+    "Changed source, dependency, statement, policy or verifier inputs require fresh bound verification and a new decision.",
+    "No award eligibility, priority, prize amount or recipient decision."
+  ],
+  "catalog": "The current machine catalog has no administrator-acceptance integration and may continue to display pending. This versioned release is the publication of this specific acceptance decision."
+}

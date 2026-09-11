@@ -1,0 +1,15 @@
+{
+  "checked_at": "2026-09-11",
+  "archive_sha256": "f55f1f64fff9051c104f53a98821d217586d01f17d8c1d52c7ee1958d8f57ddc",
+  "inventory_files": 35,
+  "github_artifact_digest_verified": true,
+  "trusted_run_origin_verified": true,
+  "all_required_jobs_successful": true,
+  "execution_exit_codes_checked": 13,
+  "statement_and_input_digests_recomputed": true,
+  "trusted_statement_files_verified": true,
+  "original_candidate_sources_compared": true,
+  "candidate_license_included": true,
+  "verification_result_schema_valid": true,
+  "candidate_executed_on_host": false
+}
