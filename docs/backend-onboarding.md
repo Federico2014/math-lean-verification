@@ -42,3 +42,25 @@ Review dispositions and required strict branch protection are recorded in [merge
 Approved mathematical reviewers and original-statement reviews are separate human evidence. The roster is still empty. A candidate must reference an already-approved statement on `main`; neither this profile nor a passing synthetic test supplies that approval.
 
 The current backend supports one target module with exact official theorem names and no arbitrary dependency/build adapter. Mathlib, version migration, and bridges for Erdős #650 require separate onboarding. Durable formal archives, publication of award acceptance, identity, priority, and prize assessment remain out of scope for this machine gate and are not enabled.
+
+## Restore pinned Ubuntu package availability — 2026-09-11
+
+The rolling Ubuntu archive removed the locked libc development and Python 3.12
+versions, causing all backend images to fail before any Lean execution in
+[run 34558577172](https://github.com/Federico2014/math-lean-verification/actions/runs/34558577172).
+`backend/ubuntu.sources` now selects the official Ubuntu snapshot at
+`20260910T000000Z`. Its noble-updates package index contains the same locked
+`2.39-0ubuntu8.8` libc development packages and `3.12.3-1ubuntu0.16` Python packages.
+See the [Ubuntu snapshot service](https://snapshot.ubuntu.com/).
+
+The 175-package lock, installed-inventory comparison, base image digest, Lean,
+Comparator, exporter and Nanoda pins remain unchanged. APT still verifies Ubuntu
+archive signatures with the image's Ubuntu keyring. This restores historical
+package availability without upgrading the approved dependency set. Backend CI
+must build and exercise every existing environment before this repair is deployed;
+new image/verifier revisions require fresh candidate evidence.
+
+The minimal Ubuntu base has no HTTPS CA bundle. Copy only the bundle from the
+existing pinned Debian build stage to bootstrap snapshot HTTPS; installing the
+locked Ubuntu `ca-certificates` package regenerates it. Certificate and repository
+signature verification stay enabled throughout the build.
