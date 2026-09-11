@@ -1,6 +1,7 @@
 """Catalog provenance tests use API metadata fixtures, never proof acceptance mocks."""
 import copy
 import io
+import os
 import unittest
 from unittest.mock import Mock, patch
 
@@ -11,6 +12,10 @@ from verifier.merge_gate import GitHub
 
 class CatalogTests(unittest.TestCase):
     def setUp(self):
+        # API fixtures model their own branch; the CI runner's PR ref is unrelated.
+        environment = patch.dict(os.environ, {'GITHUB_ACTIONS': 'false'})
+        environment.start()
+        self.addCleanup(environment.stop)
         self.base = 'b'*40
         self.run = {'id': 12, 'run_number': 2, 'run_attempt': 1, 'workflow_id': 7,
             'path': PATH, 'event': 'push', 'head_branch': 'main', 'head_sha': self.base,
