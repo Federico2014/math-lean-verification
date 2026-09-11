@@ -1,6 +1,6 @@
 # Lean proof verification design
 
-Version 1.1 — 2026-09-08. Implementation of the agreed trusted-workspace design.
+Version 1.2 — 2026-09-11. Implementation of the agreed trusted-workspace design.
 See [implementation status](implementation-status.md) for tested capabilities and remaining activation requirements.
 
 ## Purpose and scope
@@ -12,24 +12,21 @@ This is not a promise that arbitrary Lean code works without integration. Missin
 ## Architecture
 
 ```text
-Candidate issue
-    |
-Identify source, scope and all targets
-    |
-Review official problem        Identify and freeze environment
-    |                          Reuse / version configuration / adaptation
-    +--------------------------+
-    |
-Candidate PR: pinned source + selected files + optional proof bridge
-    |
-Protected-base planner -> independent candidate jobs (maximum two concurrent)
-    |
-Isolated build/export -> Comparator comparison + Lean replay -> Nanoda replay
-    |
-Exact-input result + evidence checksum/readback
-    |
-Trusted status publisher -> required lean-verification check
+1. Submit: candidate JSON + optional bridge -> isolated branch and candidate PR
+2. Prepare: protected-base plan -> approved problem/environment/mapping or blockers
+3. Verify: isolated build -> statement/axiom checks -> Lean and Nanoda -> sealed evidence
+4. Publish: normal merge -> revalidation -> shared catalog publication
+           -> generated README maintenance PR
+           -> explicit administrator decision -> checked durable archive
+           -> immutable release and generated acceptance-index/README PR
 ```
+
+`verifier.workflow` supplies non-authorizing progress summaries to the CLI, CI
+artifacts and catalog. `verifier.candidate` orchestrates the four operator commands;
+`verifier.registration` generates the stable README table; `verifier.acceptance`
+validates and publishes explicitly authorized administrator archives. See the
+[operator lifecycle](candidate-lifecycle.md) for commands and retry behavior.
+
 
 The workflow retains the proven export-only Comparator integration. `GateReplay.lean` is a small wrapper over pinned upstream comparison and kernel code; it does not implement a new proof checker. The upstream CLI's build launcher is replaced with separately probed Docker execution boundaries, avoiding untrusted `.olean` imports on the controller. This is an intentional integration choice, not a claim that running the stock Comparator CLI in any container is safe.
 
@@ -83,7 +80,8 @@ text replacements. It supports import/module adaptation while retaining both
 source versions. The adapted code remains untrusted. See [generic intake](generic-intake.md)
 for draft generation, configuration examples and collision rules.
 
-Legacy source-only registrations remain supported. New submissions should use explicit workspace and execution fields.
+Legacy source-only registrations remain supported. New contributors use candidate
+JSON; trusted preparation generates workspace and execution fields.
 
 ## CI and trust boundaries
 
@@ -113,9 +111,11 @@ Every executed candidate job writes `result.json` and an English `report.md`, in
 
 Per-candidate evidence includes selected source snapshots, problem/submission metadata, resource policy, tool/image identities, exported proofs, stage logs and duration. The `evidence` CLI creates a content-addressed ZIP with a checksum inventory and verifies readback without extracting executable content.
 
-Candidate selection compares referenced environment descriptors and effective policies in addition to submissions and problems. The live PR controller deliberately substitutes the protected policy for PR policy data. A separate protected-main revalidation workflow runs after relevant changes are merged. It conservatively selects all registered candidates and generates fresh evidence without replacing historical records or PR statuses. This addresses the lifecycle gap recorded in the earlier [design conformance review](design-conformance-review.md).
+Candidate selection compares referenced environment descriptors and effective policies in addition to submissions and problems. The live PR controller deliberately substitutes the protected policy for PR policy data. A separate protected-default-branch revalidation workflow runs after relevant changes are merged. It conservatively selects all registered candidates and generates fresh evidence without replacing historical records or PR statuses. This addresses the lifecycle gap recorded in the earlier [design conformance review](design-conformance-review.md).
 
-Actions artifacts are temporary diagnostic transport (90 days for candidate evidence). Persistent archival storage, backup/readback policy, reviewer onboarding and formal acceptance aggregation remain separate activation requirements. `formal_acceptance_enabled` stays false and `formal_status` stays pending. A sealed ZIP alone is not a durable archive or award decision.
+Actions artifacts are temporary diagnostic transport (90 days for candidate evidence). The operator publication command provides immutable release storage and a tagged
+Git archive with readback for explicit administrator decisions. Reviewer accreditation
+and automatic formal acceptance remain separate activation requirements. `formal_acceptance_enabled` stays false and `formal_status` stays pending. A sealed ZIP alone is not a durable archive or award decision.
 
 Preserve licenses and provenance for redistributed source snapshots. Retain historical versions; never rewrite a past acceptance record to make it match new inputs.
 
@@ -128,7 +128,7 @@ Use synthetic fixtures for environment onboarding, not fabricated candidate appr
 ## Single-PR preparation and automatic recovery
 
 The [single-PR design and operations](simplified-intake.md) defines candidate JSON,
-protected preparation mappings, latest-main delta application, event-driven
+protected preparation mappings, current-protected-target delta application, event-driven
 resumption and the generated candidate catalog. These modules reuse the isolated
 backend and existing exact approval policy. Preparation never grants a machine
 pass; publication never grants formal acceptance.

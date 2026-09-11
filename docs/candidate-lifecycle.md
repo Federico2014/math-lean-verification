@@ -1,143 +1,164 @@
-# Candidate submission through acceptance
+# Four-stage candidate workflow
 
-This guide describes the repository workflow as of 2026-09-11. New candidate PRs
-currently target protected `develop`, which is also the default branch. Catalog
-publication and post-merge verification follow the protected default branch.
+The CLI, CI summaries, candidate catalog and publication tooling share four stages:
+submit, prepare, verify, and publish. New PRs currently target protected `develop`.
+The commands use Python 3.12 and the installed development dependencies. Network
+writes use the operator's authenticated `gh` session; they never run in candidate
+containers or receive credentials from proof jobs.
 
-## Roles and outcomes
+## 1. Submit materials and open a PR
 
-| Stage | Responsible party | Completion evidence |
-| --- | --- | --- |
-| Submit materials | Contributor | One candidate PR with a fixed proof commit and complete attribution |
-| Approve prerequisites | Maintainer and authorized reviewers | Protected official statement, correspondence approval and admitted environment |
-| Verify the proof | Trusted CI | Exact candidate/head/base run with all proof stages passing and sealed evidence |
-| Register the candidate | Maintainer | Candidate PR merged into the protected target branch |
-| Publish current status | Trusted CI; maintainer for README | Default-branch revalidation and live catalog; README links recorded evidence |
-| Publish formal acceptance | Authorized decision maker and archive maintainer | Explicit decision and durable, checked archive for fixed revisions |
-| Decide any award | Separate award process | Separate decision; none of the preceding stages grants an award |
+Fill [candidate.json](../templates/candidate.json), then run:
 
-## 1. Prepare one candidate file
+```bash
+python -m verifier candidate submit my-candidate /path/to/candidate.json --repository OWNER/REPO
+```
 
-Copy [the template](../templates/candidate.json) to
-`candidates/<candidate-id>.json`. Use a lowercase, hyphenated ID and English
-registration descriptions. Preserve original names, source titles and notation.
+This validates the ID, fixed source commit, targets, attribution and public-source
+permission before writing. It creates a commit containing only the candidate JSON
+and optional bridge, then opens a PR on an isolated branch. It does not execute Git
+hooks, Lean, Lake or plugins. Add `--bridge /path/to/Bridge.lean` for a declared
+bridge and `--dry-run` for a read-only preview. Repeat submissions reuse an existing
+open PR for the same base and materials, after checking that its files still match.
+Already registered IDs are rejected by the submission shortcut; use an explicit
+reviewed update/version-change PR for existing candidates.
 
-Include:
+The operator needs repository write access. A contributor without it may create a
+fork PR through GitHub's UI; all candidate-only scope and verification rules still
+apply. An Issue and local Lean installation are optional.
 
-- The title and existing `problem_id` (and statement version when applicable), or
-  `problem: {"title": "…", "source_url": "https://…", "scope": "…"}` for a new problem.
-- The public proof repository and full 40-character immutable source commit.
-- Every target Lean module and theorem declaration.
-- Proof authors, formalization authors, proof route, AI contribution and known assumptions.
-- `public_source_authorized: true` only with permission to submit the public source.
+## 2. Clear prerequisites
 
-For a project in a subdirectory, set `source.project_root`. If automatic statement
-bridging is ambiguous, provide the reviewed mapping requested by the maintainer
-or an explicit `proofs/<candidate-id>/Bridge.lean`, referenced by `bridge`.
+Trusted CI automatically prepares each candidate. To inspect a candidate already
+present in a local checkout:
 
-An Issue, local Lean installation, precomputed hashes and README edits are not
-submission requirements. Never run candidate Lean, Lake or plugins on the host.
+```bash
+python -m verifier candidate prepare my-candidate
+```
 
-## 2. Open a candidate PR against develop
+This reads bounded source metadata and shows preparation blockers and the next
+stage; exit code `3` signals non-executing diagnostics. Missing problem review,
+environment approval or adaptation remains non-passing. Maintainers prepare
+trusted configuration in separate maintenance PRs. Keep the candidate PR open;
+the scheduler resumes it against the updated protected base without an empty commit.
 
-Use one PR per candidate. Include the candidate JSON and any required proof bridge.
-Do not put trusted problem, policy, environment or approval changes in that PR.
+Normal statement review requires two accredited independent reviewers. The roster
+is currently empty. An explicitly authorized administrator exception must bind
+one problem, statement version and digest through protected policy and approval
+changes. It does not grant independent-review accreditation or formal acceptance.
+See [statement review](statement-review.md) and [environment onboarding](environment-onboarding.md).
 
-**Trusted Lean verification** automatically prepares a plan: it reads the fixed
-source as data, matches an approved environment, selects source files, computes
-hashes and prepares the internal registration and bridge. Static preparation alone
-does not verify a proof.
+## 3. Verify the proof
 
-## 3. Clear any prerequisites
+Ready candidates run automatically. For an explicit retry:
 
-| Plan/result | Required action |
-| --- | --- |
-| `needs_information` | Contributor completes or corrects the submitted materials. |
-| `waiting_problem` / `waiting_review` | Maintainer prepares the official statement and obtains exact correspondence approval. |
-| `waiting_environment` | Maintainer runs real backend compatibility and isolation tests, then approves the pinned environment. |
-| `needs_adaptation` | Maintainer and contributor resolve the source layout, mapping or bridge requirements. |
-| `infrastructure_error` | Maintainer investigates and retries the trusted workflow after repair. |
-| `failed` | Inspect the stage evidence and correct the proof or integration failure before retrying. |
+```bash
+python -m verifier candidate verify --pr 123 --repository OWNER/REPO
+```
 
-Official statements must describe the original problem's exact domain,
-quantifiers, assumptions, definitions, conclusion and direction. Normal review
-requires two accredited independent reviewers. The approved reviewer roster is
-currently empty; do not infer completed independent review from a green PR.
+The command dispatches the existing protected gate with the exact PR head and
+current protected target revision. Candidate builds stay in credential-free,
+offline containers. All targets, bridges, statements, axioms, Lean and Nanoda replay
+must pass. Inspect `lean-plan-*`, `lean-evidence-*`, `report.md`,
+`verification-result.json` and the four-stage `workflow.json` summary.
 
-An explicitly authorized administrator exception must bind one problem, statement
-version and digest. Merge its protected policy grant before activating the
-statement approval in a separate maintenance PR. It is neither independent review
-nor a formal acceptance decision. Follow [statement review](statement-review.md)
-and [environment onboarding](environment-onboarding.md).
+Require `registry`, `tests` and `lean-verification`. Static validation, environment
+tests and documentation-only passes do not verify a candidate. New source/base
+bindings require fresh evidence. PR title/body edits do not change those inputs
+and no longer restart verification; retargeting still does.
 
-Keep the candidate PR open while prerequisites are prepared. After protected
-configuration changes merge into its target branch, the scheduler replans it
-against the new base and dispatches ready work. An empty candidate commit is not
-needed. Resolve actual merge conflicts normally.
+## 4. Merge, publish and accept
 
-## 4. Inspect the actual proof evidence
+Publish a verified candidate with:
 
-For a ready candidate, isolated CI builds the submitted sources, checks every
-required target and bridge, compares the official statements, audits transitive
-axioms, and performs Lean and Nanoda replay. It seals and uploads the evidence.
+```bash
+python -m verifier candidate publish my-candidate --pr 123 --repository OWNER/REPO
+```
 
-Inspect `lean-plan-*` and `lean-evidence-*`, including `report.md`,
-`verification-result.json` and stage logs. Require all three PR checks:
-`registry`, `tests` and `lean-verification`. Registry validation, unit tests,
-environment builds and Markdown-only maintenance passes do not establish candidate
-proof validity. The candidate itself needs a successful proof execution.
+The command checks that the PR contains only this candidate's files and is
+mergeable under normal branch protection. It merges the exact head, loads the
+current protected registry and opens a maintenance PR containing the generated
+README summary. By default it waits up to five minutes and merges that exact
+generated head only when normal checks/review permit it. Use `--wait-seconds 0` to
+return immediately, or rerun after a pending review/check completes. This keeps protected
+publication data out of candidate-controlled changes. Rerunning reuses the open
+publication PR or confirms synchronization. Omit `--pr` for an already merged candidate.
 
-The result binds the candidate source, PR head, protected base, statement,
-environment and policy. Changed bindings require fresh verification; a pass on
-another revision or target branch is historical evidence.
+Each protected default-branch push starts revalidation. On completion, the workflow
+calls the shared catalog publisher directly; failed/blocked proof outcomes remain
+visible. The scheduled publisher provides recovery. No privileged `workflow_run`
+or candidate-artifact reader is added to Pages publication.
 
-## 5. Merge and publish registration
+The README's marked table is generated from candidate metadata and the protected
+acceptance index. Live verification links avoid committing volatile proof status
+or creating publication/revalidation loops. Registry CI uploads a preview; the
+publication command creates the actual protected README change. For a local
+maintenance preview, run:
 
-After required checks and applicable review are satisfied, a maintainer merges
-the candidate PR. Verify GitHub says **Merged**: a PR that is merely **Closed**
-without merging does not register its files on the target branch.
+```bash
+python -m verifier sync-readme --repository OWNER/REPO --output /tmp/README.preview.md
+```
 
-Every push to the protected default branch starts **Revalidate registered Lean
-proofs**, including documentation pushes because the verifier revision changes.
-**Publish registered candidates** publishes the live
-[candidate catalog](https://Federico2014.github.io/math-lean-verification/).
-Publication also runs on a 15-minute schedule, which GitHub may delay.
+Only the content between the registration markers is replaced; surrounding prose
+and local notes are preserved. Immutable acceptance references are verified through
+the GitHub API before any accepted label is rendered, including CI previews. Without
+`--output`, the command updates local README.
 
-Check the catalog's branch revision, generation time, candidate ID, proof commit
-and evidence link. Only a successful run for the current default-branch revision
-can show current `verified`; older runs remain historical.
+### Explicit administrator acceptance
 
-The [README summary](../README.md#registered-candidates) is maintained separately.
-Add the candidate there with links to its registration, fixed source and recorded
-verification; include formal acceptance only when a decision has actually been
-published. Its cited run is a historical snapshot. The live catalog supplies the
-current status.
+Automatic formal acceptance remains disabled in machine policy. After a deliberate
+administrator decision, fill [the approval template](../templates/administrator-acceptance.json)
+and run:
 
-## 6. Publish formal acceptance separately
+```bash
+python -m verifier candidate publish my-candidate --approval /path/to/approval.json --repository OWNER/REPO
+```
 
-Machine verification does not automatically publish formal acceptance. The
-machine policy still has `formal_acceptance_enabled: false`; the automatic formal
-acceptance pipeline is not enabled.
+The approval must say `decision: accepted` and bind the administrator, date, reason,
+source commit, statement digest, current verifier SHA, successful revalidation run
+and attempt, GitHub artifact ID, and sealed archive SHA-256. Obtain these from the
+trusted run's plan/result and sealed evidence inventory. Supplying this file is an
+explicit publication instruction by the authenticated administrator; a candidate
+cannot approve itself through a PR or fabricated report.
 
-For an explicitly authorized, scoped administrator acceptance:
+The command performs the mechanical publication work together:
 
-1. Record the administrator, explicit decision, date, review basis and limitations.
-   Do not label it as two-person independent review.
-2. Bind the decision to the exact problem/statement digest, source, verifier,
-   environment/policy and successful run/attempt with its evidence.
-3. Preserve the complete evidence and licenses in a durable archive with file
-   checksums. Verify uploaded files by reading them back; temporary Actions
-   artifacts alone are insufficient. Never overwrite immutable records.
-4. Publish the immutable acceptance record and verify its release/tag, archive
-   commit, author and acceptance-file checksum.
-5. In a protected maintenance PR, add the pinned publication reference to
-   `docs/acceptance-publications.json` and update the README acceptance link.
-   Check the deployed catalog after publication.
+- Checks authenticated administrator authority and repository release immutability.
+- Validates protected workflow/run/job/attempt identities and actual proof execution.
+- Downloads the exact GitHub artifact, verifies its digest and sealed inventory,
+  and checks complete proof stages, source, statement and result bindings.
+- Creates an archive Git commit and a draft release containing the unchanged sealed
+  evidence, acceptance record and checksums. Reads both copies back before publishing.
+- Publishes immutably, repeats asset readback, then generates the protected
+  acceptance-index and README changes in one maintenance PR.
 
-The catalog validates the publication and displays `accepted_historical` for the
-accepted revisions. That decision persists as a historical record when the branch
-changes; it does not grant current machine success. Source or statement changes
-need new verification and any necessary fresh approval. Awards remain separate.
+No Actions artifacts are executed or extracted onto the host. The command bounds
+API transport to 128 MiB and both outer and sealed archives' uncompressed contents to 64 MiB; larger
+archives need a separately reviewed publication path. Keep release assets and the
+Git archive indefinitely. Verify checksums after migrations and at least annually;
+both copies share GitHub as their storage provider.
+
+A failed upload or readback leaves the release in draft. Rerun with the same
+approval to reuse and check existing assets; mismatching or unexpected assets stop
+publication. Never replace an immutable record. A changed current verifier revision
+requires freshly reviewed evidence for a new decision. An acceptance already
+published by this command can be resumed without reissuing it.
+
+For existing immutable administrator decisions, use:
+
+```bash
+python -m verifier candidate publish my-candidate --release-tag ACCEPTANCE-TAG --repository OWNER/REPO
+```
+
+This imports and checks the published record, administrator, tag commit and asset
+checksum. Statement identity must match explicit registered IDs or a protected
+correspondence mapping bound to the exact candidate digest; an inline description
+alone cannot establish correspondence. It does not create a new approval. A different existing index entry is
+not overwritten; corrections/version changes require a separate reviewed change.
+
+Registration may complete with formal acceptance pending. A published decision is
+`accepted_historical` for its accepted inputs, not a current proof pass or two-person
+independent review. Award eligibility, priority, recipients and amounts remain separate.
 
 ## DGG example
 

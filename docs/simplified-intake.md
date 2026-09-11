@@ -4,6 +4,13 @@ This implements the [Lean v2 design](https://troneco.atlassian.net/wiki/spaces/j
 Users submit candidate materials; maintainers own mathematical correspondence,
 approved environments and merge decisions. CI owns preparation and machine checking.
 
+## Four-stage operator interface
+
+`python -m verifier candidate` exposes submit, prepare, verify and publish. Shared
+`workflow.json` summaries report progress and next actions without authorizing
+checks or approvals. The [lifecycle runbook](candidate-lifecycle.md) defines each
+command, generated registration publication, and explicit administrator acceptance.
+
 ## Candidate preparation
 
 `candidates/<id>.json` is the user-facing registration. `verifier.intake` reads
@@ -75,7 +82,8 @@ execution. A green historical check is not evidence for the new target.
 ## Result publication
 
 Every push to the protected default branch starts registered-candidate revalidation, including documentation
-commits because verifier bindings include the exact revision. `candidate-catalog.yml`
+commits because verifier bindings include the exact revision. At the end of
+revalidation, a publication-only job calls the reusable `candidate-catalog.yml`. It
 rebuilds a static page and JSON from protected-default-branch registry and GitHub Actions
 metadata. It reads only the configured workflow ID/path, default-branch event/repository/SHA,
 exact run attempt and the candidate's named verification job and step. A successful
@@ -145,8 +153,8 @@ Default-branch revalidation cancels superseded runs for the same selection; manu
 selected candidates use `selected-<id>` in concurrency groups and run titles,
 distinct from the `all` scope even for a candidate whose ID is `all`. Every new default-branch revision
 still needs its own evidence, including documentation commits. Recovery and
-catalog schedules remain necessary for retries and for publishing results after
-asynchronous proof jobs finish. See GitHub's
+catalog schedules remain available for recovery; completed revalidation jobs
+now call publication directly. See GitHub's
 [workflow filtering and concurrency rules](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax).
 
 ## Automatic PR entrypoint and GitHub branch context
@@ -172,3 +180,7 @@ This allows the resolver/publisher fix on `develop` to serve the existing
 The updated workflow also labels automatic runs with their target branch/base.
 Workflow trigger additions (such as `edited`) take effect only when that workflow
 file is deployed to the default branch.
+
+PR `edited` events enter the gate only when the base changed. Documentation bots
+editing descriptions do not alter proof inputs and no longer trigger duplicate
+verification; source updates and retargeting retain the exact identity checks.

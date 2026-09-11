@@ -21,11 +21,16 @@ For the trusted status workflow, isolation boundaries, supported profiles, and m
 Follow the [complete candidate lifecycle](candidate-lifecycle.md) for roles, waiting
 states, README publication and scoped administrator acceptance.
 
-1. Review `candidates/<candidate-id>.json` in the candidate PR; an Issue is optional. Confirm publication permission, original problem scope, fixed proof commit, targets and attribution.
-2. Inspect the automatically triggered **Trusted Lean verification** plan and evidence. Resolve missing official workspaces, statement reviews or environments in separate maintenance PRs.
-3. Run real backend compatibility tests before approving a new environment. Merging approved preparation changes lets the scheduler resume the original candidate PR against its current protected target branch.
-4. Merge the candidate only after `registry`, `tests` and `lean-verification` pass. A green environment build or static plan does not verify the candidate.
-5. Check protected-default-branch revalidation and the generated candidate catalog after merging. Retain the exact run and revision evidence; formal acceptance remains separate.
+1. **Submit:** review the candidate-only PR created by `candidate submit` or GitHub's UI.
+2. **Prepare:** use CI diagnostics or `candidate prepare`; merge trusted statement,
+   mapping and environment approvals separately. Run real backend tests for onboarding.
+3. **Verify:** inspect actual candidate proof stages and require `registry`, `tests`
+   and `lean-verification` to pass. Retry with `candidate verify` when appropriate.
+4. **Publish:** run `candidate publish` to merge the candidate and generate its README
+   publication PR. Revalidation calls the shared catalog publisher on completion.
+   After explicit administrator approval, use `--approval` to archive, read back and
+   publish the immutable decision and generate the acceptance-index/README PR.
+   The command waits for normal required checks/review and merges only its generated head; rerun if still pending.
 
 For recovery, manual retries and one-time Pages setup, see
 [single-PR operations](simplified-intake.md). For local static diagnostics, use
@@ -42,4 +47,4 @@ GitHub usernames in review records serve only as references. Before approval, ve
 
 Automatic formal acceptance remains disabled. Scoped administrator decisions may
 be published as immutable archives and linked by the protected publication index,
-as described in the [candidate lifecycle](candidate-lifecycle.md#6-publish-formal-acceptance-separately). Do not add a privileged `workflow_run` that consumes untrusted artifacts and executes scripts. Publishing must validate the trusted run origin and input digest and verify archive readback before displaying acceptance status. Actions artifacts are temporary storage and do not meet formal archival requirements.
+as described in the [candidate lifecycle](candidate-lifecycle.md#4-merge-publish-and-accept). Do not add a privileged `workflow_run` that consumes untrusted artifacts and executes scripts. Publishing must validate the trusted run origin and input digest and verify archive readback before displaying acceptance status. Actions artifacts are temporary storage and do not meet formal archival requirements.

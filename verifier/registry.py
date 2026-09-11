@@ -248,9 +248,9 @@ def validate_registry(root: Path) -> dict[str, Any]:
     require(not data_files(root, "records"), "Formal records require durable archival and acceptance onboarding")
     from .intake import read_candidates, mappings
     candidates = read_candidates(root, submissions)
-    mappings(root)  # Validate protected mapping data without retrieving candidate sources.
+    intake_mappings = mappings(root)  # Protected static correspondence; no candidate execution.
     return {"policy": policy, "problems": problems, "submissions": submissions,
-            "environments": environments, "candidates": candidates}
+            "environments": environments, "candidates": candidates, "intake_mappings": intake_mappings}
 
 
 def plan_verification(root: Path, submission_id: str) -> dict[str, Any]:

@@ -8,14 +8,18 @@ and original names for attribution. Registration and CI results do not decide aw
 See the [complete candidate lifecycle](docs/candidate-lifecycle.md) for the full
 submission, review, verification, registration and acceptance process.
 
-1. Copy [the candidate template](templates/candidate.json) to
-   `candidates/<candidate-id>.json` and complete its fields. Supply a fixed public
-   proof commit, all target modules/declarations, problem ID or original problem
-   description, author/AI attribution, assumptions and publication permission.
-2. Open one PR per candidate targeting `develop`. An Issue and local Lean execution are optional;
-   CI computes source hashes, selects approved configuration and prepares the bridge.
-3. Inspect the trusted CI plan and proof evidence. Update your PR if materials or
-   proofs need correction. When configuration is pending, keep the PR open.
+1. **Submit:** complete [the candidate template](templates/candidate.json) and run
+   `python -m verifier candidate submit <id> <file> --repository OWNER/REPO` to validate
+   materials and open a candidate-only PR. Contributors without repository write
+   access can open a fork PR through GitHub's UI.
+2. **Prepare:** CI reports prerequisites; maintainers approve the statement,
+   environment and adaptation in separate maintenance PRs. Keep waiting PRs open.
+3. **Verify:** inspect actual trusted proof evidence and all three required checks.
+   Use `candidate verify --pr N --repository OWNER/REPO` for an explicit retry.
+4. **Publish:** a maintainer runs `candidate publish <id> --pr N --repository OWNER/REPO`
+   to merge and generate the registration publication PR. After explicit administrator
+   approval, the same command with `--approval <file>` handles archive and acceptance
+   publication. The command waits for normal checks/review before merging generated maintenance PRs.
 
 A new problem description uses `problem: {"title": "…", "source_url": "https://…",
 "scope": "…"}` instead of `problem_id`. A maintainer must map it to an approved
@@ -43,8 +47,9 @@ required status against unrelated writers using repository settings.
 Merging registers the candidate on the target branch. Each protected default-branch
 push starts revalidation. The generated
 [Registered candidates page](https://Federico2014.github.io/math-lean-verification/)
-updates automatically. Maintainers separately update the README summary with links
-to fixed verification and acceptance records; the catalog supplies current status.
+updates immediately after revalidation, with scheduled recovery. The publication
+command generates the README summary and any acceptance-index change together;
+the catalog supplies current status.
 
 ## Repository implementation changes
 

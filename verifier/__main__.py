@@ -27,8 +27,64 @@ def main(argv=None) -> int:
     env_draft.add_argument('--exporter-commit', required=True)
     env_draft.add_argument('--cache-module', action='append', default=[])
     env_draft.add_argument('--output', type=Path, required=True)
+    candidate = commands.add_parser('candidate', help='Submit, prepare, verify and publish a candidate')
+    actions = candidate.add_subparsers(dest='action', required=True)
+    submit = actions.add_parser('submit', help='Validate materials and open one candidate PR using your gh login')
+    submit.add_argument('identifier')
+    submit.add_argument('file', type=Path)
+    submit.add_argument('--bridge', type=Path)
+    submit.add_argument('--repository', required=True)
+    submit.add_argument('--dry-run', action='store_true')
+    prepare = actions.add_parser('prepare', help='Read sources and show prerequisite blockers; never execute Lean')
+    prepare.add_argument('identifier')
+    verify = actions.add_parser('verify', help='Dispatch the protected CI gate for an open PR')
+    verify.add_argument('--pr', type=int, required=True)
+    verify.add_argument('--repository', required=True)
+    publish = actions.add_parser('publish', help='Merge and synchronize registration; optionally publish explicit administrator acceptance')
+    publish.add_argument('identifier')
+    publish.add_argument('--pr', type=int)
+    publish.add_argument('--repository', required=True)
+    publish.add_argument('--wait-seconds', type=int, default=300, help='Wait up to this many seconds to merge the generated publication PR; 0 returns immediately')
+    acceptance = publish.add_mutually_exclusive_group()
+    acceptance.add_argument('--approval', type=Path, help='Explicit administrator decision bound to a current proof run')
+    acceptance.add_argument('--release-tag', help='Import an already published immutable acceptance')
+    sync = commands.add_parser('sync-readme', help='Generate the marked README table from registry data; no proof claims')
+    sync.add_argument('--repository', required=True)
+    sync.add_argument('--output', type=Path, help='Write a preview to a new file instead of updating README')
     args = parser.parse_args(argv)
     try:
+        if args.command == 'candidate':
+            from . import candidate
+            if args.action == 'prepare':
+                value = candidate.prepare(args.root, args.identifier)
+            else:
+                api = candidate.Session(args.repository)
+                if args.action == 'submit':
+                    value = candidate.submit(api, args.identifier, args.file, args.bridge, dry_run=args.dry_run)
+                elif args.action == 'verify':
+                    value = candidate.verify(api, args.pr)
+                else:
+                    value = candidate.publish(api, args.identifier, pr=args.pr,
+                                              approval=args.approval, release_tag=args.release_tag, wait_seconds=args.wait_seconds)
+            print(json.dumps(value, indent=2))
+            return 3 if args.action == 'prepare' else 0
+        if args.command == 'sync-readme':
+            from .registration import render, update
+            from .registry import read_json, safe_file
+            readme = safe_file(args.root, 'README.md')
+            from .catalog import publication_history
+            from .merge_gate import GitHub
+            publications = read_json(safe_file(args.root, 'docs/acceptance-publications.json'))
+            verified = publication_history(GitHub(args.repository), publications)
+            value = update(readme.read_text(encoding='utf-8'), render(validate_registry(args.root),
+                publications, args.repository, verified=verified))
+            if args.output:
+                with args.output.open('x', encoding='utf-8') as stream:
+                    stream.write(value)
+            else:
+                readme.write_text(value, encoding='utf-8')
+            print('Registration summary generated; current proof status remains in the live catalog.')
+            return 0
         if args.command == 'draft-environment':
             from .onboarding import environment_draft
             environment_draft(args.project, args.output, identifier=args.environment_id,

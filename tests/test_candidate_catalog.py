@@ -226,3 +226,31 @@ class CatalogTests(unittest.TestCase):
             self.api.pages.side_effect = pages
             with self.subTest(change=change), self.assertRaisesRegex(RegistryError, 'jobs changed|identity mismatch'):
                 self.catalog()
+
+    def test_in_workflow_publication_reports_completed_blocked_plan_as_not_run(self):
+        self.run['status'] = 'in_progress'
+        self.job['name'] = 'summary'
+        self.job['conclusion'] = 'failure'
+        value = self.catalog()
+        self.assertEqual(value['candidates'][0]['status'], 'not_run')
+        self.assertEqual(value['candidates'][0]['workflow']['current_step'], 2)
+
+    def test_running_plan_does_not_claim_prerequisites_are_complete(self):
+        self.run['status'] = 'in_progress'
+        self.job.update(name='plan', status='in_progress', conclusion=None)
+        row = self.catalog()['candidates'][0]
+        self.assertEqual(row['status'], 'running')
+        self.assertEqual(row['workflow']['current_step'], 2)
+
+    def test_summary_job_transition_invalidates_in_workflow_publication(self):
+        self.run['status'] = 'in_progress'
+        reads = 0
+        def pages(path, *args, **kwargs):
+            nonlocal reads
+            if '/workflows/' in path:
+                return iter(self.runs)
+            reads += 1
+            return iter([dict(self.job, name='summary', status='queued' if reads == 1 else 'completed')])
+        self.api.pages.side_effect = pages
+        with self.assertRaisesRegex(RegistryError, 'jobs changed'):
+            self.catalog()

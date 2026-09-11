@@ -44,6 +44,16 @@ class RepositoryTests(unittest.TestCase):
                     self.assertNotIn("pull_request_target", workflow["on"])
                 self.assertNotIn("workflow_run", workflow["on"])
                 for name, job in workflow["jobs"].items():
+                    if 'uses' in job:
+                        self.assertEqual((path.name, name), ('revalidate.yml', 'publish'))
+                        self.assertEqual(job['uses'], './.github/workflows/candidate-catalog.yml')
+                        self.assertEqual(job['needs'], ['plan', 'verify', 'summary'])
+                        self.assertIn("needs.plan.result == 'success'", job['if'])
+                        self.assertIn('github.event.repository.default_branch', job['if'])
+                        self.assertEqual(job['permissions'], {'contents': 'read', 'actions': 'read',
+                                                              'pages': 'write', 'id-token': 'write'})
+                        self.assertNotIn('secrets', job)
+                        continue
                     self.assertEqual(job["runs-on"], "ubuntu-24.04")
                     allowed = {
                         ('resume-candidates.yml', 'resume'): {'contents': 'read', 'pull-requests': 'read', 'actions': 'write'},
@@ -66,6 +76,8 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(set(workflow["on"]), {"pull_request_target", "workflow_dispatch"})
         self.assertEqual(workflow['on']['pull_request_target']['branches'], ['main', 'develop'])
         self.assertIn('edited', workflow['on']['pull_request_target']['types'])
+        self.assertIn("github.event.action == 'edited' && github.event.changes.base == null && 'metadata-'", workflow['concurrency']['group'])
+        self.assertIn("github.event.action != 'edited' || github.event.changes.base != null", workflow['jobs']['resolve']['if'])
         self.assertIn('github.ref_name', workflow['run-name'])
         self.assertIn('github.sha', workflow['run-name'])
         self.assertIn('github.event.pull_request.base.ref', workflow['run-name'])
@@ -94,7 +106,7 @@ class RepositoryTests(unittest.TestCase):
     def test_actions_pinned_and_checkout_credentials_disabled(self):
         for path, workflow in self.workflows():
             for job in workflow["jobs"].values():
-                for step in job["steps"]:
+                for step in job.get("steps", []):
                     if "uses" in step:
                         self.assertRegex(step["uses"], r"^[\w-]+/[\w-]+@[a-f0-9]{40}$")
                         if step["uses"].startswith("actions/checkout@"):
@@ -152,6 +164,8 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn(selection, workflow['run-name'])
         # Current-SHA catalog provenance requires evidence even after docs commits.
         self.assertEqual(workflow['on']['push'], {'branches': ['main', 'develop']})
+        catalog = yaml.load((ROOT / '.github/workflows/candidate-catalog.yml').read_text(), Loader=yaml.BaseLoader)
+        self.assertEqual(set(catalog['on']), {'schedule', 'workflow_dispatch', 'workflow_call'})
         self.assertIn('github.event.repository.default_branch', workflow['jobs']['plan']['if'])
 
     def test_ci_locks_have_exact_versions_hashes_and_match_dev_versions(self):

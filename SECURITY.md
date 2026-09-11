@@ -46,8 +46,29 @@ and the exact branch/revision, including retargeting between equal commit SHAs. 
 and metadata digest binds exceptional static adaptation. Description-only problem
 matching requires maintainer correspondence; a matching title is insufficient.
 
-Catalog generation consumes protected-main Actions job metadata with workflow,
+Catalog generation consumes protected-default-branch Actions job metadata with workflow,
 repository, revision, attempt and verification-step checks. It does not ingest PR
 artifacts or trust candidate-provided success JSON. Only the separate Pages deploy
 job has deployment permissions. A published timestamp/revision identifies stale
 views after API or deployment failures. Formal evidence retention remains separate.
+
+## Operator publication boundary
+
+The four-stage operator CLI uses the maintainer's authenticated GitHub CLI session
+for submission and publication. It handles candidate files, exports and archives as
+bounded data and never executes Git hooks, Lean, Lake, plugins or archive contents.
+Candidate-only PR restrictions remain in the protected merge gate. README and
+acceptance-index changes are generated in separate protected maintenance PRs.
+
+New administrator acceptance requires an explicit version-bound decision matching
+the authenticated repository administrator and a successful current protected
+revalidation artifact. Publication checks run/job/attempt provenance, artifact and
+inventory hashes, complete machine stages and statement/source bindings. Git archive
+and release assets are read back before publishing immutably. Historical machine
+results remain unchanged; machine policy does not automatically grant acceptance.
+
+Revalidation calls the reusable Pages publisher after its proof jobs finish.
+Only the publication call delegates Pages permissions; proof jobs retain read-only
+permissions and credential-free containers. Pages consumes GitHub job metadata and
+protected release references, never downloaded candidate artifacts. Title/body edits
+do not restart the PR gate; changed sources and PR targets still invalidate evidence.

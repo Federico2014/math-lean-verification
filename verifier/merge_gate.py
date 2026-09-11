@@ -448,6 +448,9 @@ def main():
     except Exception as exc:
         result = {'schema_version': 1, 'head_sha': args.head, 'status': 'failed', 'error': str(exc)}
     (args.output / 'gate.json').write_text(json.dumps(result, indent=2) + '\n')
+    from .workflow import from_plan, write_summary
+    if result.get('status') != 'not_applicable':
+        write_summary(from_plan(result), args.output / 'workflow.json')
     print(json.dumps(result))
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:

@@ -21,7 +21,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: trusted-lean-${{ github.event.pull_request.number || inputs.pr }}
+  # Metadata-only edits must not cancel a running or queued proof workflow.
+  group: trusted-lean-${{ github.event.action == 'edited' && github.event.changes.base == null && 'metadata-' || '' }}${{ github.event.pull_request.number || inputs.pr }}
   cancel-in-progress: true
 jobs:
   resolve:
@@ -30,6 +31,7 @@ jobs:
       cancel-in-progress: false
     if: >-
       (github.event_name == 'pull_request_target' &&
+       (github.event.action != 'edited' || github.event.changes.base != null) &&
        (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop')) ||
       (github.event_name == 'workflow_dispatch' &&
        (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
