@@ -1,4 +1,4 @@
-"""Recheck registered candidates using the current protected main revision.
+"""Recheck registered candidates using the current protected default branch.
 
 This workflow never publishes a PR status, rewrites a record, or grants an approval.
 """
@@ -10,7 +10,7 @@ import re
 import subprocess
 import tempfile
 
-from .merge_gate import execute_candidates, prerequisites
+from .merge_gate import GitHub, execute_candidates, prerequisites
 from .registry import ROOT, RegistryError, VerificationError, read_json, require, safe_file, validate_registry
 
 
@@ -41,9 +41,22 @@ def revision(expected):
     actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     require(actual == expected, 'Revalidation checkout differs from requested revision')
     if os.environ.get('GITHUB_ACTIONS') == 'true':
-        require(os.environ.get('GITHUB_REF') == 'refs/heads/main', 'Revalidation requires protected main')
+        require(os.environ.get('GITHUB_REF') in ('refs/heads/main', 'refs/heads/develop'),
+                'Revalidation requires protected main or develop')
         require(os.environ.get('GITHUB_SHA') == expected, 'Revalidation event identity mismatch')
     return actual
+
+
+def protected_default_branch(api, expected):
+    branch = api.get('')['default_branch']
+    require(branch in ('main', 'develop'), 'Unsupported default branch')
+    if os.environ.get('GITHUB_ACTIONS') == 'true':
+        require(os.environ.get('GITHUB_REF') == 'refs/heads/' + branch,
+                'Workflow is not running on the current default branch')
+    info = api.get('branches/' + branch)
+    require(info.get('protected') is True, 'Default branch must be protected')
+    require(info['commit']['sha'] == expected, 'Default branch moved; retry with its current revision')
+    return branch
 
 
 def main():
@@ -57,6 +70,8 @@ def main():
     args.output.mkdir(parents=True, exist_ok=False)
     try:
         base = revision(args.revision)
+        api = GitHub(os.environ['GITHUB_REPOSITORY']) if os.environ.get('GITHUB_ACTIONS') == 'true' else None
+        branch = protected_default_branch(api, base) if api else None
         registry = validate_registry(ROOT)
         from .intake import prepare_registry
         with tempfile.TemporaryDirectory(prefix='lean-revalidate-') as temporary:
@@ -71,7 +86,10 @@ def main():
                     destination.write_bytes(source.read_bytes())
             registry = prepare_registry(registry, ROOT, ROOT, prepared_root,
                                         [args.submission] if args.submission else None)
-            return execute(args, base, registry, prepared_root)
+            result = execute(args, base, registry, prepared_root)
+            if api:
+                require(protected_default_branch(api, base) == branch, 'Default branch changed during verification')
+            return result
     except (RegistryError, OSError, ValueError, subprocess.SubprocessError) as exc:
         (args.output / 'error.json').write_text(json.dumps({'status': 'failed', 'error': str(exc)}) + '\n')
         return 1

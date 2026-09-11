@@ -25,15 +25,15 @@ Reuse approved configurations whenever possible. Version differences normally ad
 
 The [environment and adaptation guide](docs/generic-intake.md) covers
 `draft-environment`, hash-bound source adaptation without a fork, automatic
-environment regression matrices and protected-main revalidation. Drafts and
+environment regression matrices and protected-default-branch revalidation. Drafts and
 environment test success never grant approval.
 
 ## Registered candidates
 
 [Open the automatically generated candidate list](https://Federico2014.github.io/math-lean-verification/).
-After a candidate PR merges, protected-main CI revalidates it and publishes the
-current status, fixed proof commit and evidence link. The page displays its main
-revision and generation time. Publication runs after main pushes and on a
+After a candidate PR merges, protected-default-branch CI revalidates it and publishes the
+current status, fixed proof commit and evidence link. The page displays its default-branch
+revision and generation time. Publication runs after default-branch pushes and on a
 15-minute schedule; GitHub may delay scheduled jobs. Contributors do not edit a
 README table. Deployment needs the one-time [Pages setup](docs/simplified-intake.md#deployment).
 
@@ -84,10 +84,12 @@ push automatically resumes waiting candidate PRs against its new revision while 
 no empty commit or rebase is needed merely to pick up approved configuration.
 Conflicting candidate edits still require normal conflict resolution. Manual recovery
 is available on either branch; the periodic schedule runs on the default branch.
-The published candidate catalog continues to describe `main`, not unmerged development work.
+The published candidate catalog describes the current protected default branch (`main` or `develop`).
 
 Read `lean-plan-*` / scheduler diagnostics for prerequisites, and
 `lean-evidence-*` for `report.md`, `verification-result.json` and stage logs.
+Published administrator acceptances are linked separately, with the accepted source
+and verifier revisions. They remain historical decisions when current inputs change.
 A green registry check, a build or environment test alone is not proof verification.
 Maintainers require `registry`, `tests` and `lean-verification` before merging.
 Formal acceptance and awards remain separate decisions.

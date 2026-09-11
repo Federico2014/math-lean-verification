@@ -74,16 +74,16 @@ execution. A green historical check is not evidence for the new target.
 
 ## Result publication
 
-Every main push starts registered-candidate revalidation, including documentation
+Every push to the protected default branch starts registered-candidate revalidation, including documentation
 commits because verifier bindings include the exact revision. `candidate-catalog.yml`
-rebuilds a static page and JSON from protected-main registry and GitHub Actions
-metadata. It reads only the configured workflow ID/path, main event/repository/SHA,
+rebuilds a static page and JSON from protected-default-branch registry and GitHub Actions
+metadata. It reads only the configured workflow ID/path, default-branch event/repository/SHA,
 exact run attempt and the candidate's named verification job and step. A successful
 job requires real backend execution and sealed evidence upload. Candidate artifacts,
 HTML and printed success strings cannot grant a catalog pass. All displayed strings
 are escaped. Full stage results remain linked in the CI evidence artifact.
 
-Only a run for the current main revision can show `verified`. A newer failed,
+Only a run for the current default-branch revision can show `verified`. A newer failed,
 cancelled or incomplete run cannot fall back to an earlier pass. Unexecuted or
 blocked preparation shows `not_run` with the CI plan link. Historical run links
 are separate and describe their own revision. API failure stops publication rather
@@ -95,16 +95,24 @@ inside the same running attempt invalidates the snapshot and requires a retry.
 The catalog is a presentation of machine checks, not formal acceptance or a durable
 archive. Actions proof artifacts have 90-day retention.
 
+The protected `docs/acceptance-publications.json` index links separately published
+administrator decisions. The catalog validates the immutable release, administrator,
+tag commit and acceptance-record asset checksum against each pinned reference.
+`accepted_historical` describes that published source/verifier version; it never
+grants current machine success or enables automatic formal acceptance. The original
+CI and archive records remain unchanged. Update this index only through protected
+maintenance review after publishing and checking the corresponding archive.
+
 ## Deployment
 
 Merge the reviewed implementation after unit/registry and real backend CI pass.
 Protected workflows intentionally cannot use this PR's controller to authorize
 itself. Their production event-chain test follows deployment to the protected target.
-Development PRs target `develop`; main-only catalog publication and post-merge
-revalidation begin when changes reach `main`.
+Development PRs target `develop`; catalog publication and post-merge
+revalidation follow the current default branch, limited to protected `main` or `develop`.
 
 Once, select **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-Allow the `github-pages` environment to deploy only from main. The catalog build
+Allow the `github-pages` environment to deploy from the selected protected default branch. The catalog build
 has `contents: read` / `actions: read`; only its deployment job has `pages: write`
 and `id-token: write`. Scheduler write permissions are limited to workflow dispatch; it executes no candidate code. No PAT or GitHub App
 is needed. Keep required branch checks and protected configuration review enabled.
@@ -133,9 +141,9 @@ execution and are not verification evidence. See [selection rules and commands](
 The standalone preflight workflow has been removed; `verifier plan` remains a
 local diagnostic command.
 
-Main revalidation cancels superseded runs for the same selection; manually
+Default-branch revalidation cancels superseded runs for the same selection; manually
 selected candidates use `selected-<id>` in concurrency groups and run titles,
-distinct from the `all` scope even for a candidate whose ID is `all`. Every new main revision
+distinct from the `all` scope even for a candidate whose ID is `all`. Every new default-branch revision
 still needs its own evidence, including documentation commits. Recovery and
 catalog schedules remain necessary for retries and for publishing results after
 asynchronous proof jobs finish. See GitHub's

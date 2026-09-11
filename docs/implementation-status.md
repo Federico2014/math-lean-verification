@@ -24,7 +24,7 @@ or verifier revisions require fresh evidence.
 - Automatic candidate preparation and static environment draft generation with explicit unresolved fields and no automatic approvals.
 - Hash-bound source renaming and exact replacements, with original/adapted source evidence and protected-path checks.
 - Environment regression matrices select affected profiles for environment-only PRs, all profiles for shared changes, and an optional exact ID for manual dispatch; pending descriptors and offline cache import probes remain included.
-- Protected-main revalidation of registered candidates after trusted input changes, separate from PR status publication.
+- Protected-default-branch revalidation of registered candidates after trusted input changes, separate from PR status publication.
 - A versioned verification-result summary and explicit failed-stage diagnostics.
 
 ## Activation boundaries
@@ -34,7 +34,7 @@ or verifier revisions require fresh evidence.
 - `lean-4-32-rc1-mathlib` is admitted using [backend run 34452461091](https://github.com/Federico2014/math-lean-verification/actions/runs/34452461091) at verifier revision `397559f4257cb9f891df6ff17413f52415d12ef7`: all 29 real regressions passed, including positive/negative proofs, independent replay, sandbox protection and both declared cache import probes. Approval preserves the tested compiler, exporter, fixed dependencies, cache scope and resource limits (6 GiB RAM, 2 CPUs, 2 GiB work storage, 3600-second timeout). This is environment compatibility evidence. The registered DGG statement is approved under the [exact administrator exception](administrator-approvals/dgg-cost-v1-2026-09-10.md); independent mathematical review remains incomplete. Candidate proof status must come from fresh CI evidence for the current inputs.
 - Project compiler, exporter and shared checker compatibility must pass actual tests for each new combination. Adding JSON is not approval.
 - Mathematical reviewer accreditation remains empty. Existing two-reviewer, provenance and content-binding requirements are unchanged.
-- Persistent evidence storage, backup/readback operations and formal acceptance publication remain unconfigured. `formal_acceptance_enabled` remains false.
+- Automatic formal acceptance remains disabled (`formal_acceptance_enabled: false`). The DGG administrator acceptance is published as an immutable Release with a Git backup and recorded readback checks; see `acceptance-publications.json`. This scoped manual publication does not activate automatic acceptance.
 - Real candidate pilot onboarding, contribution/priority review and award decisions remain separate work.
 - Unsupported custom Lake execution, dependency subdirectories, arbitrary native plugins and Lean 3 require an explicit backend extension. No automatic unsandboxed fallback exists.
 - Peak resource telemetry, richer per-theorem diagnostic classifications and merge-queue support remain future improvements; execution limits, wall time and aggregate target checks are recorded now.
@@ -66,3 +66,12 @@ implementation. Real backend tests now exercise the generated constant-type brid
 Production activation requires merging this implementation, enabling GitHub Pages,
 and recording actual recovery/merge/catalog event-chain evidence. Local orchestration
 tests do not satisfy that acceptance requirement. Formal acceptance remains disabled.
+
+## Default-branch catalog and published administrator decisions
+
+Catalog publication and candidate revalidation follow the current protected default
+branch (`main` or `develop`) and reject stale revisions, unprotected branches and
+foreign workflow evidence. The catalog links pinned immutable administrator
+acceptance releases as historical decisions, separately from current machine
+verification. The DGG acceptance is indexed in `acceptance-publications.json`; its
+archive remains independent of the automatic acceptance policy.

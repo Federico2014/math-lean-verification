@@ -1,10 +1,12 @@
 """Catalog provenance tests use API metadata fixtures, never proof acceptance mocks."""
 import copy
+import io
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from verifier.catalog import build, render, PATH, EXECUTION_STEP
 from verifier.registry import RegistryError
+from verifier.merge_gate import GitHub
 
 
 class CatalogTests(unittest.TestCase):
@@ -21,13 +23,103 @@ class CatalogTests(unittest.TestCase):
             'title': '<img src=x onerror=alert(1)>',
             'source': {'repository': 'https://github.com/example/proof', 'commit': 'a'*40}}}}
         self.api = Mock(repository='example/registry')
-        self.api.get.side_effect = lambda path: ({'commit': {'sha': self.base}} if path == 'branches/main'
-                                                else {'id': 7, 'path': PATH})
+        self.branch = 'main'
+        self.protected = True
+        self.api.get.side_effect = self.get
         self.runs = [self.run]
         self.api.pages.side_effect = lambda path, *args, **kwargs: iter(self.runs if '/workflows/' in path else [self.job])
 
+    def get(self, path):
+        if path == '':
+            return {'default_branch': self.branch}
+        if path == 'branches/' + self.branch:
+            return {'protected': self.protected, 'commit': {'sha': self.base}}
+        return {'id': 7, 'path': PATH}
+
     def catalog(self):
         return build(self.api, self.registry, self.base)
+
+    def test_repository_metadata_request_has_no_trailing_slash(self):
+        with patch('verifier.merge_gate.urllib.request.urlopen', return_value=io.BytesIO(b'{}')) as request:
+            GitHub('example/registry').get('')
+        self.assertEqual(request.call_args.args[0].full_url, 'https://api.github.com/repos/example/registry')
+
+    def test_develop_default_lists_candidates_and_uses_only_develop_evidence(self):
+        self.branch = 'develop'
+        self.assertEqual(self.catalog()['candidates'][0]['status'], 'not_run')
+        self.run['head_branch'] = 'develop'
+        value = self.catalog()
+        self.assertEqual(value['branch'], 'develop')
+        self.assertEqual(value['candidates'][0]['status'], 'verified')
+        self.assertIn('Protected develop:', render(value))
+        self.assertIn('branch%3Adevelop', value['candidates'][0]['history_url'])
+
+    def test_unprotected_or_unsupported_default_branch_is_rejected(self):
+        self.protected = False
+        with self.assertRaisesRegex(RegistryError, 'must be protected'):
+            self.catalog()
+        self.branch = 'feature'
+        with self.assertRaisesRegex(RegistryError, 'Unsupported default branch'):
+            self.catalog()
+
+    def test_default_branch_switch_during_publication_is_rejected_even_at_same_sha(self):
+        reads = 0
+        def get(path):
+            nonlocal reads
+            if path == '':
+                reads += 1
+                return {'default_branch': 'main' if reads == 1 else 'develop'}
+            if path.startswith('branches/'):
+                return {'protected': True, 'commit': {'sha': self.base}}
+            return self.get(path)
+        self.api.get.side_effect = get
+        with self.assertRaisesRegex(RegistryError, 'Default branch changed'):
+            self.catalog()
+
+    def acceptance(self):
+        entry = {'candidate_id': 'example', 'problem_id': 'example-problem', 'statement_version': 'v1',
+                 'accepted_on': '2026-09-11', 'administrator': 'maintainer', 'source_commit': 'a'*40,
+                 'verifier_sha': 'd'*40, 'release_id': 5, 'release_tag': 'acceptance-example-v1',
+                 'archive_commit': 'e'*40, 'record_sha256': 'f'*64}
+        self.registry['candidates']['example'].update(problem_id='example-problem', statement_version='v1')
+        release = {'draft': False, 'immutable': True, 'published_at': '2026-09-11T00:00:00Z',
+                   'tag_name': entry['release_tag'], 'target_commitish': entry['archive_commit'],
+                   'author': {'login': 'maintainer'}, 'assets': [{'name': 'acceptance.json',
+                   'state': 'uploaded', 'digest': 'sha256:' + entry['record_sha256']}]}
+        tag = {'object': {'sha': entry['archive_commit'], 'type': 'commit',
+                         'url': 'https://api.github.com/repos/example/registry/git/commits/' + entry['archive_commit']}}
+        self.api.get.side_effect = lambda path: release if path == 'releases/5' else tag if path.startswith('git/ref/tags/') else self.get(path)
+        return {'schema_version': 1, 'publications': [entry]}, release, tag
+
+    def test_historical_acceptance_does_not_grant_a_current_machine_pass(self):
+        publications, _, _ = self.acceptance()
+        self.job['conclusion'] = 'failure'
+        self.registry['candidates']['example']['source']['commit'] = 'c'*40
+        value = build(self.api, self.registry, self.base, publications)
+        row = value['candidates'][0]
+        self.assertEqual(row['status'], 'failed')
+        self.assertEqual(row['formal_status'], 'accepted_historical')
+        self.assertEqual(row['acceptance_history']['source_commit'], 'a'*40)
+        self.assertIn('Historical acceptance: source', render(value))
+        self.assertIn('Accepted by administrator maintainer', render(value))
+
+    def test_mutable_draft_substituted_or_reattributed_release_is_rejected(self):
+        for field, invalid in [('draft', True), ('immutable', False), ('published_at', None),
+                               ('target_commitish', '0'*40), ('author', {'login': 'attacker'}),
+                               ('tag_name', 'another-tag'), ('assets', [])]:
+            with self.subTest(field=field):
+                publications, release, _ = self.acceptance()
+                release[field] = invalid
+                with self.assertRaises(RegistryError):
+                    build(self.api, self.registry, self.base, publications)
+        publications, release, tag = self.acceptance()
+        release['assets'][0]['digest'] = 'sha256:' + '0'*64
+        with self.assertRaisesRegex(RegistryError, 'checksum mismatch'):
+            build(self.api, self.registry, self.base, publications)
+        publications, _, tag = self.acceptance()
+        tag['object']['sha'] = '0'*40
+        with self.assertRaisesRegex(RegistryError, 'tag mismatch'):
+            build(self.api, self.registry, self.base, publications)
 
     def test_exact_success_is_published_with_escaped_text_and_formal_pending(self):
         value = self.catalog()
