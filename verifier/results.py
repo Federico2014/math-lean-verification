@@ -30,4 +30,7 @@ def write_result(path, identifier, proof):
     with path.open('x', encoding='utf-8') as stream:
         json.dump(value, stream, indent=2)
         stream.write('\n')
+    from .workflow import progress, write_summary
+    write_summary(progress(preparation='ready' if value['review_status'] == 'approved' else 'pending',
+                           verification=value['verification_status']), path.with_name('workflow.json'))
     return value

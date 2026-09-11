@@ -99,6 +99,8 @@ def execute(args, base, registry, prepared_root):
     selection = plan(registry, args.submission)
     selection['verifier_sha'] = base
     (args.output / 'selection.json').write_text(json.dumps(selection, indent=2) + '\n')
+    from .workflow import from_plan, write_summary
+    write_summary(from_plan(selection), args.output / 'workflow.json')
     if args.plan:
         if os.environ.get('GITHUB_OUTPUT'):
             with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:

@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 
 from .merge_gate import GitHub
+from .workflow import progress
 from .registry import read_json, require, safe_file, schema_validate, validate_registry, ROOT
 from .revalidate import protected_default_branch, revision
 
@@ -33,7 +34,8 @@ def trusted_run(run, workflow, repository, branch):
 def outcome(run, jobs, identifier):
     job = next((j for j in jobs if j['name'] == 'Verify candidate ' + identifier), None)
     if job is None:
-        return 'running' if run['status'] != 'completed' else 'not_run'
+        finished = any(j['name'] == 'summary' and j['status'] == 'completed' for j in jobs)
+        return 'running' if run['status'] != 'completed' and not finished else 'not_run'
     if job['status'] != 'completed':
         return 'queued' if job['status'] == 'queued' else 'running'
     if job['conclusion'] == 'success':
@@ -105,8 +107,8 @@ def build(api, registry, base, publications=None):
                'evidence_url': None}
         if identifier in history:
             acceptance = history[identifier]
-            require(candidate.get('problem_id') == acceptance['problem_id']
-                    and candidate.get('statement_version') == acceptance['statement_version'],
+            require(candidate.get('problem_id', acceptance['problem_id']) == acceptance['problem_id']
+                    and candidate.get('statement_version', acceptance['statement_version']) == acceptance['statement_version'],
                     'Acceptance publication refers to a different registered problem')
             row['acceptance_history'] = acceptance
             row['formal_status'] = 'accepted_historical'
@@ -117,6 +119,10 @@ def build(api, registry, base, publications=None):
             row['status'] = outcome(run, cache[key], identifier)
             row['evidence_url'] = f'https://github.com/{api.repository}/actions/runs/{key[0]}/attempts/{key[1]}'
         row['history_url'] = f'https://github.com/{api.repository}/actions/workflows/{WORKFLOW}?query=branch%3A{branch}'
+        row['workflow'] = progress(
+            preparation='ready' if run and any(j['name'] == 'Verify candidate ' + identifier
+                and j.get('conclusion') != 'skipped' for j in cache.get((run['id'], run['run_attempt']), [])) else 'pending',
+            verification=row['status'], registered=True, acceptance=row.get('acceptance_history'))
         rows.append(row)
     for key, jobs in cache.items():
         require(job_snapshot(jobs) == job_snapshot(read_jobs(key)),
@@ -144,9 +150,11 @@ def render(catalog):
                       + esc(acceptance['administrator']) + ' on ' + esc(acceptance['accepted_on']) + '</a>'
                       + '<br>Historical acceptance: source <code>' + esc(acceptance['source_commit'][:12])
                       + '</code>, verifier <code>' + esc(acceptance['verifier_sha'][:12]) + '</code>')
-        rows.append('<tr><td>' + esc(item['id']) + '</td><td>' + esc(item['title']) +
+        state = item['workflow']
+        stage = str(state['current_step']) + '. ' + state['steps'][state['current_step'] - 1]['name']
+        rows.append('<tr id="' + esc(item['id'], quote=True) + '"><td>' + esc(item['id']) + '</td><td>' + esc(item['title']) +
                     '</td><td><a href="' + esc(source_url, quote=True) + '">' + esc(source['commit'][:12]) +
-                    '</a></td><td>' + esc(item['status']) + '</td><td>' + evidence + '</td><td>' + formal + '</td></tr>')
+                    '</a></td><td>' + esc(item['status']) + '</td><td>' + evidence + '</td><td>' + formal + '</td><td>' + esc(stage) + '<br>' + esc(state['next_action']) + '</td></tr>')
     return ('<!doctype html><html lang="en"><meta charset="utf-8"><title>Registered candidates</title>'
             '<meta name="viewport" content="width=device-width"><style>body{font:16px system-ui;max-width:1200px;'
             'margin:2rem auto;padding:1rem}table{border-collapse:collapse;width:100%}td,th{padding:.7rem;'
@@ -156,7 +164,7 @@ def render(catalog):
             '<p>Verification checks the registered statement and proof. Formal acceptance and award decisions '
             'remain separate. A historical pass does not describe changed inputs.</p>'
             '<table><thead><tr><th>Candidate ID</th><th>Title</th><th>Fixed source</th><th>Current verification</th>'
-            '<th>Evidence</th><th>Published formal acceptance</th></tr></thead><tbody>' + ''.join(rows) +
+            '<th>Evidence</th><th>Published formal acceptance</th><th>Workflow / next action</th></tr></thead><tbody>' + ''.join(rows) +
             '</tbody></table><p><a href="candidates.json">Machine-readable catalog and historical run links</a>. '
             'Blocked preparation is not_run; open the linked CI plan for the reason. Evidence artifacts expire '
             'after 90 days. Published acceptance links identify separately archived historical decisions; '

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "decision": "accepted",
+  "candidate_id": "example-candidate",
+  "administrator": "REPLACE-ME",
+  "accepted_on": "YYYY-MM-DD",
+  "reason": "<required>",
+  "run_id": 1,
+  "run_attempt": 1,
+  "artifact_id": 1,
+  "verifier_sha": "0000000000000000000000000000000000000000",
+  "source_commit": "0000000000000000000000000000000000000000",
+  "statement_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "archive_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+}

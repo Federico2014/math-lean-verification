@@ -7,6 +7,11 @@ or verifier revisions require fresh evidence.
 
 ## Implemented
 
+- Four-stage `candidate submit/prepare/verify/publish` CLI with shared non-authorizing progress in CI evidence and the catalog.
+- Candidate-only submission PR creation and normal exact-head merge; generated README and acceptance-index updates use separate protected maintenance PRs.
+- Explicit administrator publication validates current protected run/artifact provenance, verifies sealed evidence, and reads back Git/archive assets before immutable release publication; retries reuse matching drafts.
+- Revalidation directly calls the shared Pages publisher after proof completion. Scheduled publication remains recovery; title/body edits no longer restart PR verification.
+
 - Strict registration schemas, all-target coverage, file hashes and mathematical review binding.
 - Static environment discovery: read toolchain/configuration/lock files without executing Lake.
 - Reusable environment descriptors, pinned dependency workspaces, onboarding status and configurable resource budgets.
@@ -57,8 +62,8 @@ See the [2026-09-09 conformance review](design-conformance-review.md) for requir
 ## Single-PR intake implementation
 
 Implemented candidate schemas/templates, static hash-bound preparation, protected
-exception mappings, automatic import closure/bridging, current-main PR delta
-application, main-triggered recovery, stale-status suppression and a generated
+exception mappings, automatic import closure/bridging, current-protected-target PR delta
+application, target-branch recovery, stale-status suppression and a generated
 Pages candidate catalog. See [operations and deployment](simplified-intake.md).
 No existing approved environment, reviewer policy or candidate is changed by this
 implementation. Real backend tests now exercise the generated constant-type bridge.

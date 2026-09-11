@@ -26,6 +26,15 @@ jobs:
           python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r requirements-ci.lock
       - name: Validate registry (no proof execution)
         run: python -m verifier validate
+      - name: Prepare registration summary preview
+        env:
+          REGISTRY_REPOSITORY: ${{ github.repository }}
+        run: python -m verifier sync-readme --repository "$REGISTRY_REPOSITORY" --output "$RUNNER_TEMP/README.generated.md"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: registration-summary-preview
+          path: ${{ runner.temp }}/README.generated.md
+          retention-days: 30
   tests:
     name: tests
     runs-on: ubuntu-24.04

@@ -2,11 +2,13 @@
 
 Describe the problem, scope and resulting behavior. Link related issues when applicable.
 
-## Candidate materials (if applicable)
+## Four-stage candidate workflow (if applicable)
 
-- [ ] Candidate JSON contains the original problem, fixed proof commit and all targets.
+- [ ] Submit: candidate JSON contains the original problem, fixed proof commit and all targets.
 - [ ] Publication permission, authorship, AI contribution and assumptions are documented.
-- [ ] CI preparation diagnostics and proof results have been checked.
+- [ ] Prepare: trusted configuration and statement prerequisites have been checked.
+- [ ] Verify: actual candidate proof evidence and required CI checks have been inspected.
+- [ ] Publish: use the publication command after merge; include administrator acceptance only with explicit approval and a checked archive.
 - [ ] Required new workspace/environment approvals are handled in separate maintenance PRs.
 
 CI generates hashes, internal registration and the candidate catalog. An Issue,

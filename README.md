@@ -30,19 +30,24 @@ environment test success never grant approval.
 
 ## Registered candidates
 
+<!-- registered-candidates:start -->
+
 | Candidate | Fixed proof source | Machine verification | Formal acceptance |
 | --- | --- | --- | --- |
-| [DGG / Goemans cost conjecture: rational counterexample](candidates/dgg-cost-jyh.json) (`dgg-cost-jyh`, statement `v1`) | [jyh/dinitz-verify @ ffba3523f0ed](https://github.com/jyh/dinitz-verify/tree/ffba3523f0edd14be3460d039f22a6b98c02fd9e) | [Verified — 2026-09-11](https://github.com/Federico2014/math-lean-verification/actions/runs/34560237399/attempts/1), verifier `ab95172eade9` | [Accepted by administrator Federico2014 — 2026-09-11](https://github.com/Federico2014/math-lean-verification/releases/tag/acceptance-dgg-cost-v1-20260911) |
+| [DGG / Goemans cost conjecture: rational counterexample](candidates/dgg-cost-jyh.json) (`dgg-cost-jyh`) | [ffba3523f0ed](https://github.com/jyh/dinitz-verify/tree/ffba3523f0edd14be3460d039f22a6b98c02fd9e) | [Live status and evidence](https://Federico2014.github.io/math-lean-verification/#dgg-cost-jyh) | [Administrator accepted — 2026-09-11](https://github.com/Federico2014/math-lean-verification/releases/tag/acceptance-dgg-cost-v1-20260911); historical source `ffba3523f0ed` |
 
-This summary records the linked verification run and immutable acceptance decision.
-The administrator acceptance applies to the revisions in its record; it does not
-assert two independent reviewers or an award decision.
+<!-- registered-candidates:end -->
+
+This table is generated from registrations and protected acceptance references.
+Current verification and evidence are linked in the live catalog. Administrator
+acceptance applies to its recorded revisions and does not assert independent
+two-reviewer approval or an award decision.
 
 [Open the live candidate catalog](https://Federico2014.github.io/math-lean-verification/)
 for the current protected default-branch status, full proof and verifier revisions,
 and evidence links. After a candidate PR merges, CI revalidates it and publishes
 updated status. Publication also runs on a 15-minute schedule; GitHub may delay
-scheduled jobs. Maintainers update this README summary from recorded evidence.
+scheduled jobs. The publication command generates this README summary.
 Deployment needs the one-time [Pages setup](docs/simplified-intake.md#deployment).
 
 ## Adding a candidate
@@ -58,6 +63,17 @@ The workflow has four steps. New candidate PRs currently target protected
 | 4. Merge, publish and accept | Maintainer, CI and authorized decision maker | Merge the candidate, publish its registration and current verification status, then publish formal acceptance when separately authorized and durably archived. |
 
 ### 1. Prepare materials and open a PR
+
+With Python dependencies installed and `gh` authenticated, submit in one command:
+
+```bash
+python -m verifier candidate submit my-candidate /path/to/candidate.json --repository Federico2014/math-lean-verification
+```
+
+The command validates materials, creates an isolated branch and opens the PR.
+Add `--bridge /path/to/Bridge.lean` when declared by the candidate, or `--dry-run`
+for a preview. The operator needs repository write access; contributors without
+it can still open a candidate-only PR from a fork using GitHub's normal UI.
 
 Copy [templates/candidate.json](templates/candidate.json) to
 `candidates/<candidate-id>.json`; IDs use lowercase words separated by hyphens.
@@ -81,6 +97,11 @@ CI reads the fixed source as data and prepares the environment selection,
 registration and bridge. Preparation alone does not verify a proof.
 
 ### 2. Clear prerequisites
+
+CI performs preparation automatically. For static diagnostics in a checkout
+containing the candidate, use `python -m verifier candidate prepare my-candidate`.
+It reads source data, reports blockers and never executes Lean; exit code `3`
+means diagnostics only. CI reports and the catalog share the same four-stage progress.
 
 | Result | Next action |
 | --- | --- |
@@ -106,6 +127,16 @@ See [statement review](docs/statement-review.md).
 
 ### 3. Verify the proof
 
+CI starts automatically when prerequisites are ready. For an explicit retry:
+
+```bash
+python -m verifier candidate verify --pr 123 --repository Federico2014/math-lean-verification
+```
+
+This dispatches the protected workflow with the current PR head and base; it does
+not run a checker locally. PR description/title edits no longer restart proof
+checks; source updates and target-branch changes still do.
+
 Trusted CI performs isolated source builds, checks all required targets and
 bridges, compares official statements, audits transitive axioms, and runs Lean and
 Nanoda replay. It seals and uploads the evidence.
@@ -119,33 +150,44 @@ require fresh verification; previous runs remain historical evidence.
 
 ### 4. Merge, publish and accept
 
-**Merge.** After required checks and applicable review pass, a maintainer merges
-the PR. Confirm it is **Merged**: closing an unmerged PR does not register its files.
+```bash
+python -m verifier candidate publish my-candidate --pr 123 --repository Federico2014/math-lean-verification
+```
 
-**Publish.** Every protected default-branch push starts **Revalidate registered
-Lean proofs**, including documentation pushes. **Publish registered candidates**
-updates the [live catalog](https://Federico2014.github.io/math-lean-verification/).
-Publication also runs on a 15-minute schedule, which GitHub may delay. Check the
-published revision, candidate ID, source commit and evidence; only a successful
-run for the current default-branch revision can show current `verified`.
-Maintainers add a [README entry](#registered-candidates) linking the registration,
-fixed source and recorded verification. The live catalog supplies current status.
+The command merges an eligible candidate through normal branch protection and
+creates a protected publication PR containing the generated README update.
+Merge that publication PR after its required checks. Rerunning the command reuses
+an open publication PR or confirms that the summary is synchronized; omit `--pr`
+if the candidate is already registered. Closing an unmerged PR does not register it.
 
-**Accept.** Formal acceptance requires a separate authorized decision and durable
-evidence; merging or passing CI does not grant it. Automatic formal acceptance
-remains disabled (`formal_acceptance_enabled: false`). For an explicitly authorized
-administrator acceptance, record the administrator, decision, date, review basis
-and limitations; bind it to the exact statement, source, verifier,
-environment/policy and successful run/attempt. Preserve the evidence and licenses
-in an immutable archive, verify file checksums by reading uploaded files back,
-and publish the acceptance record. Temporary Actions artifacts alone are insufficient.
-Add its pinned reference to `docs/acceptance-publications.json` through a protected
-maintenance PR, update the README acceptance link and verify catalog publication.
+Every protected default-branch push triggers fresh verification. After verification
+finishes, the same workflow calls catalog publication, including failed or blocked
+outcomes. The schedule remains a recovery mechanism. README rows use stable source
+and acceptance links plus live status links, so new proof runs do not cause README
+commit/revalidation loops. Registry CI also provides a generated README preview.
 
-Registration may be published while formal acceptance is pending. A scoped
-administrator decision is labeled administrator acceptance, never two-person
-independent review. The catalog shows it as `accepted_historical` for the accepted
-revisions; it does not grant current machine success. Award decisions remain separate.
+When an administrator explicitly approves formal acceptance, complete
+[the approval template](templates/administrator-acceptance.json) with the exact
+source, statement digest, verifier revision, successful run/attempt, artifact and
+sealed archive digest, then run:
+
+```bash
+python -m verifier candidate publish my-candidate --approval /path/to/approval.json --repository Federico2014/math-lean-verification
+```
+
+The authenticated repository administrator must match the decision. The command
+checks the protected run, downloads and verifies its evidence, creates and reads
+back a Git archive and draft release assets, then publishes an immutable acceptance.
+It generates the acceptance-index and README changes together in a protected PR.
+A failed upload/readback leaves a draft that the same command can resume.
+For an already published acceptance, use `--release-tag TAG` instead of `--approval`.
+See the [publication runbook](docs/candidate-lifecycle.md#4-merge-publish-and-accept)
+for requirements and recovery.
+
+Registration can be published while formal acceptance is pending. Automatic formal
+acceptance remains disabled; only an explicit administrator decision enters this
+publication path. Historical acceptance never grants current machine success,
+independent two-reviewer approval or an award decision.
 
 See the [detailed candidate lifecycle](docs/candidate-lifecycle.md) for the DGG
 example and archive requirements, [the contributor guide](CONTRIBUTING.md) for

@@ -1,12 +1,12 @@
 # Formal verification and acceptance policy
 
-Version: lean-workspace-v2. The source-only machine verification profile is admitted with [onboarding evidence](../docs/backend-onboarding.md). Independent statement review and durable formal acceptance remain separate; there are no formal verification records.
+Version: lean-workspace-v2. The source-only machine verification profile is admitted with [onboarding evidence](../docs/backend-onboarding.md). Independent statement review and durable formal acceptance remain separate; explicit administrator acceptance records are published separately from machine results.
 
 ## Three separate conclusions
 
 1. **Registration valid:** fields, hashes, version references, and target coverage are complete. Current CI provides this check.
 2. **Machine verification passed:** approved checkers have validated the target proofs, axioms, and statement correspondence. Enabled for the admitted environment scopes through the trusted merge gate.
-3. **Formal acceptance passed:** machine verification passed, independent review of the official statement is valid, version policy is satisfied, and evidence is durably archived. Not yet enabled.
+3. **Formal acceptance passed:** the normal independent-review acceptance pipeline remains disabled. Explicitly authorized administrator decisions have a separate, scoped archive/publication path and must not be described as completion of two-person independent review.
 
 Award eligibility, priority, contributions, independence scores, and amounts are assessed separately. Replay by two kernels does not automatically constitute two independent academic validation channels.
 
@@ -39,3 +39,13 @@ Builds run offline without privileges, under resource limits, and rebuild candid
 Formal evidence requires durable storage, file checksums, and readback verification. Actions artifacts alone are insufficient. Redistribution of original materials must follow upstream licenses. Records pin the problem, submission, toolchain, policy, and verifier versions.
 
 `policy/verification.json` is the machine-enforced policy. It admits the tested machine backend and source-only profile while keeping `formal_acceptance_enabled` false. A boolean switch cannot implement durable archives or complete missing mathematical review.
+
+## Explicit administrator publication
+
+The [four-stage lifecycle](../docs/candidate-lifecycle.md#4-merge-publish-and-accept)
+provides an operator command for administrator-approved archival publication.
+It requires an authenticated administrator, an explicit decision and exact successful
+protected-run evidence. It does not change `formal_acceptance_enabled`, the approved
+reviewer roster, statement-exception grants or machine verdicts. The protected
+publication index and README are generated together in a maintenance PR; historical
+acceptance is displayed separately from current proof status.
