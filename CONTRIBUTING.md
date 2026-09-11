@@ -19,7 +19,7 @@ submission, review, verification, registration and acceptance process.
 4. **Publish:** a maintainer runs `candidate publish <id> --pr N --repository OWNER/REPO`
    to merge and generate the registration publication PR. After explicit administrator
    approval, the same command with `--approval <file>` handles archive and acceptance
-   publication. Merge generated maintenance PRs after required checks/review.
+   publication. The command waits for normal checks/review before merging generated maintenance PRs.
 
 A new problem description uses `problem: {"title": "…", "source_url": "https://…",
 "scope": "…"}` instead of `problem_id`. A maintainer must map it to an approved

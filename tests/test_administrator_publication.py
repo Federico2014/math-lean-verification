@@ -8,7 +8,7 @@ import tempfile
 import unittest
 import zipfile
 
-from verifier.acceptance import REQUIRED_STAGES, accept, checked_evidence, import_release, sha
+from verifier.acceptance import REQUIRED_STAGES, bounded_zip, accept, checked_evidence, import_release, sha
 from verifier.catalog import EXECUTION_STEP, PATH
 from verifier.evidence import seal
 from verifier.registry import RegistryError, statement_digest
@@ -184,6 +184,21 @@ class AcceptanceTests(unittest.TestCase):
         self.assertEqual(self.accept(), entry)
         self.assertEqual(len(self.api.writes), writes)
 
+    def test_indexed_acceptance_retry_is_read_only_after_default_branch_changes(self):
+        entry = self.accept()
+        writes = len(self.api.writes)
+        self.base = '9'*40
+        value = accept(self.api, self.candidate, self.identifier, self.approval_path,
+                       'develop', self.base, prior=entry)
+        self.assertEqual(value, entry)
+        self.assertEqual(len(self.api.writes), writes)
+
+    def test_conflicting_index_stops_before_creating_another_archive(self):
+        with self.assertRaisesRegex(RegistryError, 'already indexed'):
+            accept(self.api, self.candidate, self.identifier, self.approval_path,
+                   'develop', self.base, prior={'release_tag': 'another-decision'})
+        self.assertEqual(self.api.writes, [])
+
     def test_missing_approval_wrong_administrator_or_disabled_immutability_never_write(self):
         for change in ('decision', 'administrator', 'permission', 'immutability', 'revision', 'date'):
             with self.subTest(change=change):
@@ -252,3 +267,28 @@ class AcceptanceTests(unittest.TestCase):
         release['immutable'] = True
         self.api.bad_readback = True
         with self.assertRaises(RegistryError): import_release(self.api, self.candidate, self.identifier, entry['release_tag'])
+
+    def test_inline_problem_cannot_import_an_unbound_historical_statement(self):
+        entry = self.accept()
+        inline = dict(self.candidate)
+        del inline['problem_id']
+        del inline['statement_version']
+        with self.assertRaisesRegex(RegistryError, 'exact registered problem'):
+            import_release(self.api, inline, self.identifier, entry['release_tag'])
+        with self.assertRaisesRegex(RegistryError, 'statement mismatch'):
+            import_release(self.api, inline, self.identifier, entry['release_tag'], identity=('another-problem', 'v1'))
+
+    def test_malformed_archive_is_a_validation_error(self):
+        self.outer.write_bytes(b'not a ZIP')
+        self.artifact['digest'] = 'sha256:' + sha(self.outer.read_bytes())
+        with self.assertRaisesRegex(RegistryError, 'Invalid evidence archive'):
+            self.check()
+
+    def test_inner_uncompressed_limit_is_checked_before_reading_entries(self):
+        from unittest.mock import patch
+        path = self.root / 'large-inner.zip'
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('oversized', b'0'*2048)
+        with patch('verifier.acceptance.MAX_ARCHIVE', 1024):
+            with self.assertRaisesRegex(RegistryError, 'exceeds publication limits'):
+                with bounded_zip(path): self.fail('Oversized archive was admitted')

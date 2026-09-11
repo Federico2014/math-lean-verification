@@ -106,7 +106,8 @@ def main():
     result = resume(GitHub(os.environ['GITHUB_REPOSITORY']), base, branch=branch)
     from .workflow import from_plan
     for report in result:
-        report['workflow'] = from_plan(report.get('plan', {'status': 'blocked'}))
+        if 'plan' in report and report['plan'].get('status') != 'not_applicable':
+            report['workflow'] = from_plan(report['plan'])
     Path('resume-report.json').write_text(json.dumps(result, indent=2) + '\n')
 
 

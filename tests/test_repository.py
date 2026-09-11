@@ -76,6 +76,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(set(workflow["on"]), {"pull_request_target", "workflow_dispatch"})
         self.assertEqual(workflow['on']['pull_request_target']['branches'], ['main', 'develop'])
         self.assertIn('edited', workflow['on']['pull_request_target']['types'])
+        self.assertIn("github.event.action == 'edited' && github.event.changes.base == null && 'metadata-'", workflow['concurrency']['group'])
         self.assertIn("github.event.action != 'edited' || github.event.changes.base != null", workflow['jobs']['resolve']['if'])
         self.assertIn('github.ref_name', workflow['run-name'])
         self.assertIn('github.sha', workflow['run-name'])
@@ -163,6 +164,8 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn(selection, workflow['run-name'])
         # Current-SHA catalog provenance requires evidence even after docs commits.
         self.assertEqual(workflow['on']['push'], {'branches': ['main', 'develop']})
+        catalog = yaml.load((ROOT / '.github/workflows/candidate-catalog.yml').read_text(), Loader=yaml.BaseLoader)
+        self.assertEqual(set(catalog['on']), {'schedule', 'workflow_dispatch', 'workflow_call'})
         self.assertIn('github.event.repository.default_branch', workflow['jobs']['plan']['if'])
 
     def test_ci_locks_have_exact_versions_hashes_and_match_dev_versions(self):

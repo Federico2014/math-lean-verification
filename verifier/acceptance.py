@@ -4,21 +4,42 @@ Only a current protected revalidation artifact can be the basis of a new decisio
 Historical immutable releases remain importable without reissuing their decisions.
 """
 import base64
+from contextlib import contextmanager
 from datetime import date
 import hashlib
 import json
 from pathlib import Path
 import tempfile
 import zipfile
+import zlib
 
 from .catalog import WORKFLOW, outcome, publication_history, trusted_run
 from .evidence import inspect_archive
-from .registry import require, schema_validate, statement_digest
+from .registry import RegistryError, require, schema_validate, statement_digest
 
 MAX_ARCHIVE = 64 * 1024**2
 REQUIRED_STAGES = {'sandbox_probes', 'challenge_clean_build_export', 'solution_clean_build_export',
                    'candidate_target_coverage', 'statement_comparison', 'transitive_axiom_audit',
                    'official_kernel_replay', 'independent_nanoda_replay'}
+
+
+@contextmanager
+def bounded_zip(path):
+    try:
+        with zipfile.ZipFile(path) as archive:
+            items = archive.infolist()
+            require(len(items) <= 20000 and sum(i.file_size for i in items) <= MAX_ARCHIVE,
+                    'Evidence archive exceeds publication limits')
+            yield archive
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError, NotImplementedError, KeyError, zlib.error) as exc:
+        raise RegistryError('Invalid evidence archive: ' + type(exc).__name__) from exc
+
+
+def exact_identity(candidate, identity=None):
+    if identity is None:
+        identity = candidate.get('problem_id'), candidate.get('statement_version')
+    require(all(identity), 'Acceptance requires an exact registered problem/version or protected correspondence mapping')
+    return tuple(identity)
 
 
 def sha(data):
@@ -61,7 +82,8 @@ def verify_tree(api, commit, files):
         require(base64.b64decode(blob['content']) == data, 'Archive Git readback differs')
 
 
-def import_release(api, candidate, identifier, tag):
+def import_release(api, candidate, identifier, tag, identity=None):
+    identity = exact_identity(candidate, identity)
     from .candidate import decode
     from .registry import ID
     require(bool(ID.fullmatch(tag)) and len(tag) <= 100, 'Invalid acceptance release tag')
@@ -76,8 +98,7 @@ def import_release(api, candidate, identifier, tag):
         record = decode(raw)
     require(record.get('record_kind') == 'administrator_formal_acceptance' and record.get('formal_status') == 'accepted',
             'Not an administrator acceptance record')
-    require(record['candidate_id'] == identifier and record['problem_id'] == candidate.get('problem_id', record['problem_id'])
-            and record['statement_version'] == candidate.get('statement_version', record['statement_version']), 'Acceptance statement mismatch')
+    require(record['candidate_id'] == identifier and (record['problem_id'], record['statement_version']) == identity, 'Acceptance statement mismatch')
     require(record['review']['authority'] == release['author']['login'], 'Acceptance administrator mismatch')
     require(assets[0].get('digest') == 'sha256:' + sha(raw), 'Acceptance readback checksum mismatch')
     entry = {'candidate_id': identifier, 'problem_id': record['problem_id'],
@@ -89,7 +110,8 @@ def import_release(api, candidate, identifier, tag):
     return entry
 
 
-def checked_evidence(api, candidate, identifier, approval, branch, base, directory):
+def checked_evidence(api, candidate, identifier, approval, branch, base, directory, identity=None):
+    identity = exact_identity(candidate, identity)
     from .candidate import decode
     run_id, attempt = approval['run_id'], approval['run_attempt']
     run = api.get(f'actions/runs/{run_id}/attempts/{attempt}')
@@ -111,7 +133,7 @@ def checked_evidence(api, candidate, identifier, approval, branch, base, directo
     api.download('actions/artifacts/' + str(approval['artifact_id']) + '/zip', downloaded)
     require(artifact.get('digest') == 'sha256:' + sha(downloaded.read_bytes()), 'Evidence artifact checksum mismatch')
     name = approval['archive_sha256'] + '.zip'
-    with zipfile.ZipFile(downloaded) as outer:
+    with bounded_zip(downloaded) as outer:
         items = outer.infolist()
         require(len(items) <= 20000 and sum(i.file_size for i in items) <= MAX_ARCHIVE, 'Evidence artifact exceeds limits')
         matches = [i for i in items if i.filename.split('/')[-1] == name]
@@ -120,8 +142,8 @@ def checked_evidence(api, candidate, identifier, approval, branch, base, directo
     require(sha(data) == approval['archive_sha256'], 'Approved archive checksum mismatch')
     archive = directory / name
     archive.write_bytes(data)
-    inspect_archive(archive)
-    with zipfile.ZipFile(archive) as sealed:
+    with bounded_zip(archive) as sealed:
+        inspect_archive(archive)
         result = decode(sealed.read(identifier + '/verification-result.json'))
         problem = decode(sealed.read(identifier + '/inputs/problem.json'))
         submitted = decode(sealed.read(identifier + '/inputs/candidate.json'))
@@ -136,13 +158,13 @@ def checked_evidence(api, candidate, identifier, approval, branch, base, directo
             and result['bindings']['run_id'] == str(run_id) and result['bindings']['run_attempt'] == str(attempt),
             'Proof bindings differ from administrator approval')
     require(statement_digest(problem) == approval['statement_digest'] and
-            problem['problem_id'] == candidate.get('problem_id', problem['problem_id']) and
-            problem['statement_version'] == candidate.get('statement_version', problem['statement_version']),
+            (problem['problem_id'], problem['statement_version']) == identity,
             'Approved statement differs from verified statement')
     return data, result, problem
 
 
-def accept(api, candidate, identifier, approval_path, branch, base):
+def accept(api, candidate, identifier, approval_path, branch, base, prior=None, identity=None):
+    identity = exact_identity(candidate, identity)
     from .candidate import current, decode
     from .registry import read_json, safe_file
     approval = read_json(safe_file(approval_path.parent, approval_path.name))
@@ -154,13 +176,15 @@ def accept(api, candidate, identifier, approval_path, branch, base):
             'The authenticated administrator must make this acceptance decision')
     require(api.get('immutable-releases').get('enabled') is True, 'Enable immutable releases before publishing acceptance')
     tag = 'acceptance-' + identifier[:40] + '-' + hashlib.sha256(json.dumps(approval, sort_keys=True).encode()).hexdigest()[:24]
+    require(prior is None or prior['release_tag'] == tag,
+            'An acceptance is already indexed; use its release tag or a reviewed version change')
     existing = next((r for r in api.pages('releases') if r['tag_name'] == tag), None)
     if existing and existing.get('draft') is False:
-        return import_release(api, candidate, identifier, tag)
+        return import_release(api, candidate, identifier, tag, identity=identity)
     require(approval['verifier_sha'] == base, 'Approval verifier revision is stale; review current evidence')
     with tempfile.TemporaryDirectory(prefix='administrator-acceptance-') as temporary:
         directory = Path(temporary)
-        data, result, problem = checked_evidence(api, candidate, identifier, approval, branch, base, directory)
+        data, result, problem = checked_evidence(api, candidate, identifier, approval, branch, base, directory, identity=identity)
         record = {'schema_version': 1, 'record_kind': 'administrator_formal_acceptance',
                   'formal_status': 'accepted', 'candidate_id': identifier, 'problem_id': problem['problem_id'],
                   'statement_version': problem['statement_version'], 'statement_digest': approval['statement_digest'],
@@ -209,4 +233,4 @@ def accept(api, candidate, identifier, approval_path, branch, base):
         final = directory / 'published-readback'
         final.mkdir()
         verify_assets(api, published, files, final)
-    return import_release(api, candidate, identifier, tag)
+    return import_release(api, candidate, identifier, tag, identity=identity)

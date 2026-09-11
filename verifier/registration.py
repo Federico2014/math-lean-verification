@@ -7,7 +7,7 @@ import html
 import re
 from urllib.parse import quote
 
-from .registry import require, schema_validate
+from .registry import canonical_digest, require, schema_validate
 
 START = '<!-- registered-candidates:start -->'
 END = '<!-- registered-candidates:end -->'
@@ -18,12 +18,32 @@ def text(value):
     return re.sub(r'([\\`*_[\]])', r'\\\1', escaped)
 
 
-def render(registry, publications, repository):
+def problem_identity(registry, identifier):
+    candidate = registry['candidates'][identifier]
+    mapping = registry.get('intake_mappings', {}).get(identifier)
+    if mapping:
+        schema_validate('intake-mapping', mapping)
+        require(mapping['candidate_digest'] == canonical_digest(candidate), 'Stale protected problem mapping')
+    problem = (mapping or {}).get('problem_id', candidate.get('problem_id'))
+    version = (mapping or {}).get('statement_version', candidate.get('statement_version'))
+    if problem and version is None:
+        versions = [v for p, v in registry.get('problems', {}) if p == problem]
+        if len(versions) == 1:
+            version = versions[0]
+    require(problem is not None and version is not None,
+            'Acceptance requires an exact registered problem/version or protected correspondence mapping')
+    return problem, version
+
+
+def render(registry, publications, repository, *, verified=None):
     require(bool(re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository)), 'Invalid repository')
     schema_validate('acceptance-publications', publications)
     history = {}
     for entry in publications['publications']:
         require(entry['candidate_id'] not in history, 'Duplicate acceptance publication')
+        require(verified is not None and entry['candidate_id'] in verified and all(
+            verified[entry['candidate_id']].get(k) == v for k, v in entry.items()),
+            'Verify immutable acceptance publications before rendering accepted status')
         history[entry['candidate_id']] = entry
     owner, name = repository.split('/')
     catalog = f'https://{owner}.github.io/{name}/'
@@ -39,8 +59,9 @@ def render(registry, publications, repository):
         acceptance = history.get(identifier)
         formal = 'Pending'
         if acceptance:
-            require(candidate.get('problem_id', acceptance['problem_id']) == acceptance['problem_id'] and
-                    candidate.get('statement_version', acceptance['statement_version']) == acceptance['statement_version'],
+            identity = (problem_identity(registry, identifier) if identifier in registry.get('candidates', {})
+                        else (candidate['problem_id'], candidate['statement_version']))
+            require(identity == (acceptance['problem_id'], acceptance['statement_version']),
                     'Acceptance publication refers to a different registered problem')
             formal = (f"[Administrator accepted — {acceptance['accepted_on']}]"
                       f"(https://github.com/{repository}/releases/tag/{acceptance['release_tag']})"

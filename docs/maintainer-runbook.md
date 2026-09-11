@@ -30,7 +30,7 @@ states, README publication and scoped administrator acceptance.
    publication PR. Revalidation calls the shared catalog publisher on completion.
    After explicit administrator approval, use `--approval` to archive, read back and
    publish the immutable decision and generate the acceptance-index/README PR.
-   Merge publication PRs only after normal required checks and review.
+   The command waits for normal required checks/review and merges only its generated head; rerun if still pending.
 
 For recovery, manual retries and one-time Pages setup, see
 [single-PR operations](simplified-intake.md). For local static diagnostics, use

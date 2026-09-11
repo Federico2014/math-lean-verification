@@ -241,3 +241,16 @@ class CatalogTests(unittest.TestCase):
         row = self.catalog()['candidates'][0]
         self.assertEqual(row['status'], 'running')
         self.assertEqual(row['workflow']['current_step'], 2)
+
+    def test_summary_job_transition_invalidates_in_workflow_publication(self):
+        self.run['status'] = 'in_progress'
+        reads = 0
+        def pages(path, *args, **kwargs):
+            nonlocal reads
+            if '/workflows/' in path:
+                return iter(self.runs)
+            reads += 1
+            return iter([dict(self.job, name='summary', status='queued' if reads == 1 else 'completed')])
+        self.api.pages.side_effect = pages
+        with self.assertRaisesRegex(RegistryError, 'jobs changed'):
+            self.catalog()

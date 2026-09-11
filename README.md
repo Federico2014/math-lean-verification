@@ -156,7 +156,9 @@ python -m verifier candidate publish my-candidate --pr 123 --repository Federico
 
 The command merges an eligible candidate through normal branch protection and
 creates a protected publication PR containing the generated README update.
-Merge that publication PR after its required checks. Rerunning the command reuses
+It waits up to five minutes and merges the generated PR only after normal checks
+and review permit it. If still pending, rerun the command to resume; `--wait-seconds 0`
+returns the PR immediately. Rerunning the command reuses
 an open publication PR or confirms that the summary is synchronized; omit `--pr`
 if the candidate is already registered. Closing an unmerged PR does not register it.
 

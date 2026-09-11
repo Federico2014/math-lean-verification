@@ -19,7 +19,9 @@ permission before writing. It creates a commit containing only the candidate JSO
 and optional bridge, then opens a PR on an isolated branch. It does not execute Git
 hooks, Lean, Lake or plugins. Add `--bridge /path/to/Bridge.lean` for a declared
 bridge and `--dry-run` for a read-only preview. Repeat submissions reuse an existing
-open PR for the same base and materials.
+open PR for the same base and materials, after checking that its files still match.
+Already registered IDs are rejected by the submission shortcut; use an explicit
+reviewed update/version-change PR for existing candidates.
 
 The operator needs repository write access. A contributor without it may create a
 fork PR through GitHub's UI; all candidate-only scope and verification rules still
@@ -76,7 +78,9 @@ python -m verifier candidate publish my-candidate --pr 123 --repository OWNER/RE
 The command checks that the PR contains only this candidate's files and is
 mergeable under normal branch protection. It merges the exact head, loads the
 current protected registry and opens a maintenance PR containing the generated
-README summary. Merge that PR after required checks/review. This keeps protected
+README summary. By default it waits up to five minutes and merges that exact
+generated head only when normal checks/review permit it. Use `--wait-seconds 0` to
+return immediately, or rerun after a pending review/check completes. This keeps protected
 publication data out of candidate-controlled changes. Rerunning reuses the open
 publication PR or confirms synchronization. Omit `--pr` for an already merged candidate.
 
@@ -96,7 +100,9 @@ python -m verifier sync-readme --repository OWNER/REPO --output /tmp/README.prev
 ```
 
 Only the content between the registration markers is replaced; surrounding prose
-and local notes are preserved. Without `--output`, the command updates local README.
+and local notes are preserved. Immutable acceptance references are verified through
+the GitHub API before any accepted label is rendered, including CI previews. Without
+`--output`, the command updates local README.
 
 ### Explicit administrator acceptance
 
@@ -127,7 +133,7 @@ The command performs the mechanical publication work together:
   acceptance-index and README changes in one maintenance PR.
 
 No Actions artifacts are executed or extracted onto the host. The command bounds
-API transport to 128 MiB and the artifact's uncompressed contents to 64 MiB; larger
+API transport to 128 MiB and both outer and sealed archives' uncompressed contents to 64 MiB; larger
 archives need a separately reviewed publication path. Keep release assets and the
 Git archive indefinitely. Verify checksums after migrations and at least annually;
 both copies share GitHub as their storage provider.
@@ -145,7 +151,9 @@ python -m verifier candidate publish my-candidate --release-tag ACCEPTANCE-TAG -
 ```
 
 This imports and checks the published record, administrator, tag commit and asset
-checksum. It does not create a new approval. A different existing index entry is
+checksum. Statement identity must match explicit registered IDs or a protected
+correspondence mapping bound to the exact candidate digest; an inline description
+alone cannot establish correspondence. It does not create a new approval. A different existing index entry is
 not overwritten; corrections/version changes require a separate reviewed change.
 
 Registration may complete with formal acceptance pending. A published decision is

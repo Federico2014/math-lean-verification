@@ -100,8 +100,8 @@ def execute(args, base, registry, prepared_root):
     selection['verifier_sha'] = base
     (args.output / 'selection.json').write_text(json.dumps(selection, indent=2) + '\n')
     from .workflow import from_plan, write_summary
-    write_summary(from_plan(selection), args.output / 'workflow.json')
     if args.plan:
+        write_summary(from_plan(selection, registered=True), args.output / 'workflow.json')
         if os.environ.get('GITHUB_OUTPUT'):
             with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
                 stream.write('has_work=' + str(bool(selection['matrix']['include'])).lower() + '\n')
@@ -117,6 +117,7 @@ def execute(args, base, registry, prepared_root):
     require(args.submission not in selection['blocked'], 'Candidate preparation is blocked')
     result = execute_candidates(registry, registry, prepared_root, [args.submission], base, None,
                                 None, args.output, images=read_json(args.images))
+    write_summary(from_plan(result, registered=True), args.output / 'workflow.json')
     (args.output / 'revalidation.json').write_text(json.dumps(result, indent=2) + '\n')
     return 0 if result['status'] == 'passed' else 1
 

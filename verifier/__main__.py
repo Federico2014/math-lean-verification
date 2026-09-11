@@ -44,6 +44,7 @@ def main(argv=None) -> int:
     publish.add_argument('identifier')
     publish.add_argument('--pr', type=int)
     publish.add_argument('--repository', required=True)
+    publish.add_argument('--wait-seconds', type=int, default=300, help='Wait up to this many seconds to merge the generated publication PR; 0 returns immediately')
     acceptance = publish.add_mutually_exclusive_group()
     acceptance.add_argument('--approval', type=Path, help='Explicit administrator decision bound to a current proof run')
     acceptance.add_argument('--release-tag', help='Import an already published immutable acceptance')
@@ -64,15 +65,19 @@ def main(argv=None) -> int:
                     value = candidate.verify(api, args.pr)
                 else:
                     value = candidate.publish(api, args.identifier, pr=args.pr,
-                                              approval=args.approval, release_tag=args.release_tag)
+                                              approval=args.approval, release_tag=args.release_tag, wait_seconds=args.wait_seconds)
             print(json.dumps(value, indent=2))
             return 3 if args.action == 'prepare' else 0
         if args.command == 'sync-readme':
             from .registration import render, update
             from .registry import read_json, safe_file
             readme = safe_file(args.root, 'README.md')
+            from .catalog import publication_history
+            from .merge_gate import GitHub
+            publications = read_json(safe_file(args.root, 'docs/acceptance-publications.json'))
+            verified = publication_history(GitHub(args.repository), publications)
             value = update(readme.read_text(encoding='utf-8'), render(validate_registry(args.root),
-                read_json(safe_file(args.root, 'docs/acceptance-publications.json')), args.repository))
+                publications, args.repository, verified=verified))
             if args.output:
                 with args.output.open('x', encoding='utf-8') as stream:
                     stream.write(value)

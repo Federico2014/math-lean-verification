@@ -20,7 +20,7 @@ def progress(*, preparation='pending', verification='not_run', registered=False,
     current = 2 if not ready else 3 if not verified else 4
     steps = [
         {'step': 1, 'name': STEPS[0], 'status': 'complete'},
-        {'step': 2, 'name': STEPS[1], 'status': 'complete' if ready else 'waiting'},
+        {'step': 2, 'name': STEPS[1], 'status': 'complete' if ready else preparation if preparation in WAITING else 'waiting'},
         {'step': 3, 'name': STEPS[2], 'status': 'complete' if verified else verification},
         {'step': 4, 'name': STEPS[3], 'status': 'registered' if registered else 'pending'},
     ]
@@ -36,17 +36,32 @@ def progress(*, preparation='pending', verification='not_run', registered=False,
                 'Registration published; an explicit acceptance decision and durable archive are still required.')}
 
 
-def from_plan(plan):
+def from_plan(plan, *, registered=False):
     status = plan.get('status')
-    return progress(preparation='ready' if status in ('ready', 'passed') else 'pending',
-                    verification='verified' if status == 'passed' else 'not_run')
+    blocked = plan.get('blocked') or {}
+    proofs = list((plan.get('submissions') or {}).values())
+    preparation = 'ready' if status in ('ready', 'passed') else 'pending'
+    verification = 'verified' if status == 'passed' else 'not_run'
+    if status == 'failed' and any(p.get('machine_status') in ('passed', 'failed') or p.get('stages') for p in proofs):
+        preparation = 'ready'
+        verification = next((p.get('verification_status', 'failed') for p in proofs
+                             if p.get('verification_status') != 'verified'), 'failed')
+    if any(p.get('review_status') in ('pending', 'rejected', 'invalidated') for p in proofs):
+        preparation = 'waiting_review'
+    if blocked:
+        codes = [p.get('intake_status', p.get('status')) for p in blocked.values()]
+        preparation = next((code for code in codes if code in WAITING), 'pending')
+    value = progress(preparation=preparation, verification=verification, registered=registered)
+    value['blocked_candidates'] = sorted(blocked)
+    return value
 
 
-def write_summary(value, path=None):
+def write_summary(value, path=None, *, emit=True):
     if path:
-        Path(path).write_text(json.dumps(value, indent=2) + '\n', encoding='utf-8')
+        with Path(path).open('x', encoding='utf-8') as stream:
+            stream.write(json.dumps(value, indent=2) + '\n')
     summary = os.environ.get('GITHUB_STEP_SUMMARY')
-    if summary:
+    if summary and emit:
         with open(summary, 'a', encoding='utf-8') as stream:
             stream.write('## Candidate workflow\n\n')
             for step in value['steps']:

@@ -32,5 +32,5 @@ def write_result(path, identifier, proof):
         stream.write('\n')
     from .workflow import progress, write_summary
     write_summary(progress(preparation='ready' if value['review_status'] == 'approved' else 'pending',
-                           verification=value['verification_status']), path.with_name('workflow.json'))
+                           verification=value['verification_status']), path.with_name('workflow.json'), emit=False)
     return value

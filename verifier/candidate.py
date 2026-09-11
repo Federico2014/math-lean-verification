@@ -9,11 +9,12 @@ import re
 import subprocess
 import tempfile
 import threading
+import time
 from pathlib import Path
 
 from .merge_gate import GitHub
 from .registry import ID, RegistryError, read_json, require, safe_file, schema_validate
-from .registration import render, update
+from .registration import problem_identity, render, update
 from .workflow import from_plan
 
 MAX_BYTES = 128 * 1024**2
@@ -21,10 +22,10 @@ MAX_BYTES = 128 * 1024**2
 
 class Session(GitHub):
     """Use gh's authenticated transport without exposing or copying its token."""
-    def call(self, args, *, output=None):
+    def call(self, args, *, output=None, timeout_seconds=180):
         with tempfile.TemporaryFile() as errors:
             process = subprocess.Popen(['gh', 'api', *args], stdout=subprocess.PIPE, stderr=errors)
-            timeout = threading.Timer(180, process.kill)
+            timeout = threading.Timer(timeout_seconds, process.kill)
             timeout.start()
             data = bytearray()
             size = 0
@@ -36,7 +37,11 @@ class Session(GitHub):
                         output.write(block)
                     else:
                         data.extend(block)
-                require(process.wait(timeout=60) == 0, 'GitHub API request failed; inspect gh authentication and repository permissions')
+                if process.wait(timeout=60) != 0:
+                    errors.seek(0)
+                    match = re.search(rb'HTTP [0-9]{3}', errors.read(8192))
+                    detail = ' (' + match.group().decode() + ')' if match else ''
+                    raise RegistryError('GitHub API request failed' + detail + '; check endpoint access and gh authentication')
             finally:
                 timeout.cancel()
                 process.stdout.close()
@@ -67,8 +72,12 @@ class Session(GitHub):
         require(re.fullmatch(r'(actions/artifacts/[1-9][0-9]*/zip|releases/assets/[1-9][0-9]*)', path),
                 'Unexpected binary endpoint')
         with output.open('xb') as stream:
-            self.call(['repos/' + self.repository + '/' + path,
-                       '-H', 'Accept: application/octet-stream'], output=stream)
+            args = ['repos/' + self.repository + '/' + path]
+            # Artifact ZIP endpoints require the normal JSON API Accept header
+            # before redirecting; release assets require explicit binary media.
+            if path.startswith('releases/assets/'):
+                args += ['-H', 'Accept: application/octet-stream']
+            self.call(args, output=stream, timeout_seconds=600)
 
     def upload(self, release_id, path):
         require(isinstance(release_id, int) and release_id > 0, 'Invalid release ID')
@@ -77,7 +86,7 @@ class Session(GitHub):
                 'Invalid publication asset')
         endpoint = f'https://uploads.github.com/repos/{self.repository}/releases/{release_id}/assets?name={path.name}'
         return json.loads(self.call([endpoint, '--method', 'POST', '-H',
-                                    'Content-Type: application/octet-stream', '--input', str(path)]))
+                                    'Content-Type: application/octet-stream', '--input', str(path)], timeout_seconds=600))
 
 
 def target(api):
@@ -104,7 +113,7 @@ def decode(data):
 
 def snapshot(api, branch, base):
     tree = api.tree(base)
-    registry = {'candidates': {}, 'submissions': {}}
+    registry = {'candidates': {}, 'submissions': {}, 'problems': {}, 'intake_mappings': {}}
     for path, item in tree.items():
         if re.fullmatch(r'candidates/[^/]+\.json', path):
             identifier = Path(path).stem
@@ -112,6 +121,14 @@ def snapshot(api, branch, base):
             value = decode(api.blob(item))
             schema_validate('candidate', value)
             registry['candidates'][identifier] = value
+        elif re.fullmatch(r'problems/[^/]+/[^/]+/problem\.json', path):
+            value = decode(api.blob(item))
+            schema_validate('problem', value)
+            registry['problems'][value['problem_id'], value['statement_version']] = value
+        elif re.fullmatch(r'intake-mappings/[^/]+\.json', path):
+            value = decode(api.blob(item))
+            schema_validate('intake-mapping', value)
+            registry['intake_mappings'][Path(path).stem] = value
         elif re.fullmatch(r'submissions/[^/]+/[^/]+\.json', path):
             value = decode(api.blob(item))
             schema_validate('submission', value)
@@ -133,8 +150,12 @@ def open_change(api, branch, base, files, *, title, body, prefix):
     ref = prefix + '-' + base[:12] + '-' + identity
     require(bool(re.fullmatch(r'[a-z0-9/-]+', ref)), 'Invalid change branch')
     for pr in api.pages('pulls?state=open&base=' + branch):
-        if pr['head']['ref'] == ref and pr['head']['repo']['full_name'] == api.repository:
-            return {'pr': pr['number'], 'url': pr['html_url'], 'status': 'already_open'}
+        if pr['head']['ref'] == ref and (pr['head'].get('repo') or {}).get('full_name') == api.repository:
+            paths = {f['filename'] for f in api.pages(f"pulls/{pr['number']}/files")}
+            tree = api.tree(pr['head']['sha'])
+            require(paths == set(files) and all(api.blob(tree[p]) == data.encode('utf-8')
+                    for p, data in files.items()), 'Existing workflow PR materials changed; review it explicitly')
+            return {'pr': pr['number'], 'url': pr['html_url'], 'head_sha': pr['head']['sha'], 'status': 'already_open'}
     parent = api.get('git/commits/' + base)
     entries = []
     for path, content in sorted(files.items()):
@@ -147,7 +168,7 @@ def open_change(api, branch, base, files, *, title, body, prefix):
     api.request('git/refs', {'ref': 'refs/heads/' + ref, 'sha': commit['sha']})
     current(api, branch, base)
     pr = api.request('pulls', {'title': title, 'body': body, 'head': ref, 'base': branch})
-    return {'pr': pr['number'], 'url': pr['html_url'], 'status': 'opened'}
+    return {'pr': pr['number'], 'url': pr['html_url'], 'head_sha': commit['sha'], 'status': 'opened'}
 
 
 def submit(api, identifier, file, bridge=None, *, dry_run=False):
@@ -165,8 +186,12 @@ def submit(api, identifier, file, bridge=None, *, dry_run=False):
         relative_path(value['bridge'])
         files['proofs/' + identifier + '/' + value['bridge']] = safe_file(bridge.parent, bridge.name).read_text(encoding='utf-8')
     branch, base = target(api)
+    existing = api.tree(base)
+    require('candidates/' + identifier + '.json' not in existing and not any(
+        p.startswith('submissions/') and p.endswith('/' + identifier + '.json') for p in existing),
+        'Candidate ID is already registered; use an explicit reviewed update PR')
     if dry_run:
-        return {'step': 1, 'base': branch, 'files': sorted(files), 'status': 'preview'}
+        return {'step': 1, 'branch': branch, 'base': base, 'files': sorted(files), 'status': 'preview'}
     return open_change(api, branch, base, files, prefix='candidate/' + identifier,
                        title='feat: submit ' + identifier,
                        body='Submit the fixed candidate materials. Trusted CI prepares prerequisites and verifies the proof.\n\n'
@@ -200,10 +225,11 @@ def verify(api, number):
             'url': f'https://github.com/{api.repository}/pull/{number}/checks'}
 
 
-def merge(api, number):
+def merge(api, number, expected_head=None):
     require(number > 0, 'Invalid PR number')
     pr = api.get('pulls/' + str(number))
     branch, base = target(api)
+    require(expected_head is None or pr['head']['sha'] == expected_head, 'PR head changed while waiting for publication')
     require(pr['base']['ref'] == branch and pr['base']['repo']['full_name'] == api.repository,
             'Publication requires the protected default branch')
     if pr.get('merged'):
@@ -217,9 +243,30 @@ def merge(api, number):
     return api.get('pulls/' + str(number))
 
 
-def publish(api, identifier, *, pr=None, approval=None, release_tag=None):
+def complete_publication(api, result, wait_seconds):
+    require(0 <= wait_seconds <= 1800, 'Publication wait must be between 0 and 1800 seconds')
+    if not wait_seconds:
+        return result
+    deadline = time.monotonic() + wait_seconds
+    while True:
+        pr = api.get('pulls/' + str(result['pr']))
+        require(pr['head']['sha'] == result['head_sha'], 'Publication PR head changed; review it explicitly')
+        if pr.get('merged'):
+            return dict(result, status='synchronized', next_action='Revalidation and catalog publication run automatically.')
+        require(pr['state'] == 'open', 'Publication PR was closed without merging')
+        if pr.get('mergeable_state') == 'clean':
+            merge(api, result['pr'], expected_head=result['head_sha'])
+            return dict(result, status='synchronized', next_action='Revalidation and catalog publication run automatically.')
+        if time.monotonic() >= deadline:
+            return dict(result, status='waiting_checks_or_review')
+        time.sleep(min(10, max(0, deadline - time.monotonic())))
+
+
+def publish(api, identifier, *, pr=None, approval=None, release_tag=None, wait_seconds=0):
     require(bool(ID.fullmatch(identifier)) and len(identifier) <= 80, 'Invalid candidate ID')
     require(not (approval and release_tag), 'Select either a new approval or an existing acceptance release')
+    require(pr is None or pr > 0, 'Invalid PR number')
+    require(0 <= wait_seconds <= 1800, 'Publication wait must be between 0 and 1800 seconds')
     if pr:
         # Do not merge an unrelated maintenance/candidate PR via this entrypoint.
         paths = [x['filename'] for x in api.pages(f'pulls/{pr}/files')]
@@ -230,20 +277,18 @@ def publish(api, identifier, *, pr=None, approval=None, release_tag=None):
     branch, base = target(api)
     registry, publications, readme = snapshot(api, branch, base)
     require(identifier in registry['candidates'], 'Candidate is not registered on the default branch')
-    if approval:
-        require(not any(p['candidate_id'] == identifier for p in publications['publications']),
-                'An acceptance is already indexed; use its release tag or a reviewed version change')
+    old = next((p for p in publications['publications'] if p['candidate_id'] == identifier), None)
     if approval or release_tag:
         from .acceptance import accept, import_release
-        entry = (accept(api, registry['candidates'][identifier], identifier, approval, branch, base)
-                 if approval else import_release(api, registry['candidates'][identifier], identifier, release_tag))
-        old = next((p for p in publications['publications'] if p['candidate_id'] == identifier), None)
+        identity = problem_identity(registry, identifier)
+        entry = (accept(api, registry['candidates'][identifier], identifier, approval, branch, base, prior=old, identity=identity)
+                 if approval else import_release(api, registry['candidates'][identifier], identifier, release_tag, identity=identity))
         require(old is None or old == entry, 'Existing acceptance reference is immutable; use a reviewed version change')
         if old is None:
             publications['publications'].append(entry)
     from .catalog import publication_history
-    publication_history(api, publications)
-    generated = update(readme, render(registry, publications, api.repository))
+    verified = publication_history(api, publications)
+    generated = update(readme, render(registry, publications, api.repository, verified=verified))
     files = {}
     original_publications = decode(api.blob(api.tree(base)['docs/acceptance-publications.json']))
     if publications != original_publications:
@@ -257,7 +302,8 @@ def publish(api, identifier, *, pr=None, approval=None, release_tag=None):
                              body='Generate the registration summary and any validated immutable administrator acceptance reference.\n\n'
                                   'The candidate is already registered. Required checks and normal branch review still apply. '
                                   'Live machine status is separate from historical acceptance. No source, policy or verifier changes.')
-        result['next_action'] = 'Merge this publication PR after required checks; rerun publish to confirm synchronization.'
+        result['next_action'] = 'Required publication checks/review are pending; rerun publish to resume.'
+        result = complete_publication(api, result, wait_seconds)
     else:
         result = {'status': 'synchronized'}
     result.update(step=4, registered=True,

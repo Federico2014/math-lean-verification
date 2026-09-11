@@ -6,9 +6,9 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
-from verifier.candidate import merge, open_change, prepare, publish, submit, verify
-from verifier.registration import END, START, render, update
-from verifier.registry import RegistryError
+from verifier.candidate import Session, complete_publication, merge, open_change, prepare, publish, submit, verify
+from verifier.registration import END, START, problem_identity, render, update
+from verifier.registry import RegistryError, canonical_digest
 from verifier.workflow import from_plan, progress
 
 
@@ -37,6 +37,23 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(value['steps'][3]['status'], 'pending')
         self.assertEqual(value['formal_status'], 'pending')
 
+    def test_blocker_classifications_and_mixed_plans_remain_visible(self):
+        for code in ('needs_information', 'waiting_problem', 'waiting_review', 'waiting_environment', 'needs_adaptation'):
+            self.assertEqual(progress(preparation=code)['steps'][1]['status'], code)
+        value = from_plan({'status': 'ready', 'blocked': {'waiting': {'intake_status': 'waiting_environment'}}})
+        self.assertEqual(value['current_step'], 2)
+        self.assertEqual(value['steps'][1]['status'], 'waiting_environment')
+        self.assertEqual(value['blocked_candidates'], ['waiting'])
+
+    def test_executed_failure_is_verification_failure_and_pass_reaches_publication(self):
+        proof = {'machine_status': 'failed', 'verification_status': 'failed', 'review_status': 'approved'}
+        value = from_plan({'status': 'failed', 'submissions': {'example': proof}})
+        self.assertEqual(value['current_step'], 3)
+        self.assertEqual(value['steps'][2]['status'], 'failed')
+        self.assertEqual(from_plan({'status': 'passed'}, registered=True)['current_step'], 4)
+        proof.update(machine_status='passed', verification_status='review_pending', review_status='pending')
+        self.assertEqual(from_plan({'status': 'failed', 'submissions': {'example': proof}})['current_step'], 2)
+
     def test_ready_plan_is_not_a_proof_pass(self):
         value = from_plan({'status': 'ready'})
         self.assertEqual(value['current_step'], 3)
@@ -64,6 +81,7 @@ class OperatorTests(unittest.TestCase):
             self.fail('Unexpected read: ' + path)
         self.api.get.side_effect = get
         self.api.pages.return_value = []
+        self.api.tree.return_value = {}
         def request(path, data=None, method=None):
             if path == 'git/trees': return {'sha': 'e'*40}
             if path == 'git/commits': return {'sha': 'f'*40}
@@ -76,6 +94,15 @@ class OperatorTests(unittest.TestCase):
             self.fail('Unexpected write: ' + path)
         self.api.request.side_effect = request
 
+    def test_binary_endpoints_use_their_required_accept_headers(self):
+        session = Session('example/registry')
+        with patch.object(session, 'call') as call:
+            session.download('actions/artifacts/20/zip', self.root / 'artifact.zip')
+            self.assertEqual(call.call_args.args[0], ['repos/example/registry/actions/artifacts/20/zip'])
+            session.download('releases/assets/30', self.root / 'asset.zip')
+            self.assertEqual(call.call_args.args[0][-2:], ['-H', 'Accept: application/octet-stream'])
+            with self.assertRaises(RegistryError): session.download('https://attacker.invalid', self.root / 'bad')
+
     def test_submit_opens_one_pr_containing_only_candidate_materials(self):
         result = submit(self.api, 'test-candidate', self.file)
         self.assertEqual(result['pr'], 12)
@@ -85,6 +112,23 @@ class OperatorTests(unittest.TestCase):
         pr = self.api.request.call_args_list[-1].args[1]
         self.assertEqual(pr['base'], 'develop')
         self.assertTrue(pr['head'].startswith('candidate/test-candidate-'))
+
+    def test_submit_rejects_existing_candidate_and_legacy_ids_before_writes(self):
+        for path in ('candidates/test-candidate.json', 'submissions/test-problem/test-candidate.json'):
+            self.api.tree.return_value = {path: {}}
+            with self.assertRaisesRegex(RegistryError, 'already registered'):
+                submit(self.api, 'test-candidate', self.file)
+            self.api.request.assert_not_called()
+        self.api.tree.return_value = {}
+        preview = submit(self.api, 'test-candidate', self.file, dry_run=True)
+        self.assertEqual(preview['base'], self.base)
+        self.assertEqual(preview['branch'], 'develop')
+
+    def test_invalid_publication_pr_and_wait_values_fail_before_api_access(self):
+        for options in ({'pr': 0}, {'pr': -1}, {'wait_seconds': -1}, {'wait_seconds': 1801}):
+            with self.assertRaises(RegistryError): publish(self.api, 'test-candidate', **options)
+        self.api.get.assert_not_called()
+        self.api.request.assert_not_called()
 
     def test_submit_preview_and_invalid_inputs_never_write(self):
         self.assertEqual(submit(self.api, 'test-candidate', self.file, dry_run=True)['status'], 'preview')
@@ -136,6 +180,23 @@ class OperatorTests(unittest.TestCase):
         merge(self.api, 12)
         self.api.request.assert_not_called()
 
+    def test_publication_completion_merges_only_the_generated_head_after_checks(self):
+        value = {'pr': 12, 'head_sha': 'c'*40, 'status': 'opened'}
+        self.assertEqual(complete_publication(self.api, value, 1)['status'], 'synchronized')
+        self.assertTrue(self.pr['merged'])
+        self.pr.update(merged=False, head={'sha': 'd'*40})
+        self.api.request.reset_mock()
+        with self.assertRaisesRegex(RegistryError, 'head changed'):
+            complete_publication(self.api, value, 1)
+        self.api.request.assert_not_called()
+
+    def test_publication_wait_never_bypasses_pending_checks(self):
+        self.pr['mergeable_state'] = 'blocked'
+        with patch('verifier.candidate.time.monotonic', side_effect=[0, 2]):
+            value = complete_publication(self.api, {'pr': 12, 'head_sha': 'c'*40}, 1)
+        self.assertEqual(value['status'], 'waiting_checks_or_review')
+        self.api.request.assert_not_called()
+
     def test_closed_or_blocked_pr_cannot_merge(self):
         for state, mergeable in [('closed', 'clean'), ('open', 'blocked'), ('open', 'behind')]:
             self.pr.update(state=state, mergeable_state=mergeable)
@@ -148,7 +209,7 @@ class OperatorTests(unittest.TestCase):
             publish(self.api, 'test-candidate', pr=12)
         self.api.request.assert_not_called()
 
-    def test_publish_generates_both_registration_and_acceptance_without_mutating_records(self):
+    def test_publish_generates_registration_without_acceptance_or_record_changes(self):
         registry = {'candidates': {'test-candidate': candidate()}, 'submissions': {}}
         publications = {'schema_version': 1, 'publications': []}
         readme = 'Intro\n' + START + '\nold\n' + END + '\nUser notes\n'
@@ -191,3 +252,30 @@ class RegistrationTests(unittest.TestCase):
     def test_missing_repeated_or_reversed_markers_fail_closed(self):
         for readme in ('No marker', START + START + END, END + START):
             with self.assertRaises(RegistryError): update(readme, 'table')
+
+    def test_inline_problem_requires_exact_nonstale_protected_mapping(self):
+        value = candidate()
+        del value['problem_id']
+        del value['statement_version']
+        value['problem'] = {'title': 'Synthetic', 'source_url': 'https://example.org/problem', 'scope': 'Synthetic only'}
+        registry = {'candidates': {'example': value}}
+        with self.assertRaises(RegistryError): problem_identity(registry, 'example')
+        mapping = {'schema_version': 1, 'candidate_digest': canonical_digest(value),
+                   'problem_id': 'test-problem', 'statement_version': 'v1'}
+        registry['intake_mappings'] = {'example': mapping}
+        self.assertEqual(problem_identity(registry, 'example'), ('test-problem', 'v1'))
+        value['title'] = 'Changed candidate'
+        with self.assertRaisesRegex(RegistryError, 'Stale'): problem_identity(registry, 'example')
+
+    def test_unverified_publication_references_cannot_render_accepted(self):
+        entry = {'candidate_id': 'example', 'problem_id': 'test-problem', 'statement_version': 'v1',
+                 'accepted_on': '2026-09-11', 'administrator': 'maintainer', 'source_commit': 'a'*40,
+                 'verifier_sha': 'b'*40, 'release_id': 5, 'release_tag': 'acceptance-example',
+                 'archive_commit': 'c'*40, 'record_sha256': 'd'*64}
+        publications = {'schema_version': 1, 'publications': [entry]}
+        registry = {'candidates': {'example': candidate()}, 'submissions': {}}
+        with self.assertRaisesRegex(RegistryError, 'Verify immutable'):
+            render(registry, publications, 'example/registry')
+        with self.assertRaises(RegistryError):
+            render(registry, publications, 'example/registry', verified={'example': dict(entry, record_sha256='0'*64)})
+        self.assertIn('Administrator accepted', render(registry, publications, 'example/registry', verified={'example': entry}))

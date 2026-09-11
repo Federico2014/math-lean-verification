@@ -14,6 +14,7 @@ import re
 
 from .merge_gate import GitHub
 from .workflow import progress
+from .registration import problem_identity
 from .registry import read_json, require, safe_file, schema_validate, validate_registry, ROOT
 from .revalidate import protected_default_branch, revision
 
@@ -94,7 +95,7 @@ def build(api, registry, base, publications=None):
     def job_snapshot(jobs):
         return sorted((j['name'], j.get('id'), j['status'], j['conclusion'],
                        tuple((s['name'], s['status'], s['conclusion']) for s in j.get('steps', [])))
-                      for j in jobs if j['name'].startswith('Verify candidate '))
+                      for j in jobs if j['name'].startswith('Verify candidate ') or j['name'] == 'summary')
     selected = {}
     entries = dict(registry['submissions'], **registry.get('candidates', {}))
     cache, rows = {}, []
@@ -107,8 +108,9 @@ def build(api, registry, base, publications=None):
                'evidence_url': None}
         if identifier in history:
             acceptance = history[identifier]
-            require(candidate.get('problem_id', acceptance['problem_id']) == acceptance['problem_id']
-                    and candidate.get('statement_version', acceptance['statement_version']) == acceptance['statement_version'],
+            statement_identity = (problem_identity(registry, identifier) if identifier in registry.get('candidates', {})
+                        else (candidate['problem_id'], candidate['statement_version']))
+            require(statement_identity == (acceptance['problem_id'], acceptance['statement_version']),
                     'Acceptance publication refers to a different registered problem')
             row['acceptance_history'] = acceptance
             row['formal_status'] = 'accepted_historical'
