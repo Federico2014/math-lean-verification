@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-09-11T03:14:07.005083+00:00",
+  "release_id": 386761682,
+  "release_state_during_readback": "draft",
+  "git_backup_commit": "ab74d3ba19a2f1540652f971014fee6a0077915d",
+  "release_asset_bytes_verified": true,
+  "git_backup_recovery_verified": true,
+  "sealed_manifest_entries_verified": 35,
+  "files": {
+    "artifact-metadata.json": "6bf6e42f1000a6606dec0f5b8bc9a641bc4f9944d2dcc1060e7e1b5e14fdbe3a",
+    "acceptance.json": "85bc1f15c8a3ff10dcc445d5a8e03051c6c84ec1ec8725711bace7c1be4f3e3a",
+    "verifier-source-8c6a0b0.zip": "482fa1589e05ee065380626db48ad4d37ceb6a8ee3a438594157195bb5dc0228",
+    "README.md": "55471238937089ac02970b86c18935a910521f73337a6e8c21bb227fa3f8935b",
+    "candidate-source-ffba3523.zip": "8c8e1024169578c161373b31f34f9b0f705b75271e874e2c6755c3fac09cc106",
+    "f55f1f64fff9051c104f53a98821d217586d01f17d8c1d52c7ee1958d8f57ddc.zip": "f55f1f64fff9051c104f53a98821d217586d01f17d8c1d52c7ee1958d8f57ddc",
+    "LICENSE-candidate.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "verification-result.json": "2b5cf3380f1662e79d87a2d62f8b6326da7a398b6335263b19ed0415fe21eb0e",
+    "SHA256SUMS": "43cc96aa3df0dcfc4e00ebb9dbe6c57d4c889fc7dd1fbff6c59de983db404aab",
+    "run.json": "18999ff46f2bae3d9b592e8d79f53d08dad3937a9306a6d7e3c91f24648f4974",
+    "jobs.json": "0fc327db33932755114b16ec8cd518ea3fbe7375ed201ada54c2f9fc4fa331ec",
+    "evidence-audit.json": "9cf2ff2f13a0499013e53514999b38b75c6d5e2d15b9ebe228ffab293c21d1fc"
+  },
+  "method": "Downloaded all 12 original release assets and restored the archival Git commit via a separate GitHub zipball download; compared SHA-256 of every file against the local publication and verified every sealed evidence manifest entry."
+}
