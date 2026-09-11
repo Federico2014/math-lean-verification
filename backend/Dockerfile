@@ -4,6 +4,7 @@ RUN apt-get -o Acquire::Retries=5 -o APT::Update::Error-Mode=any update && apt-g
 RUN git clone https://github.com/ammkrn/nanoda_lib /build/nanoda && cd /build/nanoda && git checkout 05055695879dfebb6628a67da88ceca6cd6b0421 && cargo build --release --locked
 
 FROM ubuntu:24.04@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517
+COPY ubuntu.sources /etc/apt/sources.list.d/ubuntu.sources
 COPY ubuntu-packages.lock /tmp/ubuntu-packages.lock
 RUN apt-get -o Acquire::Retries=5 -o APT::Update::Error-Mode=any update && xargs -r apt-get -o Acquire::Retries=5 install -y --no-install-recommends < /tmp/ubuntu-packages.lock && dpkg-query -W -f='${binary:Package}=${Version}\n' | LC_ALL=C sort > /tmp/installed-packages.lock && diff -u /tmp/ubuntu-packages.lock /tmp/installed-packages.lock && rm -rf /var/lib/apt/lists/*
 RUN curl --fail --location --retry 5 https://github.com/leanprover/lean4/releases/download/v4.34.0-rc2/lean-4.34.0-rc2-linux.tar.zst -o /tmp/lean.tar.zst && echo '3d011041203acacf300d343a39673f7d233743397993797c941346ae9e5df1a8  /tmp/lean.tar.zst' | sha256sum --check && mkdir /opt/lean && tar --zstd -xf /tmp/lean.tar.zst --strip-components=1 -C /opt/lean && rm /tmp/lean.tar.zst
