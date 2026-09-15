@@ -30,7 +30,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
         run: python -m verifier.catalog --output "$RUNNER_TEMP/site"
-      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
         with:
           path: ${{ runner.temp }}/site
   deploy:
