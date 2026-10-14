@@ -81,7 +81,7 @@ jobs:
           PR_NUMBER: ${{ needs.resolve.outputs.pr }}
           PR_HEAD: ${{ needs.resolve.outputs.head }}
         run: python -m verifier.merge_gate --repository "$GITHUB_REPOSITORY" --pr "$PR_NUMBER" --head "$PR_HEAD" --check-only --output "$RUNNER_TEMP/precheck"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: lean-plan-${{ needs.resolve.outputs.head }}
@@ -124,7 +124,7 @@ jobs:
       - name: Seal and read back diagnostic evidence
         if: always()
         run: python -m verifier.evidence seal "$RUNNER_TEMP/proof-evidence" --output "$RUNNER_TEMP/evidence-archive"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: lean-evidence-${{ matrix.submission }}-${{ needs.resolve.outputs.head }}

@@ -43,7 +43,7 @@ jobs:
           args=()
           if [ -n "$SELECTED_SUBMISSION" ]; then args+=(--submission "$SELECTED_SUBMISSION"); fi
           python -m verifier.revalidate --revision "$GITHUB_SHA" --plan "${args[@]}" --output "$RUNNER_TEMP/revalidation-plan"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: revalidation-plan-${{ github.sha }}-${{ github.run_attempt }}
@@ -80,7 +80,7 @@ jobs:
         run: python -m verifier.revalidate --revision "$GITHUB_SHA" --submission "$SUBMISSION_ID" --images "$RUNNER_TEMP/images.json" --output "$RUNNER_TEMP/revalidation"
       - if: always()
         run: python -m verifier.evidence seal "$RUNNER_TEMP/revalidation" --output "$RUNNER_TEMP/sealed"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: revalidation-${{ matrix.submission }}-${{ github.sha }}-${{ github.run_attempt }}
